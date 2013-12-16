@@ -18,6 +18,8 @@ type CMC = Word8
 
 data Color = White | Blue | Black | Red | Green
 
-data Colors a = Colors a | Colorless
+data Colors a where
+   Colorless :: Colors a
+   Colors :: [Color] -> Colors [Color]
 
 main = return ()
