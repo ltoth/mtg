@@ -256,4 +256,10 @@ debugSet =  eitherDecode <$> L.readFile "THS.json"
 getSet :: IO (Maybe CardSet)
 getSet =  decode <$> L.readFile "THS.json"
 
+
+filterCards p = (map name . filter p) <$> getCards
+
+p1 = (\c -> rarity c == MythicRare && cmc c == Just 5)
+foo = filterCards p1
+
 main = return ()
