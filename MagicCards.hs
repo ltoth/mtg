@@ -27,8 +27,14 @@ type Names = [Name]
 
 type ManaCost = [ManaSymbol]
 instance FromJSON ManaCost where
-    parseJSON (String s) = return . map toManaSymbol $
-      wordsBy (\c -> c == '{' || c == '}') (T.unpack s)
+    parseJSON (String s) = return . stringToManaCost $ T.unpack s
+    parseJSON _ = fail "Could not parse mana cost"
+
+-- TODO: Should this be a custom instance of Read instead?
+-- We'd have to implement readsPrec
+stringToManaCost :: String -> ManaCost
+stringToManaCost s = map toManaSymbol $
+      wordsBy (\c -> c == '{' || c == '}') s
       where toManaSymbol m = case m of
                                "W" -> W
                                "U" -> U
@@ -42,8 +48,6 @@ instance FromJSON ManaCost where
                                -- TODO: Add hybrid and phyrexian cases
                                -- FIXME: Catch no parse exception
                                _ -> CL $ read m
-    parseJSON _ = fail "Could not parse mana cost"
-
 
 data ManaSymbol = W | U | B | R | G | S | CL Word8 | X | Y | Z
                   | GW | WU | RW | WB | UB | GU | UR | BR | BG | RG
@@ -195,11 +199,5 @@ instance FromJSON Card where
 
 getCards :: IO (Either String [Card])
 getCards =  eitherDecode <$> L.readFile "test2.json"
-
-getLayout :: IO (Either String [Layout])
-getLayout =  eitherDecode <$> L.readFile "test.json"
-
-getManaCost :: IO (Either String [ManaCost])
-getManaCost =  eitherDecode <$> L.readFile "test3.json"
 
 main = return ()
