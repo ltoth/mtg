@@ -248,14 +248,17 @@ instance FromJSON CardSet where
     parseJSON _ = fail "Could not parse card set"
 
 getCards :: IO [Card]
-getCards =  fromMaybe [] . decode <$> L.readFile "test2.json"
+getCards = do
+    maybeSet <- getSet
+    case maybeSet of
+      Just set -> return $ cards set
+      Nothing -> fail "Could not get cards"
 
 debugSet :: IO (Either String CardSet)
 debugSet =  eitherDecode <$> L.readFile "THS.json"
 
 getSet :: IO (Maybe CardSet)
 getSet =  decode <$> L.readFile "THS.json"
-
 
 filterCards p = (map name . filter p) <$> getCards
 
