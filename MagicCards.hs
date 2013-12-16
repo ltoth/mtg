@@ -45,7 +45,17 @@ stringToManaCost s = map toManaSymbol $
                                "X" -> X
                                "Y" -> Y
                                "Z" -> Z
-                               -- TODO: Add hybrid and phyrexian cases
+                               "G/W" -> GW
+                               "W/U" -> WU
+                               "R/W" -> RW
+                               "W/B" -> WB
+                               "U/B" -> UB
+                               "G/U" -> GU
+                               "U/R" -> UR
+                               "B/R" -> BR
+                               "B/G" -> BG
+                               "R/G" -> RG
+                               -- TODO: Add phyrexian cases
                                -- FIXME: Catch no parse exception
                                _ -> CL $ read m
 
@@ -255,10 +265,10 @@ getCards = do
       Nothing -> fail "Could not get cards"
 
 debugSet :: IO (Either String CardSet)
-debugSet =  eitherDecode <$> L.readFile "THS.json"
+debugSet =  eitherDecode <$> L.readFile setFile
 
 getSet :: IO (Maybe CardSet)
-getSet =  decode <$> L.readFile "THS.json"
+getSet =  decode <$> L.readFile setFile
 
 filterCards :: (Card -> Bool) -> IO [Card]
 filterCards p = filter p <$> getCards
@@ -267,5 +277,7 @@ p1 = (\c -> rarity c == MythicRare && cmc c == Just 5)
 p2 = (\c -> R `elem` fromMaybe [] (manaCost c))
 p3 = (\c -> Legendary `elem` fromMaybe [] (supertypes c))
 foo = map name <$> filterCards p1
+
+setFile = "RTR.json"
 
 main = return ()
