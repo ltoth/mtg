@@ -60,7 +60,12 @@ stringToManaCost s = map toManaSymbol $
                                "2/B" -> B2
                                "2/R" -> R2
                                "2/G" -> G2
-                               -- TODO: Add phyrexian cases
+                               "P/W" -> WP
+                               "P/U" -> UP
+                               "P/B" -> BP
+                               "P/R" -> RP
+                               "P/G" -> GP
+                               "P" -> P
                                -- FIXME: Catch no parse exception
                                _ -> CL $ read m
 
@@ -283,6 +288,6 @@ p2 = (\c -> R `elem` fromMaybe [] (manaCost c))
 p3 = (\c -> Legendary `elem` fromMaybe [] (supertypes c))
 foo = map name <$> filterCards p1
 
-setFile = "SHM.json"
+setFile = "NPH.json"
 
 main = return ()
