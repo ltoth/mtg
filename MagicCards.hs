@@ -172,7 +172,7 @@ data Card = Card
           , cardNumber :: CardNumber
           , imageName :: ImageName
           , watermark :: Maybe Watermark
-          , border :: Maybe Border
+          , cardBorder :: Maybe Border
           } deriving (Show)
 instance FromJSON Card where
     parseJSON (Object v) = Card <$>
@@ -197,7 +197,63 @@ instance FromJSON Card where
                            v .:? "border"
     parseJSON _ = fail "Could not parse card"
 
-getCards :: IO (Either String [Card])
-getCards =  eitherDecode <$> L.readFile "test2.json"
+type SetName = String
+type SetCode = String
+
+-- TODO: Should be UTCTime or something?
+type SetRelease = String
+
+data SetType = Core | Expansion | Reprint | Box | Un | FromTheVault
+               | PremiumDeck | DuelDeck | Starter | Commander
+               | Planechase | Archenemy | Promo
+              deriving (Show, Generic)
+instance FromJSON SetType where
+    parseJSON (String s)
+      | s == "core" = return Core
+      | s == "expansion" = return Expansion
+      | s == "reprint" = return Reprint
+      | s == "box" = return Box
+      | s == "un" = return Un
+      | s == "from the vault" = return FromTheVault
+      | s == "premium deck" = return PremiumDeck
+      | s == "duel deck" = return DuelDeck
+      | s == "starter" = return Starter
+      | s == "commander" = return Commander
+      | s == "planechase" = return Planechase
+      | s == "archenemy" = return Archenemy
+      | s == "promo" = return Promo
+      | otherwise = fail "Invalid set type specified"
+    parseJSON _ = fail "Could not parse set type"
+
+type SetBlock = String
+
+data CardSet = CardSet
+             { setName :: SetName
+             , code :: SetCode
+             , release :: SetRelease
+             , border :: Border
+             , setType :: SetType
+             , block :: Maybe SetBlock
+             , cards :: [Card]
+             } deriving (Show)
+instance FromJSON CardSet where
+    parseJSON (Object v) = CardSet <$>
+                           v .: "name" <*>
+                           v .: "code" <*>
+                           v .: "releaseDate" <*>
+                           v .: "border" <*>
+                           v .: "type" <*>
+                           v .:? "block" <*>
+                           v .: "cards"
+    parseJSON _ = fail "Could not parse card set"
+
+getCards :: IO [Card]
+getCards =  fromMaybe [] . decode <$> L.readFile "test2.json"
+
+debugSet :: IO (Either String CardSet)
+debugSet =  eitherDecode <$> L.readFile "THS.json"
+
+getSet :: IO (Maybe CardSet)
+getSet =  decode <$> L.readFile "THS.json"
 
 main = return ()
