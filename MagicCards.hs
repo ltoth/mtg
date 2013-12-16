@@ -10,7 +10,7 @@ import Data.Word (Word8)
 import GHC.Generics
 
 data Layout = Normal | Split | Flip | DoubleFaced | Token
-              deriving (Show, Generic)
+              deriving (Show, Eq)
 instance FromJSON Layout where
     parseJSON (String s)
       | s == "normal" = return Normal
@@ -52,13 +52,13 @@ stringToManaCost s = map toManaSymbol $
 data ManaSymbol = W | U | B | R | G | S | CL Word8 | X | Y | Z
                   | GW | WU | RW | WB | UB | GU | UR | BR | BG | RG
                   | W2 | U2 | B2 | R2 | G2 | WP | UP | BP | RP | GP | P
-                  deriving (Show)
+                  deriving (Show, Eq)
 
 -- FIXME: This really should support decimals, because of Unhinged
 type CMC = Word8
 
 data Color = White | Blue | Black | Red | Green
-             deriving (Show, Generic)
+             deriving (Show, Eq)
 instance FromJSON Color where
     parseJSON (String s)
       | s == "White" = return White
@@ -75,7 +75,7 @@ type TypeLine = String
 
 -- FIXME: There might be more possible values
 data Supertype = Basic | Legendary | Snow | World | Tribal
-                 deriving (Show, Generic)
+                 deriving (Show, Eq)
 instance FromJSON Supertype where
     parseJSON (String s)
       | s == "Basic" = return Basic
@@ -90,7 +90,7 @@ type Supertypes = [Supertype]
 
 data Type = Instant | Sorcery | Artifact | Creature | Enchantment
             | Land | Planeswalker
-            deriving (Show, Generic)
+            deriving (Show, Eq)
 instance FromJSON Type where
     parseJSON (String s)
       | s == "Instant" = return Instant
@@ -110,7 +110,7 @@ type Subtype = String
 type Subtypes = [Subtype]
 
 data Rarity = Common | Uncommon | Rare | MythicRare | BasicLand
-              deriving (Show, Generic)
+              deriving (Show, Eq)
 instance FromJSON Rarity where
     parseJSON (String s)
       | s == "Common" = return Common
@@ -144,7 +144,7 @@ type ImageName = String
 type Watermark = String
 
 data Border = BlackBorder | WhiteBorder | SilverBorder
-              deriving (Show, Generic)
+              deriving (Show, Eq)
 instance FromJSON Border where
     parseJSON (String s)
       | s == "black" = return BlackBorder
@@ -206,7 +206,7 @@ type SetRelease = String
 data SetType = Core | Expansion | Reprint | Box | Un | FromTheVault
                | PremiumDeck | DuelDeck | Starter | Commander
                | Planechase | Archenemy | Promo
-              deriving (Show, Generic)
+              deriving (Show, Eq)
 instance FromJSON SetType where
     parseJSON (String s)
       | s == "core" = return Core
