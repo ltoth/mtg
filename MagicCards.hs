@@ -275,7 +275,7 @@ instance FromJSON CardSet where
     parseJSON _ = fail "Could not parse card set"
 
 getCards :: IO (Maybe [Card])
-getCards = return . (cards <$>) =<< getSet
+getCards = getSet >>= return . (cards <$>)
 
 debugSet :: IO (Either String CardSet)
 debugSet =  eitherDecode <$> L.readFile setFile
@@ -283,13 +283,13 @@ debugSet =  eitherDecode <$> L.readFile setFile
 getSet :: IO (Maybe CardSet)
 getSet =  decode <$> L.readFile setFile
 
-filterCards :: (Card -> Bool) -> IO (Maybe [Card])
-filterCards p = getCards >>= return . (filter p <$>)
+filterCards :: (Card -> Bool) -> IO [Card]
+filterCards p = getCards >>= return . (filter p) . (fromMaybe [])
 
 p1 = (\c -> rarity c == MythicRare && cmc c == Just 5)
 p2 = (\c -> R `elem` fromMaybe [] (manaCost c))
 p3 = (\c -> Legendary `elem` fromMaybe [] (supertypes c))
-foo = map name <$$> filterCards p1
+foo = map name <$> filterCards p1
 
 (<$$>) = fmap . fmap
 
