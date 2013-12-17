@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveGeneric, FlexibleInstances, OverloadedStrings, TypeSynonymInstances #-}
+{-# LANGUAGE DeriveGeneric, FlexibleInstances, OverloadedStrings, TypeSynonymInstances, NoMonomorphismRestriction #-}
 import Control.Applicative
 import Control.Monad
 import Data.Aeson
@@ -274,12 +274,8 @@ instance FromJSON CardSet where
                            v .: "cards"
     parseJSON _ = fail "Could not parse card set"
 
-getCards :: IO [Card]
-getCards = do
-    maybeSet <- getSet
-    case maybeSet of
-      Just set -> return $ cards set
-      Nothing -> fail "Could not get cards"
+getCards :: IO (Maybe [Card])
+getCards = return . (cards <$>) =<< getSet
 
 debugSet :: IO (Either String CardSet)
 debugSet =  eitherDecode <$> L.readFile setFile
@@ -287,13 +283,15 @@ debugSet =  eitherDecode <$> L.readFile setFile
 getSet :: IO (Maybe CardSet)
 getSet =  decode <$> L.readFile setFile
 
-filterCards :: (Card -> Bool) -> IO [Card]
-filterCards p = filter p <$> getCards
+filterCards :: (Card -> Bool) -> IO (Maybe [Card])
+filterCards p = getCards >>= return . (filter p <$>)
 
 p1 = (\c -> rarity c == MythicRare && cmc c == Just 5)
 p2 = (\c -> R `elem` fromMaybe [] (manaCost c))
 p3 = (\c -> Legendary `elem` fromMaybe [] (supertypes c))
-foo = map name <$> filterCards p1
+foo = map name <$$> filterCards p1
+
+(<$$>) = fmap . fmap
 
 setFile = "THS.json"
 
