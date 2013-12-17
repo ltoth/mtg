@@ -3,7 +3,8 @@ import Control.Applicative
 import Control.Monad
 import Data.Aeson
 import qualified Data.ByteString.Lazy.Char8 as L
-import Data.List.Split (wordsBy)
+import Data.List.Split (splitOn, wordsBy)
+import Data.List (intercalate)
 import Data.Maybe (fromMaybe)
 import qualified Data.Text as T
 import Data.Word (Word8)
@@ -217,6 +218,12 @@ instance FromJSON Card where
                            v .:? "border"
     parseJSON _ = fail "Could not parse card"
 
+cardText' :: Card -> Maybe Name
+cardText' c = replace (name c) "{This}" <$> (cardText c)
+
+replace :: Eq a => [a] -> [a] -> [a] -> [a]
+replace old new = intercalate new . splitOn old
+
 type SetName = String
 type SetCode = String
 
@@ -288,6 +295,6 @@ p2 = (\c -> R `elem` fromMaybe [] (manaCost c))
 p3 = (\c -> Legendary `elem` fromMaybe [] (supertypes c))
 foo = map name <$> filterCards p1
 
-setFile = "NPH.json"
+setFile = "THS.json"
 
 main = return ()
