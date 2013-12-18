@@ -41,6 +41,7 @@ import Data.List (intercalate)
 import Data.Maybe (fromMaybe)
 import qualified Data.Text as T
 import Data.Word (Word8)
+import Text.Regex
 
 data Layout = Normal | Split | Flip | DoubleFaced | Token
               deriving (Show, Eq)
@@ -243,7 +244,14 @@ instance FromJSON Card where
     parseJSON _ = fail "Could not parse card"
 
 cardText' :: Card -> Maybe CardText
-cardText' c = replace (name c) "{This}" <$> (cardText c)
+cardText' c = removeReminder <$> replaceThis c
+
+removeReminder :: CardText -> CardText
+-- FIXME: Should not be greedy; should clean up whitespace
+removeReminder t = subRegex (mkRegex "\\([^)]+\\)") t ""
+
+replaceThis :: Card -> Maybe CardText
+replaceThis c = replace (name c) "{This}" <$> (cardText c)
 
 replace :: Eq a => [a] -> [a] -> [a] -> [a]
 replace old new = intercalate new . splitOn old
