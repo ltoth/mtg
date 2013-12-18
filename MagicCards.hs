@@ -1,14 +1,52 @@
-{-# LANGUAGE DeriveGeneric, FlexibleInstances, OverloadedStrings, TypeSynonymInstances, NoMonomorphismRestriction #-}
+{-# LANGUAGE FlexibleInstances, OverloadedStrings, TypeSynonymInstances #-}
+
+module MagicCards
+( Layout(..)
+, Name
+, Names
+, ManaCost
+, ManaSymbol(..)
+, CMC
+, Color(..)
+, Colors
+, TypeLine
+, Supertype(..)
+, Supertypes
+, Type(..)
+, Types
+, Subtype
+, Subtypes
+, Rarity(..)
+, CardText
+, Flavor
+, Artist
+, CardNumber
+, Power
+, Toughness
+, Loyalty
+, MultiverseID
+, Variations
+, ImageName
+, Watermark
+, Border(..)
+, Card(..)
+, cardText' -- FIXME: Move elsewhere?
+, SetName
+, SetCode
+, SetRelease
+, SetType
+, SetBlock
+, CardSet(..)
+) where
+
 import Control.Applicative
 import Control.Monad
 import Data.Aeson
-import qualified Data.ByteString.Lazy.Char8 as L
 import Data.List.Split (splitOn, wordsBy)
 import Data.List (intercalate)
 import Data.Maybe (fromMaybe)
 import qualified Data.Text as T
 import Data.Word (Word8)
-import GHC.Generics
 
 data Layout = Normal | Split | Flip | DoubleFaced | Token
               deriving (Show, Eq)
@@ -273,26 +311,3 @@ instance FromJSON CardSet where
                            v .:? "block" <*>
                            v .: "cards"
     parseJSON _ = fail "Could not parse card set"
-
-getCards :: IO (Maybe [Card])
-getCards = getSet >>= return . (cards <$>)
-
-debugSet :: IO (Either String CardSet)
-debugSet =  eitherDecode <$> L.readFile setFile
-
-getSet :: IO (Maybe CardSet)
-getSet =  decode <$> L.readFile setFile
-
-filterCards :: (Card -> Bool) -> IO [Card]
-filterCards p = getCards >>= return . (filter p) . (fromMaybe [])
-
-p1 = (\c -> rarity c == MythicRare && cmc c == Just 5)
-p2 = (\c -> R `elem` fromMaybe [] (manaCost c))
-p3 = (\c -> Legendary `elem` fromMaybe [] (supertypes c))
-foo = map name <$> filterCards p1
-
-(<$$>) = fmap . fmap
-
-setFile = "THS.json"
-
-main = return ()
