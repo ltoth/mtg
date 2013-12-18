@@ -3,19 +3,14 @@
 module MagicCards
 ( Layout(..)
 , Name
-, Names
 , ManaCost
 , ManaSymbol(..)
 , CMC
 , Color(..)
-, Colors
 , TypeLine
 , Supertype(..)
-, Supertypes
 , Type(..)
-, Types
 , Subtype
-, Subtypes
 , Rarity(..)
 , CardText
 , Flavor
@@ -25,7 +20,6 @@ module MagicCards
 , Toughness
 , Loyalty
 , MultiverseID
-, Variations
 , ImageName
 , Watermark
 , Border(..)
@@ -61,8 +55,6 @@ instance FromJSON Layout where
     parseJSON _ = fail "Could not parse layout"
 
 type Name = String
-
-type Names = [Name]
 
 type ManaCost = [ManaSymbol]
 instance FromJSON ManaCost where
@@ -128,8 +120,6 @@ instance FromJSON Color where
       | otherwise = fail "Invalid color string specified"
     parseJSON _ = fail "Could not parse color"
 
-type Colors = [Color]
-
 type TypeLine = String
 
 -- FIXME: There might be more possible values
@@ -144,8 +134,6 @@ instance FromJSON Supertype where
       | s == "Tribal" = return Tribal
       | otherwise = fail "Invalid supertype string specified"
     parseJSON _ = fail "Could not parse supertype"
-
-type Supertypes = [Supertype]
 
 data Type = Instant | Sorcery | Artifact | Creature | Enchantment
             | Land | Planeswalker
@@ -162,11 +150,7 @@ instance FromJSON Type where
       | otherwise = fail "Invalid type string specified"
     parseJSON _ = fail "Could not parse type"
 
-type Types = [Type]
-
 type Subtype = String
-
-type Subtypes = [Subtype]
 
 data Rarity = Common | Uncommon | Rare | MythicRare | BasicLand
               deriving (Show, Eq)
@@ -196,8 +180,6 @@ type Loyalty = Word8
 
 type MultiverseID = Integer
 
-type Variations = [MultiverseID]
-
 type ImageName = String
 
 type Watermark = String
@@ -215,13 +197,13 @@ instance FromJSON Border where
 data Card = Card
           { layout :: Layout
           , typeLine :: TypeLine
-          , types :: Types
-          , colors :: Colors
+          , types :: [Type]
+          , colors :: [Color]
           , multiverseid :: MultiverseID
           , name :: Name
           , names :: Maybe [Name]
-          , supertypes :: Maybe Supertypes
-          , subtypes :: Maybe Subtypes
+          , supertypes :: Maybe [Supertype]
+          , subtypes :: Maybe [Subtype]
           , cmc :: Maybe CMC
           , rarity :: Rarity
           , artist :: Artist
@@ -230,6 +212,7 @@ data Card = Card
           , manaCost :: Maybe ManaCost
           , cardText :: Maybe CardText
           , cardNumber :: CardNumber
+          , variations :: Maybe [MultiverseID]
           , imageName :: ImageName
           , watermark :: Maybe Watermark
           , cardBorder :: Maybe Border
@@ -253,6 +236,7 @@ instance FromJSON Card where
                            v .:? "manaCost" <*>
                            v .:? "text" <*>
                            v .: "number" <*>
+                           v .:? "variations" <*>
                            v .: "imageName" <*>
                            v .:? "watermark" <*>
                            v .:? "border"
