@@ -24,7 +24,7 @@ module MagicCards
 , Watermark
 , Border(..)
 , Card(..)
-, cardText' -- FIXME: Move elsewhere?
+, abilities -- FIXME: Move elsewhere?
 , SetName
 , SetCode
 , SetRelease
@@ -36,7 +36,8 @@ module MagicCards
 import Control.Applicative
 import Control.Monad
 import Data.Aeson
-import Data.List.Split (splitOn, wordsBy)
+import Data.Char (isSpace)
+import Data.List.Split
 import Data.List (intercalate)
 import Data.Maybe (fromMaybe)
 import qualified Data.Text as T
@@ -243,11 +244,19 @@ instance FromJSON Card where
                            v .:? "border"
     parseJSON _ = fail "Could not parse card"
 
-cardText' :: Card -> Maybe CardText
-cardText' c = removeReminder <$> replaceThis c
+--cardText' :: Card -> Maybe [CardText]
+abilities c = fromMaybe [] $
+              splitIntoAbilities <$>
+              removeReminder <$>
+              replaceThis c
+
+-- FIXME: should return [Ability], once we define it
+splitIntoAbilities :: CardText -> [CardText]
+splitIntoAbilities = map rstrip . splitOn "\n\n"
+  where rstrip = reverse . dropWhile isSpace . reverse
 
 removeReminder :: CardText -> CardText
--- FIXME: Should not be greedy; should clean up whitespace
+-- FIXME: Should not be greedy
 removeReminder t = subRegex (mkRegex "\\([^)]+\\)") t ""
 
 replaceThis :: Card -> Maybe CardText
