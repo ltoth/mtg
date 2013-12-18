@@ -256,7 +256,7 @@ instance FromJSON Card where
                            v .:? "border"
     parseJSON _ = fail "Could not parse card"
 
-cardText' :: Card -> Maybe Name
+cardText' :: Card -> Maybe CardText
 cardText' c = replace (name c) "{This}" <$> (cardText c)
 
 replace :: Eq a => [a] -> [a] -> [a] -> [a]
