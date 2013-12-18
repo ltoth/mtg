@@ -219,6 +219,7 @@ data Card = Card
           , colors :: Colors
           , multiverseid :: MultiverseID
           , name :: Name
+          , names :: Maybe [Name]
           , supertypes :: Maybe Supertypes
           , subtypes :: Maybe Subtypes
           , cmc :: Maybe CMC
@@ -241,6 +242,7 @@ instance FromJSON Card where
                            v .: "colors" <*>
                            v .: "multiverseid" <*>
                            v .: "name" <*>
+                           v .:? "names" <*>
                            v .:? "supertypes" <*>
                            v .:? "subtypes" <*>
                            v .:? "cmc" <*>
