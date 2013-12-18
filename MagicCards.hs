@@ -24,6 +24,7 @@ module MagicCards
 , Watermark
 , Border(..)
 , Card(..)
+, Ability(..)
 , abilities -- FIXME: Move elsewhere?
 , SetName
 , SetCode
@@ -36,7 +37,7 @@ module MagicCards
 import Control.Applicative
 import Control.Monad
 import Data.Aeson
-import Data.Char (isSpace)
+import Data.Char (isSpace, toLower)
 import Data.List.Split
 import Data.List (intercalate)
 import Data.Maybe (fromMaybe)
@@ -244,13 +245,38 @@ instance FromJSON Card where
                            v .:? "border"
     parseJSON _ = fail "Could not parse card"
 
---cardText' :: Card -> Maybe [CardText]
-abilities c = fromMaybe [] $
+type AbilityCost = String
+type TriggerCondition = String
+type Effect = String
+type ContinuousEffect = String
+type ActivationInst = String
+
+data Keyword = Flying
+             | Trample
+             | Indestructible
+             deriving (Show, Eq)
+
+data Ability = KeywordAbility Keyword
+             | ActivatedAbility AbilityCost Effect (Maybe ActivationInst)
+             | TriggeredAbility TriggerCondition Effect
+             | StaticAbility ContinuousEffect
+             | SpellAbility Effect
+             deriving (Show, Eq)
+
+abilities :: Card -> [Ability]
+abilities c = map textToAbility .
+              fromMaybe [] $
               splitIntoAbilities <$>
               removeReminder <$>
               replaceThis c
 
--- FIXME: should return [Ability], once we define it
+textToAbility :: CardText -> Ability
+textToAbility t = case (map toLower t) of
+  "flying" -> KeywordAbility Flying
+  "trample" -> KeywordAbility Trample
+  "indestructible" -> KeywordAbility Indestructible
+  _ -> SpellAbility t
+
 splitIntoAbilities :: CardText -> [CardText]
 splitIntoAbilities = map rstrip . splitOn "\n\n"
   where rstrip = reverse . dropWhile isSpace . reverse
