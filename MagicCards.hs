@@ -346,10 +346,8 @@ textToAbilities t = case (parse paras "" t) of
                     (return $ KeywordAbility $ Enchant ETPermanent))
               -- FIXME: Make Enchant type more specific: Chained to the
               -- Rocks, Aggression, Controlled Instincts
-              <|> (do
-                    ciString "Equip "
-                    cost <- many1 (noneOf "\n") -- FIXME: parse ability cost
-                    return $ KeywordAbility $ Equip (stringToManaCost cost))
+              <|> (ciString "Equip" >> keywordCostSep >>
+                    (KeywordAbility . Equip) <$> totalCost)
               <|> (ciString "First strike" >> (return $ KeywordAbility FirstStrike))
               <|> (ciString "Flash" >> (return $ KeywordAbility Flash))
               <|> (ciString "Flying" >> (return $ KeywordAbility Flying))
@@ -369,6 +367,8 @@ textToAbilities t = case (parse paras "" t) of
                     cost <- many1 (noneOf "\n")
                     return $ KeywordAbility $ Bestow (stringToManaCost cost))
 
+        keywordCostSep = string " " <|> string "—"
+
         -- http://bit.ly/1bQVGFB
         ciChar c = char (toLower c) <|> char (toUpper c)
         ciString s = try (mapM ciChar s) <?> "\"" ++ s ++ "\""
@@ -377,7 +377,7 @@ data Keyword = Deathtouch
              | Defender
              | DoubleStrike
              | Enchant EnchantmentTarget
-             | Equip ManaCost  -- FIXME: Should be more general AbilityCost
+             | Equip ([Cost])
              | FirstStrike
              | Flash
              | Flying
