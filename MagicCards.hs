@@ -284,6 +284,34 @@ textToAbilities t = case (parse paras "" t) of
         keyword = (ciString "Deathtouch" >> (return $ KeywordAbility Deathtouch))
               <|> (ciString "Defender" >> (return $ KeywordAbility Defender))
               <|> (ciString "Double strike" >> (return $ KeywordAbility DoubleStrike))
+              <|> (ciString "Enchant player" >>
+                    (return $ KeywordAbility $ Enchant (ETPlayer PTPlayer)))
+              <|> (ciString "Enchant opponent" >>
+                    (return $ KeywordAbility $ Enchant (ETPlayer PTOpponent)))
+              -- TODO: pull these out into a separate parser for object types/characteristics
+              <|> (ciString "Enchant creature" >>
+                    (return $ KeywordAbility $ Enchant
+                    (ETObject $ ObjectType Nothing (Just Creature) Nothing)))
+              <|> (ciString "Enchant land" >>
+                    (return $ KeywordAbility $ Enchant
+                    (ETObject $ ObjectType Nothing (Just Land) Nothing)))
+              <|> (ciString "Enchant artifact" >>
+                    (return $ KeywordAbility $ Enchant
+                    (ETObject $ ObjectType Nothing (Just Artifact) Nothing)))
+              <|> (ciString "Enchant enchantment" >>
+                    (return $ KeywordAbility $ Enchant
+                    (ETObject $ ObjectType Nothing (Just Enchantment) Nothing)))
+              <|> (ciString "Enchant Equipment" >>
+                    (return $ KeywordAbility $ Enchant
+                    (ETObject $ ObjectType (Just "Equipment") Nothing Nothing)))
+              <|> (ciString "Enchant permanent" >>
+                    (return $ KeywordAbility $ Enchant ETPermanent))
+              -- FIXME: Make Enchant type more specific: Chained to the
+              -- Rocks, Aggression, Controlled Instincts
+              <|> (do
+                    ciString "Equip "
+                    cost <- many1 (noneOf "\n") -- FIXME: parse ability cost
+                    return $ KeywordAbility $ Equip (stringToManaCost cost))
               <|> (ciString "First strike" >> (return $ KeywordAbility FirstStrike))
               <|> (ciString "Flash" >> (return $ KeywordAbility Flash))
               <|> (ciString "Flying" >> (return $ KeywordAbility Flying))
@@ -291,8 +319,9 @@ textToAbilities t = case (parse paras "" t) of
               <|> (ciString "Hexproof" >> (return $ KeywordAbility Hexproof))
               <|> (ciString "Indestructible" >> (return $ KeywordAbility Indestructible))
               <|> (ciString "Intimidate" >> (return $ KeywordAbility Intimidate))
+              -- TODO: Parse Landwalk
               <|> (ciString "Lifelink" >> (return $ KeywordAbility Lifelink))
-              <|> (ciString "Protection from everything" >> (return $ KeywordAbility ProtectionEverything))
+              -- TODO: Parse Protection
               <|> (ciString "Reach" >> (return $ KeywordAbility Reach))
               <|> (ciString "Shroud" >> (return $ KeywordAbility Shroud))
               <|> (ciString "Trample" >> (return $ KeywordAbility Trample))
@@ -309,8 +338,8 @@ textToAbilities t = case (parse paras "" t) of
 data Keyword = Deathtouch
              | Defender
              | DoubleStrike
-             | Enchant (Either Object Player)
-             | Equip AbilityCost
+             | Enchant EnchantmentTarget
+             | Equip ManaCost  -- FIXME: Should be more general AbilityCost
              | FirstStrike
              | Flash
              | Flying
@@ -318,11 +347,9 @@ data Keyword = Deathtouch
              | Hexproof
              | Indestructible
              | Intimidate
-             | Landwalk (Maybe [Subtype]) (Maybe [Type]) (Maybe [Supertype])
+             | Landwalk ObjectType
              | Lifelink
-             | Protection Quality
-             | ProtectionEverything     -- TODO: Fold this in?
-             | ProtectionPlayer Player  -- TODO: Fold this in?
+             | Protection (Either Quality PlayerType)
              | Reach
              | Shroud
              | Trample
@@ -330,8 +357,14 @@ data Keyword = Deathtouch
              | Bestow ManaCost
              deriving (Show, Eq)
 
-type Object = String  -- FIXME
-type Player = String  -- FIXME
+data ObjectType = ObjectType (Maybe Subtype) (Maybe Type) (Maybe Supertype)
+                deriving (Show, Eq)
+
+data EnchantmentTarget = ETObject ObjectType | ETPlayer PlayerType | ETPermanent
+                       deriving (Show, Eq)
+
+data PlayerType = PTPlayer | PTOpponent deriving (Show, Eq)
+
 type Quality = String -- FIXME
 
 splitIntoAbilities :: CardText -> [CardText]
