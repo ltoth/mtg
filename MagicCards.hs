@@ -47,7 +47,7 @@ import Data.List (intercalate)
 import Data.Maybe (fromMaybe)
 import qualified Data.Text as T
 import Data.Word (Word8)
-import Text.ParserCombinators.Parsec hiding (many, (<|>))
+import Text.ParserCombinators.Parsec hiding (many, optional, (<|>))
 import Text.Parsec.Prim (ParsecT)
 import Text.Regex
 
@@ -287,9 +287,30 @@ textToAbilities t = case (parse paras "" t) of
                       Right xs -> concat xs  -- flatten the list
   where paras = para `sepBy` (string "\n\n")
         para = try (keyword `sepBy1` commas)
-               <|> many1 (try activated
-                         <|> spell)
+               <|> (optional abilityWord >>
+                    many1 (try activated
+                          <|> spell))
         commas = (try (string ", ") <|> string ",")
+        abilityWord = aw >> string " — "
+          where aw = try (string "Battalion")
+                 <|> try (string "Bloodrush")
+                 <|> try (string "Channel")
+                 <|> try (string "Chroma")
+                 <|> try (string "Domain")
+                 <|> try (string "Fateful hour")
+                 <|> try (string "Grandeur")
+                 <|> try (string "Hellbent")
+                 <|> try (string "Heroic")
+                 <|> try (string "Imprint")
+                 <|> try (string "Join forces")
+                 <|> try (string "Kinship")
+                 <|> try (string "Landfall")
+                 <|> try (string "Metalcraft")
+                 <|> try (string "Morbid")
+                 <|> try (string "Radiance")
+                 <|> try (string "Sweep")
+                 <|> try (string "Tempting offer")
+                 <|> string "Threshold"
 
         -- FIXME: Quoting: Witches' Eye
         -- FIXME: Need a way to distinguish loyalty abilities
