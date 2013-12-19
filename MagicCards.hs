@@ -318,7 +318,6 @@ textToAbilities t = case (parse paras "" t) of
 
         spell = SpellAbility <$> many1 (noneOf "\n")
 
-        -- FIXME: Baleful Eidolon misses the last ability
         keyword = (ciString "Deathtouch" >> (return $ KeywordAbility Deathtouch))
               <|> (ciString "Defender" >> (return $ KeywordAbility Defender))
               <|> (ciString "Double strike" >> (return $ KeywordAbility DoubleStrike))
@@ -409,7 +408,7 @@ splitIntoAbilities = map rstrip . splitOn "\n\n"
 
 removeReminder :: CardText -> CardText
 -- FIXME: Should not be greedy
-removeReminder t = subRegex (mkRegex " ?\\([^)]+\\)") t ""
+removeReminder t = subRegex (mkRegex " *\\([^)]+\\) *") t ""
 
 -- FIXME: THS Gods use just their "first" names to refer to {This} in their
 -- text. Need to be able to account for that, ideally not with an explicit
