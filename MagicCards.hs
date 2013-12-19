@@ -264,7 +264,8 @@ data Cost = CMana ManaCost | CTap | CUntap | CLife Word8 | CSacrificeThis
           | CDiscardThis | CDiscard ObjectType -- FIXME: Should be more general,
           -- i.e. for discard two cards, etc.
           deriving (Show, Eq)
-type TriggerCondition = String
+type TriggerEvent = String
+type TriggerCondition = String -- TODO: should this be the same as AltCostCondition?
 type Effect = String
 type ContinuousEffect = String
 type ActivationInst = String
@@ -274,7 +275,7 @@ data Ability = AdditionalCost ([Cost])
              | AlternativeCost ([Cost]) (Maybe [AltCostCondition])
              | KeywordAbility Keyword
              | ActivatedAbility ([Cost]) Effect (Maybe ActivationInst)
-             | TriggeredAbility TriggerCondition Effect
+             | TriggeredAbility TriggerEvent Effect (Maybe [TriggerCondition])
              | StaticAbility ContinuousEffect
              | SpellAbility Effect
              deriving (Show, Eq)
@@ -298,6 +299,7 @@ textToAbilities t = case (parse paras "" t) of
                           <|> try alternative
                           <|> try alternativeFree
                           <|> try activated
+                          <|> try triggered
                           <|> spell))
         commas = (try (string ", ") <|> string ",")
         abilityWord = aw >> string " — "
@@ -339,8 +341,32 @@ textToAbilities t = case (parse paras "" t) of
 
         conditions = condition `sepBy1` condSet
         condSet = string " and " -- FIXME: This separation doesn't work now
-        condition = many (noneOf ",")
+        condition = many (noneOf ",\n")
 
+        triggered =
+          try (do
+                ciString "When "
+                event <- many (noneOf ",\n")
+                string ", "
+                cond <- optionMaybe $ try (string "if " *> conditions <* string ", ")
+                effect <- many (noneOf "\n")
+                return $ TriggeredAbility event effect cond)
+          <|> try (do
+                ciString "Whenever "
+                event <- many (noneOf ",\n")
+                string ", "
+                cond <- optionMaybe $ try (string "if " *> conditions <* string ", ")
+                effect <- many (noneOf "\n") -- TODO: sepEndBy1 try(". ") <|> "."
+                return $ TriggeredAbility event effect cond)
+          <|> try (do
+                ciString "At "
+                event <- many (noneOf ",\n")
+                string ", "
+                cond <- optionMaybe $ try (string "if " *> conditions <* string ", ")
+                effect <- many (noneOf "\n")
+                return $ TriggeredAbility event effect cond)
+
+--      -- FIXME: Replace "it" with "{This}"?
         -- FIXME: Quoting: Witches' Eye
         -- FIXME: Need a way to distinguish loyalty abilities
         activated = do
