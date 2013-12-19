@@ -296,6 +296,7 @@ textToAbilities t = case (parse paras "" t) of
                <|> (optional abilityWord >>
                     many1 (try additional
                           <|> try alternative
+                          <|> try alternativeFree
                           <|> try activated
                           <|> spell))
         commas = (try (string ", ") <|> string ",")
@@ -330,6 +331,11 @@ textToAbilities t = case (parse paras "" t) of
           cost <- totalCost
           ciString " rather than pay {This}'s mana cost."
           return $ AlternativeCost cost cond
+
+        alternativeFree = do
+          cond <- optionMaybe (string "If " *> many (noneOf ",") <* string ", ")
+          ciString "You may cast {This} without paying its mana cost."
+          return $ AlternativeCost [] cond
 
         -- FIXME: Quoting: Witches' Eye
         -- FIXME: Need a way to distinguish loyalty abilities

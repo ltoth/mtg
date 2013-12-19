@@ -31,6 +31,6 @@ p2 = (\c -> R `elem` fromMaybe [] (manaCost c))
 p3 = (\c -> Legendary `elem` fromMaybe [] (supertypes c))
 foo = map name <$> filterCards p1
 
-setFile = "THS.json"
+setFile = "MMQ.json"
 
 main = foo
