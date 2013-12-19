@@ -258,7 +258,7 @@ instance FromJSON Card where
                            v .:? "border"
     parseJSON _ = fail "Could not parse card"
 
-data Cost = CMana ManaCost | CTap | CUntap | CSacrificeThis
+data Cost = CMana ManaCost | CTap | CUntap | CLife Word8 | CSacrificeThis
           | CSacrifice ObjectType | CSacrificeAnother ObjectType
           deriving (Show, Eq)
 type TriggerCondition = String
@@ -303,6 +303,11 @@ textToAbilities t = case (parse paras "" t) of
         abilityCost = try (ciString "Sacrifice {This}" >> return CSacrificeThis)
                   <|> try (string "{T}" >> return CTap)
                   <|> try (string "{Q}" >> return CUntap)
+                  <|> try (do
+                            ciString "Pay "
+                            n <- many1 digit
+                            string " life"
+                            return $ CLife $ read n)
                   -- FIXME: pull these out into an object
                   -- type/characteristic browser
                   <|> try (ciString "Sacrifice a creature" >>
