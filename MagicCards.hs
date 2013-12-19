@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances, OverloadedStrings, TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances, NoMonomorphismRestriction, OverloadedStrings, TypeSynonymInstances #-}
 
 module MagicCards
 ( Layout(..)
@@ -26,6 +26,7 @@ module MagicCards
 , Card(..)
 , Ability(..)
 , abilities -- FIXME: Move elsewhere?
+, textToAbilities -- FIXME: This should probably not be exported
 , SetName
 , SetCode
 , SetRelease
@@ -37,12 +38,13 @@ module MagicCards
 import Control.Applicative
 import Control.Monad
 import Data.Aeson
-import Data.Char (isSpace, toLower)
-import Data.List.Split
+import Data.Char (isSpace, toLower, toUpper)
+import Data.List.Split (wordsBy, splitOn)
 import Data.List (intercalate)
 import Data.Maybe (fromMaybe)
 import qualified Data.Text as T
 import Data.Word (Word8)
+import Text.ParserCombinators.Parsec hiding (many, (<|>))
 import Text.Regex
 
 data Layout = Normal | Split | Flip | DoubleFaced | Token
@@ -254,6 +256,7 @@ type ActivationInst = String
 data Keyword = Flying
              | Trample
              | Indestructible
+             | Bestow AbilityCost
              deriving (Show, Eq)
 
 data Ability = KeywordAbility Keyword
@@ -263,19 +266,32 @@ data Ability = KeywordAbility Keyword
              | SpellAbility Effect
              deriving (Show, Eq)
 
+-- TODO: Use arrows? to keep the reference to the card throughout,
+-- as we need to refer to types etc.
 abilities :: Card -> [Ability]
-abilities c = map textToAbility .
-              fromMaybe [] $
-              splitIntoAbilities <$>
+abilities c = fromMaybe [] $
+              textToAbilities <$>
               removeReminder <$>
               replaceThis c
 
-textToAbility :: CardText -> Ability
-textToAbility t = case (map toLower t) of
-  "flying" -> KeywordAbility Flying
-  "trample" -> KeywordAbility Trample
-  "indestructible" -> KeywordAbility Indestructible
-  _ -> SpellAbility t
+textToAbilities :: CardText -> [Ability]
+textToAbilities t = case (parse paras "" t) of
+                      Left e -> fail "Parsing error"
+                      Right xs -> concat xs  -- flatten the list
+  where paras = para `sepBy` (string "\n\n")
+        para = try (keyword `sepBy1` commas)
+               <|> many spell
+        commas = (try (string ", ") <|> string ",")
+
+        spell = SpellAbility <$> many1 (noneOf "\n")
+
+        keyword = (ciString "Flying" >> (return $ KeywordAbility Flying))
+              <|> (ciString "Trample" >> (return $ KeywordAbility Trample))
+              <|> (ciString "Indestructible" >> (return $ KeywordAbility Indestructible))
+
+        -- http://bit.ly/1bQVGFB
+        ciChar c = char (toLower c) <|> char (toUpper c)
+        ciString s = try (mapM ciChar s) <?> "\"" ++ s ++ "\""
 
 splitIntoAbilities :: CardText -> [CardText]
 splitIntoAbilities = map rstrip . splitOn "\n\n"
