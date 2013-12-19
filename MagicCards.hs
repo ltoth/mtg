@@ -37,7 +37,7 @@ module MagicCards
 
 import Control.Applicative
 import Control.Monad
-import Data.Aeson
+import Data.Aeson (FromJSON, parseJSON, Value(..), (.:), (.:?))
 import Data.Char (isSpace, toLower, toUpper)
 import Data.List.Split (wordsBy, splitOn)
 import Data.List (intercalate)
@@ -292,11 +292,30 @@ textToAbilities t = case (parse paras "" t) of
         ciChar c = char (toLower c) <|> char (toUpper c)
         ciString s = try (mapM ciChar s) <?> "\"" ++ s ++ "\""
 
-data Keyword = Flying
-             | Trample
+data Keyword = Deathtouch
+             | Defender
+             | DoubleStrike
+             | Enchant (Either Object Player)
+             | Equip AbilityCost
+             | FirstStrike
+             | Flash
+             | Flying
+             | Haste
+             | Hexproof
              | Indestructible
+             | Intimidate
+             | Landwalk (Maybe [Subtype]) (Maybe [Type]) (Maybe [Supertype])
+             | Lifelink
+             | Protection Quality
+             | ProtectionEverything
+             | ProtectionPlayer Player
+             | Trample
              | Bestow ManaCost
              deriving (Show, Eq)
+
+type Object = String  -- FIXME
+type Player = String  -- FIXME
+type Quality = String -- FIXME
 
 splitIntoAbilities :: CardText -> [CardText]
 splitIntoAbilities = map rstrip . splitOn "\n\n"
