@@ -215,6 +215,7 @@ data Card = Card
           , artist :: Artist
           , power :: Maybe Power
           , toughness :: Maybe Toughness
+          , loyalty :: Maybe Loyalty
           , manaCost :: Maybe ManaCost
           , cardText :: Maybe CardText
           , cardNumber :: CardNumber
@@ -239,6 +240,7 @@ instance FromJSON Card where
                            v .: "artist" <*>
                            v .:? "power" <*>
                            v .:? "toughness" <*>
+                           v .:? "loyalty" <*>
                            v .:? "manaCost" <*>
                            v .:? "text" <*>
                            v .: "number" <*>
