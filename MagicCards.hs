@@ -299,7 +299,7 @@ splitIntoAbilities = map rstrip . splitOn "\n\n"
 
 removeReminder :: CardText -> CardText
 -- FIXME: Should not be greedy
-removeReminder t = subRegex (mkRegex "\\([^)]+\\)") t ""
+removeReminder t = subRegex (mkRegex " ?\\([^)]+\\)") t ""
 
 replaceThis :: Card -> Maybe CardText
 replaceThis c = replace (name c) "{This}" <$> (cardText c)
