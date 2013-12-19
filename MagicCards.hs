@@ -254,12 +254,6 @@ type Effect = String
 type ContinuousEffect = String
 type ActivationInst = String
 
-data Keyword = Flying
-             | Trample
-             | Indestructible
-             | Bestow ManaCost
-             deriving (Show, Eq)
-
 data Ability = KeywordAbility Keyword
              | ActivatedAbility AbilityCost Effect (Maybe ActivationInst)
              | TriggeredAbility TriggerCondition Effect
@@ -297,6 +291,12 @@ textToAbilities t = case (parse paras "" t) of
         -- http://bit.ly/1bQVGFB
         ciChar c = char (toLower c) <|> char (toUpper c)
         ciString s = try (mapM ciChar s) <?> "\"" ++ s ++ "\""
+
+data Keyword = Flying
+             | Trample
+             | Indestructible
+             | Bestow ManaCost
+             deriving (Show, Eq)
 
 splitIntoAbilities :: CardText -> [CardText]
 splitIntoAbilities = map rstrip . splitOn "\n\n"
