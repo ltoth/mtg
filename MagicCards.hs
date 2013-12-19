@@ -260,6 +260,8 @@ instance FromJSON Card where
 
 data Cost = CMana ManaCost | CTap | CUntap | CLife Word8 | CSacrificeThis
           | CSacrifice ObjectType | CSacrificeAnother ObjectType
+          | CDiscardThis | CDiscard ObjectType -- FIXME: Should be more general,
+          -- i.e. for discard two cards, etc.
           deriving (Show, Eq)
 type TriggerCondition = String
 type Effect = String
@@ -322,6 +324,7 @@ textToAbilities t = case (parse paras "" t) of
           return $ ActivatedAbility cost effect Nothing
         totalCost = abilityCost `sepBy1` commas
         abilityCost = try (ciString "Sacrifice {This}" >> return CSacrificeThis)
+                  <|> try (ciString "Discard {This}" >> return CDiscardThis)
                   <|> try (string "{T}" >> return CTap)
                   <|> try (string "{Q}" >> return CUntap)
                   <|> try (do
