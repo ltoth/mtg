@@ -362,10 +362,8 @@ textToAbilities t = case (parse paras "" t) of
               <|> (ciString "Shroud" >> (return $ KeywordAbility Shroud))
               <|> (ciString "Trample" >> (return $ KeywordAbility Trample))
               <|> (ciString "Vigilance" >> (return $ KeywordAbility Vigilance))
-              <|> (do
-                    ciString "Bestow "
-                    cost <- many1 (noneOf "\n")
-                    return $ KeywordAbility $ Bestow (stringToManaCost cost))
+              <|> (ciString "Bestow" >> keywordCostSep >>
+                    (KeywordAbility . Bestow) <$> totalCost)
 
         keywordCostSep = string " " <|> string "—"
 
@@ -392,7 +390,7 @@ data Keyword = Deathtouch
              | Shroud
              | Trample
              | Vigilance
-             | Bestow ManaCost
+             | Bestow ([Cost])
              deriving (Show, Eq)
 
 data ObjectType = ObjectType (Maybe Subtype) (Maybe Type) (Maybe Supertype)
