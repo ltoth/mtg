@@ -277,8 +277,17 @@ textToAbilities t = case (parse paras "" t) of
                       Right xs -> concat xs  -- flatten the list
   where paras = para `sepBy` (string "\n\n")
         para = try (keyword `sepBy1` commas)
+               <|> try (many activated)
                <|> many spell
         commas = (try (string ", ") <|> string ",")
+
+        -- FIXME: Need a way to distinguish loyalty abilities
+        activated = do
+          cost <- many1 (noneOf ":\n")
+          string ": "
+          effect <- many1 (noneOf "\n")
+          -- FIXME: activation instruction; cost parsing
+          return $ ActivatedAbility cost effect Nothing
 
         spell = SpellAbility <$> many1 (noneOf "\n")
 
