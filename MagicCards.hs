@@ -330,11 +330,14 @@ textToAbilities t = case (parse paras "" t) of
                             string " life"
                             return $ CLife $ read n)
                   -- FIXME: pull these out into an object
-                  -- type/characteristic browser
+                  -- type/characteristic parser, which could also be used
+                  -- for targets
                   <|> try (ciString "Sacrifice a creature" >>
                         return (CSacrifice $ ObjectType Nothing (Just Creature) Nothing))
                   <|> try (ciString "Sacrifice another creature" >>
                         return (CSacrificeAnother $ ObjectType Nothing (Just Creature) Nothing))
+                  <|> try (ciString "Sacrifice a land" >>
+                        return (CSacrifice $ ObjectType Nothing (Just Land) Nothing))
                   <|> CMana <$> manaCostParser
 
         spell = SpellAbility <$> many1 (noneOf "\n")
@@ -416,6 +419,7 @@ data Keyword = Deathtouch
 data ObjectType = ObjectType (Maybe Subtype) (Maybe Type) (Maybe Supertype)
                 deriving (Show, Eq)
 
+-- TODO: Generalize this to [TargetingCharacteristic]
 data EnchantmentTarget = ETObject ObjectType | ETPlayer PlayerType | ETPermanent
                        deriving (Show, Eq)
 
