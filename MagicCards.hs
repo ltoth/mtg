@@ -67,6 +67,7 @@ instance FromJSON ManaCost where
     parseJSON _ = fail "Could not parse mana cost"
 
 -- TODO: Should this be a custom instance of Read instead?
+-- TODO: Should this use Parsec? It seems like it might just be slower
 -- We'd have to implement readsPrec
 stringToManaCost :: String -> ManaCost
 stringToManaCost s = map toManaSymbol $
@@ -256,7 +257,7 @@ type ActivationInst = String
 data Keyword = Flying
              | Trample
              | Indestructible
-             | Bestow AbilityCost
+             | Bestow ManaCost
              deriving (Show, Eq)
 
 data Ability = KeywordAbility Keyword
@@ -288,6 +289,10 @@ textToAbilities t = case (parse paras "" t) of
         keyword = (ciString "Flying" >> (return $ KeywordAbility Flying))
               <|> (ciString "Trample" >> (return $ KeywordAbility Trample))
               <|> (ciString "Indestructible" >> (return $ KeywordAbility Indestructible))
+              <|> (do
+                    ciString "Bestow "
+                    cost <- many1 (noneOf "\n")
+                    return $ KeywordAbility $ Bestow (stringToManaCost cost))
 
         -- http://bit.ly/1bQVGFB
         ciChar c = char (toLower c) <|> char (toUpper c)
