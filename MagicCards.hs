@@ -27,6 +27,7 @@ module MagicCards
 , Ability(..)
 , abilities -- FIXME: Move elsewhere?
 , textToAbilities -- FIXME: This should probably not be exported
+, removeReminder -- FIXME: This should not be exported
 , SetName
 , SetCode
 , SetRelease
@@ -250,14 +251,16 @@ instance FromJSON Card where
                            v .:? "border"
     parseJSON _ = fail "Could not parse card"
 
-type AbilityCost = String
+data Cost = CMana ManaCost | CTap | CUntap | CSacrificeThis
+          | CSacrifice ObjectType | CSacrificeAnother ObjectType
+          deriving (Show, Eq)
 type TriggerCondition = String
 type Effect = String
 type ContinuousEffect = String
 type ActivationInst = String
 
 data Ability = KeywordAbility Keyword
-             | ActivatedAbility AbilityCost Effect (Maybe ActivationInst)
+             | ActivatedAbility ([Cost]) Effect (Maybe ActivationInst)
              | TriggeredAbility TriggerCondition Effect
              | StaticAbility ContinuousEffect
              | SpellAbility Effect
@@ -273,21 +276,68 @@ abilities c = fromMaybe [] $
 
 textToAbilities :: CardText -> [Ability]
 textToAbilities t = case (parse paras "" t) of
-                      Left e -> fail "Parsing error"
+                      Left e -> error (show e)
                       Right xs -> concat xs  -- flatten the list
   where paras = para `sepBy` (string "\n\n")
         para = try (keyword `sepBy1` commas)
-               <|> try (many activated)
-               <|> many spell
+               <|> many1 (try activated
+                         <|> spell)
         commas = (try (string ", ") <|> string ",")
 
+        -- FIXME: Quoting: Witches' Eye
         -- FIXME: Need a way to distinguish loyalty abilities
         activated = do
-          cost <- many1 (noneOf ":\n")
+          cost <- totalCost
           string ": "
           effect <- many1 (noneOf "\n")
-          -- FIXME: activation instruction; cost parsing
+          -- FIXME: activation instruction
           return $ ActivatedAbility cost effect Nothing
+        totalCost = abilityCost `sepBy1` commas
+        abilityCost = try (ciString "Sacrifice {This}" >> return CSacrificeThis)
+                  <|> try (string "{T}" >> return CTap)
+                  <|> try (string "{Q}" >> return CUntap)
+                  -- FIXME: pull these out into an object
+                  -- type/characteristic browser
+                  <|> try (ciString "Sacrifice a creature" >>
+                        return (CSacrifice $ ObjectType Nothing (Just Creature) Nothing))
+                  <|> try (ciString "Sacrifice another creature" >>
+                        return (CSacrificeAnother $ ObjectType Nothing (Just Creature) Nothing))
+                  <|> CMana <$> manaCost
+        manaCost = many1 symbol
+        symbol = try (string "{G/W}" >> return GW)
+             <|> try (string "{W/U}" >> return WU)
+             <|> try (string "{R/W}" >> return RW)
+             <|> try (string "{W/B}" >> return WB)
+             <|> try (string "{U/B}" >> return UB)
+             <|> try (string "{G/U}" >> return GU)
+             <|> try (string "{U/R}" >> return UR)
+             <|> try (string "{B/R}" >> return BR)
+             <|> try (string "{B/G}" >> return BG)
+             <|> try (string "{R/G}" >> return RG)
+             <|> try (string "{2/W}" >> return W2)
+             <|> try (string "{2/U}" >> return U2)
+             <|> try (string "{2/B}" >> return B2)
+             <|> try (string "{2/R}" >> return R2)
+             <|> try (string "{2/G}" >> return G2)
+             <|> try (string "{P/W}" >> return WP)
+             <|> try (string "{P/U}" >> return UP)
+             <|> try (string "{P/B}" >> return BP)
+             <|> try (string "{P/R}" >> return RP)
+             <|> try (string "{P/G}" >> return GP)
+             <|> try (string "{W}" >> return W)
+             <|> try (string "{U}" >> return U)
+             <|> try (string "{B}" >> return B)
+             <|> try (string "{R}" >> return R)
+             <|> try (string "{G}" >> return G)
+             <|> try (string "{X}" >> return X)
+             <|> try (string "{Y}" >> return Y)
+             <|> try (string "{Z}" >> return Z)
+             <|> try (string "{P}" >> return P)
+             <|> (do
+                    char '{'
+                    cl <- many1 digit
+                    char '}'
+                    return $ CL $ read cl)
 
         spell = SpellAbility <$> many1 (noneOf "\n")
 
