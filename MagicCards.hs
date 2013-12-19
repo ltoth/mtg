@@ -280,9 +280,23 @@ textToAbilities t = case (parse paras "" t) of
 
         spell = SpellAbility <$> many1 (noneOf "\n")
 
-        keyword = (ciString "Flying" >> (return $ KeywordAbility Flying))
-              <|> (ciString "Trample" >> (return $ KeywordAbility Trample))
+        -- FIXME: Baleful Eidolon misses the last ability
+        keyword = (ciString "Deathtouch" >> (return $ KeywordAbility Deathtouch))
+              <|> (ciString "Defender" >> (return $ KeywordAbility Defender))
+              <|> (ciString "Double strike" >> (return $ KeywordAbility DoubleStrike))
+              <|> (ciString "First strike" >> (return $ KeywordAbility FirstStrike))
+              <|> (ciString "Flash" >> (return $ KeywordAbility Flash))
+              <|> (ciString "Flying" >> (return $ KeywordAbility Flying))
+              <|> (ciString "Haste" >> (return $ KeywordAbility Haste))
+              <|> (ciString "Hexproof" >> (return $ KeywordAbility Hexproof))
               <|> (ciString "Indestructible" >> (return $ KeywordAbility Indestructible))
+              <|> (ciString "Intimidate" >> (return $ KeywordAbility Intimidate))
+              <|> (ciString "Lifelink" >> (return $ KeywordAbility Lifelink))
+              <|> (ciString "Protection from everything" >> (return $ KeywordAbility ProtectionEverything))
+              <|> (ciString "Reach" >> (return $ KeywordAbility Reach))
+              <|> (ciString "Shroud" >> (return $ KeywordAbility Shroud))
+              <|> (ciString "Trample" >> (return $ KeywordAbility Trample))
+              <|> (ciString "Vigilance" >> (return $ KeywordAbility Vigilance))
               <|> (do
                     ciString "Bestow "
                     cost <- many1 (noneOf "\n")
@@ -307,9 +321,12 @@ data Keyword = Deathtouch
              | Landwalk (Maybe [Subtype]) (Maybe [Type]) (Maybe [Supertype])
              | Lifelink
              | Protection Quality
-             | ProtectionEverything
-             | ProtectionPlayer Player
+             | ProtectionEverything     -- TODO: Fold this in?
+             | ProtectionPlayer Player  -- TODO: Fold this in?
+             | Reach
+             | Shroud
              | Trample
+             | Vigilance
              | Bestow ManaCost
              deriving (Show, Eq)
 
