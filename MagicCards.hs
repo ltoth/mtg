@@ -271,7 +271,7 @@ type ActivationInst = String
 type AltCostCondition = String
 
 data Ability = AdditionalCost ([Cost])
-             | AlternativeCost ([Cost]) (Maybe AltCostCondition)
+             | AlternativeCost ([Cost]) (Maybe [AltCostCondition])
              | KeywordAbility Keyword
              | ActivatedAbility ([Cost]) Effect (Maybe ActivationInst)
              | TriggeredAbility TriggerCondition Effect
@@ -326,16 +326,20 @@ textToAbilities t = case (parse paras "" t) of
                             <* optional (many (oneOf (". ")))
 
         alternative = do
-          cond <- optionMaybe (string "If " *> many (noneOf ",") <* string ", ")
+          cond <- optionMaybe (string "If " *> conditions <* string ", ")
           ciString "You may "
           cost <- totalCost
           ciString " rather than pay {This}'s mana cost."
           return $ AlternativeCost cost cond
 
         alternativeFree = do
-          cond <- optionMaybe (string "If " *> many (noneOf ",") <* string ", ")
+          cond <- optionMaybe (string "If " *> conditions <* string ", ")
           ciString "You may cast {This} without paying its mana cost."
           return $ AlternativeCost [] cond
+
+        conditions = condition `sepBy1` condSet
+        condSet = string " and " -- FIXME: This separation doesn't work now
+        condition = many (noneOf ",")
 
         -- FIXME: Quoting: Witches' Eye
         -- FIXME: Need a way to distinguish loyalty abilities
