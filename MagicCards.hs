@@ -29,6 +29,7 @@ module MagicCards
 , textToAbilities -- FIXME: This should probably not be exported
 , manaCostParser -- FIXME: This should probably not be exported
 , removeReminder -- FIXME: This should not be exported
+, replaceThis -- FIXME: This should not be exported
 , SetName
 , SetCode
 , SetRelease
@@ -267,8 +268,10 @@ type TriggerCondition = String
 type Effect = String
 type ContinuousEffect = String
 type ActivationInst = String
+type AltCostCondition = String
 
 data Ability = AdditionalCost ([Cost])
+             | AlternativeCost ([Cost]) (Maybe AltCostCondition)
              | KeywordAbility Keyword
              | ActivatedAbility ([Cost]) Effect (Maybe ActivationInst)
              | TriggeredAbility TriggerCondition Effect
@@ -292,6 +295,7 @@ textToAbilities t = case (parse paras "" t) of
         para = try (keyword `sepBy1` commas)
                <|> (optional abilityWord >>
                     many1 (try additional
+                          <|> try alternative
                           <|> try activated
                           <|> spell))
         commas = (try (string ", ") <|> string ",")
@@ -314,11 +318,18 @@ textToAbilities t = case (parse paras "" t) of
                  <|> try (string "Radiance")
                  <|> try (string "Sweep")
                  <|> try (string "Tempting offer")
-                 <|> string "Threshold"
+                 <|> try (string "Threshold")
 
         additional = ciString "As an additional cost to cast {This}, " >>
                             AdditionalCost <$> totalCost
                             <* optional (many (oneOf (". ")))
+
+        alternative = do
+          cond <- optionMaybe (string "If " *> many (noneOf ",") <* string ", ")
+          ciString "You may "
+          cost <- totalCost
+          ciString " rather than pay {This}'s mana cost."
+          return $ AlternativeCost cost cond
 
         -- FIXME: Quoting: Witches' Eye
         -- FIXME: Need a way to distinguish loyalty abilities
