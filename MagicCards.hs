@@ -268,7 +268,8 @@ type Effect = String
 type ContinuousEffect = String
 type ActivationInst = String
 
-data Ability = KeywordAbility Keyword
+data Ability = AdditionalCost ([Cost])
+             | KeywordAbility Keyword
              | ActivatedAbility ([Cost]) Effect (Maybe ActivationInst)
              | TriggeredAbility TriggerCondition Effect
              | StaticAbility ContinuousEffect
@@ -290,7 +291,8 @@ textToAbilities t = case (parse paras "" t) of
   where paras = para `sepBy` (string "\n\n")
         para = try (keyword `sepBy1` commas)
                <|> (optional abilityWord >>
-                    many1 (try activated
+                    many1 (try additional
+                          <|> try activated
                           <|> spell))
         commas = (try (string ", ") <|> string ",")
         abilityWord = aw >> string " — "
@@ -313,6 +315,10 @@ textToAbilities t = case (parse paras "" t) of
                  <|> try (string "Sweep")
                  <|> try (string "Tempting offer")
                  <|> string "Threshold"
+
+        additional = ciString "As an additional cost to cast {This}, " >>
+                            AdditionalCost <$> totalCost
+                            <* optional (many (oneOf (". ")))
 
         -- FIXME: Quoting: Witches' Eye
         -- FIXME: Need a way to distinguish loyalty abilities
@@ -341,6 +347,8 @@ textToAbilities t = case (parse paras "" t) of
                         return (CSacrificeAnother $ ObjectType Nothing (Just Creature) Nothing))
                   <|> try (ciString "Sacrifice a land" >>
                         return (CSacrifice $ ObjectType Nothing (Just Land) Nothing))
+                  <|> try (ciString "Sacrifice an artifact" >>
+                        return (CSacrifice $ ObjectType Nothing (Just Artifact) Nothing))
                   <|> CMana <$> manaCostParser
 
         spell = SpellAbility <$> many1 (noneOf "\n")
