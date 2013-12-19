@@ -328,7 +328,10 @@ textToAbilities t = case (parse paras "" t) of
           effect <- many1 (noneOf "\n")
           -- FIXME: activation instruction
           return $ ActivatedAbility cost effect Nothing
-        totalCost = abilityCost `sepBy1` commas
+        totalCost = abilityCost `sepBy1` abilityCostSep
+        abilityCostSep = try (string ", ")
+                     <|> try (string " and ")
+                     <|> string ","
         abilityCost = try (ciString "Sacrifice {This}" >> return CSacrificeThis)
                   <|> try (ciString "Discard {This}" >> return CDiscardThis)
                   <|> try (string "{T}" >> return CTap)
@@ -349,7 +352,8 @@ textToAbilities t = case (parse paras "" t) of
                         return (CSacrifice $ ObjectType Nothing (Just Land) Nothing))
                   <|> try (ciString "Sacrifice an artifact" >>
                         return (CSacrifice $ ObjectType Nothing (Just Artifact) Nothing))
-                  <|> CMana <$> manaCostParser
+                  <|> (optional (ciString "Pay ") >>
+                        CMana <$> manaCostParser)
 
         spell = SpellAbility <$> many1 (noneOf "\n")
 
