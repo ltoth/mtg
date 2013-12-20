@@ -268,7 +268,20 @@ data Cost = CMana ManaCost | CTap | CUntap | CLife Word8 | CSacrificeThis
           deriving (Show, Eq)
 
 data LoyaltyCost = LC Int8 | LCMinusX deriving (Show, Eq)
-type TriggerEvent = String
+
+data TriggerEvent = TEAt WhichPlayers Step | TEThisETB | TEThisLTB
+                  | TEObjectETB ObjectType | TEObjectLTB ObjectType
+                  | TEOther String -- FIXME: Make more value constr.
+                  deriving (Show, Eq)
+
+data WhichPlayers = EachPlayer | You | Opponents deriving (Show, Eq)
+
+data Step = Untap | Upkeep | Draw | PreCombatMain
+          | BeginningOfCombat | DeclareAttackers | DeclareBlockers
+          | CombatDamage | EndOfCombat | PostCombatMain
+          | End | Cleanup
+          deriving (Show, Eq)
+
 type TriggerCondition = String -- TODO: should this be the same as AltCostCondition?
 type Effect = String
 type ContinuousEffect = String
@@ -348,27 +361,49 @@ textToAbilities t = case (parse paras "" t) of
         condition = many (noneOf ",\n")
 
         triggered =
-          try (do
-                ciString "When "
-                event <- many (noneOf ",\n")
-                string ", "
-                cond <- optionMaybe $ try (string "if " *> conditions <* string ", ")
-                effect <- many (noneOf "\n")
-                return $ TriggeredAbility event effect cond)
-          <|> try (do
-                ciString "Whenever "
-                event <- many (noneOf ",\n")
-                string ", "
-                cond <- optionMaybe $ try (string "if " *> conditions <* string ", ")
-                effect <- many (noneOf "\n") -- TODO: sepEndBy1 try(". ") <|> "."
-                return $ TriggeredAbility event effect cond)
-          <|> try (do
-                ciString "At "
-                event <- many (noneOf ",\n")
-                string ", "
-                cond <- optionMaybe $ try (string "if " *> conditions <* string ", ")
-                effect <- many (noneOf "\n")
-                return $ TriggeredAbility event effect cond)
+          do
+            event <- trigEvent
+            string ", "
+            cond <- optionMaybe $ try (string "if " *> conditions <* string ", ")
+            effect <- many (noneOf "\n") -- TODO: sepEndBy1 try(". ") <|> "."
+            return $ TriggeredAbility event effect cond
+
+        trigEvent =
+              try (ciString "At " >>
+                    try (ciString "the beginning of " >>
+                      TEAt <$> whichPlayer <*> step)
+                    <|> try (ciString "the end of combat" >>
+                      return (TEAt EachPlayer EndOfCombat))
+                    <|> TEOther <$> many (noneOf ",\n"))
+          <|> try (ciString "Whenever " >> TEOther <$> many (noneOf ",\n"))
+          <|> try (ciString "When " >>
+                    try (ciString "{This} enters the battlefield" >>
+                      return TEThisETB)
+                    <|> try (ciString "{This} leaves the battlefield" >>
+                      return TEThisLTB)
+                    <|> TEOther <$> many (noneOf ",\n"))
+
+        -- TODO: Probably should parse non-possessives "each player" "you"
+        -- the same for effects
+        -- TODO: Also have to deal with "the next" and "it's controller's
+        -- next"
+        whichPlayer =
+          try ((try (ciString "each player's ") <|> ciString "each ")
+            >> return EachPlayer)
+          <|> try (ciString "your " >> return You)
+          <|> try (ciString "each opponent's " >> return Opponents)
+
+        step =
+          try (ciString "untap step" >> return Untap)
+          <|> try (ciString "upkeep" >> return Upkeep)
+          <|> try (ciString "draw step" >> return Draw)
+          <|> try (ciString "precombat main phase" >> return PreCombatMain)
+          <|> try (ciString "combat" >> return BeginningOfCombat)
+          <|> try (ciString "declare attackers step" >> return DeclareAttackers)
+          <|> try (ciString "declare blockers step" >> return DeclareBlockers)
+          <|> try (ciString "postcombat main phase" >> return PostCombatMain)
+          <|> try (ciString "end step" >> return End)
+          <|> try (ciString "cleanup step" >> return Cleanup)
 
         -- FIXME: Replace "it" with "{This}" in some cases? How to tell?
         -- FIXME: Quoting: Witches' Eye - reuse abilityPara
