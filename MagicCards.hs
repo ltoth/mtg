@@ -292,15 +292,15 @@ textToAbilities :: CardText -> [Ability]
 textToAbilities t = case (parse paras "" t) of
                       Left e -> error (show e)
                       Right xs -> concat xs  -- flatten the list
-  where paras = para `sepBy` (string "\n\n")
-        para = try (keyword `sepBy1` commas)
-               <|> (optional abilityWord >>
-                    many1 (try additional
-                          <|> try alternative
-                          <|> try alternativeFree
-                          <|> try activated
-                          <|> try triggered
-                          <|> spell))
+  where paras = abilityPara `sepBy` (string "\n\n")
+        abilityPara = try (keyword `sepBy1` commas)
+                  <|> (optional abilityWord >>
+                       many1 (try additional
+                             <|> try alternative
+                             <|> try alternativeFree
+                             <|> try activated
+                             <|> try triggered
+                             <|> spell))
         commas = (try (string ", ") <|> string ",")
         abilityWord = aw >> string " — "
           where aw = try (string "Battalion")
@@ -366,8 +366,8 @@ textToAbilities t = case (parse paras "" t) of
                 effect <- many (noneOf "\n")
                 return $ TriggeredAbility event effect cond)
 
---      -- FIXME: Replace "it" with "{This}"?
-        -- FIXME: Quoting: Witches' Eye
+        -- FIXME: Replace "it" with "{This}" in some cases? How to tell?
+        -- FIXME: Quoting: Witches' Eye - reuse abilityPara
         -- FIXME: Need a way to distinguish loyalty abilities
         activated = do
           cost <- totalCost
