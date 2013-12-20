@@ -43,6 +43,7 @@ import Control.Monad
 import Data.Aeson (FromJSON, parseJSON, Value(..), (.:), (.:?))
 import Data.Char (isSpace, toLower, toUpper)
 import Data.Functor.Identity (Identity)
+import Data.Int (Int8)
 import Data.List.Split (wordsBy, splitOn)
 import Data.List (intercalate)
 import Data.Maybe (fromMaybe)
@@ -263,7 +264,10 @@ data Cost = CMana ManaCost | CTap | CUntap | CLife Word8 | CSacrificeThis
           | CSacrifice ObjectType | CSacrificeAnother ObjectType
           | CDiscardThis | CDiscard ObjectType -- FIXME: Should be more general,
           -- i.e. for discard two cards, etc.
+          | CLoyalty LoyaltyCost
           deriving (Show, Eq)
+
+data LoyaltyCost = LC Int8 | LCMinusX deriving (Show, Eq)
 type TriggerEvent = String
 type TriggerCondition = String -- TODO: should this be the same as AltCostCondition?
 type Effect = String
@@ -368,7 +372,6 @@ textToAbilities t = case (parse paras "" t) of
 
         -- FIXME: Replace "it" with "{This}" in some cases? How to tell?
         -- FIXME: Quoting: Witches' Eye - reuse abilityPara
-        -- FIXME: Need a way to distinguish loyalty abilities
         activated = do
           cost <- totalCost
           string ": "
@@ -399,8 +402,14 @@ textToAbilities t = case (parse paras "" t) of
                         return (CSacrifice $ ObjectType Nothing (Just Land) Nothing))
                   <|> try (ciString "Sacrifice an artifact" >>
                         return (CSacrifice $ ObjectType Nothing (Just Artifact) Nothing))
-                  <|> (optional (ciString "Pay ") >>
-                        CMana <$> manaCostParser)
+                  <|> try ((optional (ciString "Pay ") >>
+                        CMana <$> manaCostParser))
+                  <|> try (string "-X" >> return (CLoyalty $ LCMinusX))
+                  <|> (do
+                        optional (char '+')
+                        sign <- option "" (try (many1 (char '-')))
+                        l <- many1 digit
+                        return $ CLoyalty $ LC $ read $ sign ++ l)
 
         spell = SpellAbility <$> many1 (noneOf "\n")
 
