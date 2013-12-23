@@ -10,7 +10,6 @@ module MagicCards
 , TypeLine
 , Supertype(..)
 , Type(..)
-, Subtype
 , Rarity(..)
 , CardText
 , Flavor
@@ -36,6 +35,16 @@ module MagicCards
 , SetType
 , SetBlock
 , CardSet(..)
+
+-- re-export types from MagicCards.Subtype
+, Subtype(..)
+, ArtifactType(..)
+, EnchantmentType(..)
+, LandType(..)
+, BasicLandType(..)
+, PlaneswalkerType(..)
+, SpellType(..)
+, CreatureType(..)
 ) where
 
 import Control.Applicative
@@ -52,6 +61,8 @@ import Data.Word (Word8)
 import Text.ParserCombinators.Parsec hiding (many, optional, (<|>))
 import Text.Parsec.Prim (ParsecT)
 import Text.Regex
+
+import MagicCards.Subtype
 
 data Layout = Normal | Split | Flip | DoubleFaced | Token | Plane | Scheme
             | Phenomenon
@@ -170,9 +181,7 @@ instance FromJSON Type where
       | otherwise = fail "Invalid type string specified"
     parseJSON _ = fail "Could not parse type"
 
-type Subtype = String
-
-data Rarity = Common | Uncommon | Rare | MythicRare | BasicLand
+data Rarity = Common | Uncommon | Rare | MythicRare | BasicLandRarity
               deriving (Show, Eq)
 instance FromJSON Rarity where
     parseJSON (String s)
@@ -180,7 +189,7 @@ instance FromJSON Rarity where
       | s == "Uncommon" = return Uncommon
       | s == "Rare" = return Rare
       | s == "Mythic Rare" = return MythicRare
-      | s == "Basic Land" = return BasicLand
+      | s == "Basic Land" = return BasicLandRarity
       | otherwise = fail "Invalid rarity specified"
     parseJSON _ = fail "Could not parse rarity"
 
@@ -474,7 +483,7 @@ textToAbilities t = case (parse paras "" t) of
                     (ETObject $ ObjectType Nothing (Just Enchantment) Nothing)))
               <|> (ciString "Enchant Equipment" >>
                     (return $ KeywordAbility $ Enchant
-                    (ETObject $ ObjectType (Just "Equipment") Nothing Nothing)))
+                    (ETObject $ ObjectType (Just $ ArtifactType $ Equipment) Nothing Nothing)))
               <|> (ciString "Enchant permanent" >>
                     (return $ KeywordAbility $ Enchant ETPermanent))
               -- FIXME: Make Enchant type more specific: Chained to the
