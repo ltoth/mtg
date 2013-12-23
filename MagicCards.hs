@@ -143,7 +143,7 @@ instance FromJSON Color where
 type TypeLine = String
 
 -- FIXME: There might be more possible values
-data Supertype = Basic | Legendary | Snow | World | Tribal
+data Supertype = Basic | Legendary | Snow | World
                  deriving (Show, Eq)
 instance FromJSON Supertype where
     parseJSON (String s)
@@ -151,12 +151,11 @@ instance FromJSON Supertype where
       | s == "Legendary" = return Legendary
       | s == "Snow" = return Snow
       | s == "World" = return World
-      | s == "Tribal" = return Tribal
       | otherwise = fail "Invalid supertype string specified"
     parseJSON _ = fail "Could not parse supertype"
 
 data Type = Instant | Sorcery | Artifact | Creature | Enchantment
-            | Land | Planeswalker
+            | Land | Planeswalker | Tribal
             deriving (Show, Eq)
 instance FromJSON Type where
     parseJSON (String s)
@@ -167,6 +166,7 @@ instance FromJSON Type where
       | s == "Enchantment" = return Enchantment
       | s == "Land" = return Land
       | s == "Planeswalker" = return Planeswalker
+      | s == "Tribal" = return Tribal
       | otherwise = fail "Invalid type string specified"
     parseJSON _ = fail "Could not parse type"
 
