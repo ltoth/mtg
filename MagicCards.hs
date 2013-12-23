@@ -546,10 +546,7 @@ data PlayerType = PTPlayer | PTOpponent deriving (Show, Eq)
 
 type Quality = String -- FIXME
 
-splitIntoAbilities :: CardText -> [CardText]
-splitIntoAbilities = map rstrip . splitOn "\n\n"
-  where rstrip = reverse . dropWhile isSpace . reverse
-
+-- FIXME: Overgrown Tomb: reminder text takes up whole ability line
 removeReminder :: CardText -> CardText
 -- FIXME: Should not be greedy
 removeReminder t = subRegex (mkRegex " *\\([^)]+\\) *") t ""
