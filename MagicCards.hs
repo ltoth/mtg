@@ -53,7 +53,8 @@ import Text.ParserCombinators.Parsec hiding (many, optional, (<|>))
 import Text.Parsec.Prim (ParsecT)
 import Text.Regex
 
-data Layout = Normal | Split | Flip | DoubleFaced | Token
+data Layout = Normal | Split | Flip | DoubleFaced | Token | Plane | Scheme
+            | Phenomenon
               deriving (Show, Eq)
 instance FromJSON Layout where
     parseJSON (String s)
@@ -62,6 +63,9 @@ instance FromJSON Layout where
       | s == "flip" = return Flip
       | s == "double-faced" = return DoubleFaced
       | s == "token" = return Token
+      | s == "plane" = return Plane
+      | s == "scheme" = return Scheme
+      | s == "phenomenon" = return Phenomenon
       | otherwise = fail "Invalid layout string specified"
     parseJSON _ = fail "Could not parse layout"
 
