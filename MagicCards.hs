@@ -480,6 +480,11 @@ textToAbilities t = case (parse paras "" t) of
         typeParser = try (ciString "creature" >> (return $ ObjectType Nothing (Just Creature) Nothing))
              <|> try (ciString "land" >> (return $ ObjectType Nothing (Just Land) Nothing))
              <|> try (ciString "artifact" >> (return $ ObjectType Nothing (Just Artifact) Nothing))
+             <|> try (ciString "Forest" >> (return $ ObjectType (Just $ LandType $ BasicLand $ Forest) Nothing Nothing))
+             <|> try (ciString "Island" >> (return $ ObjectType (Just $ LandType $ BasicLand $ Island) Nothing Nothing))
+             <|> try (ciString "Mountain" >> (return $ ObjectType (Just $ LandType $ BasicLand $ Mountain) Nothing Nothing))
+             <|> try (ciString "Plains" >> (return $ ObjectType (Just $ LandType $ BasicLand $ Plains) Nothing Nothing))
+             <|> try (ciString "Swamp" >> (return $ ObjectType (Just $ LandType $ BasicLand $ Swamp) Nothing Nothing))
 
         spell = SpellAbility <$> many1 (noneOf "\n")
 
@@ -574,8 +579,8 @@ removeReminder t = subRegex (mkRegex " *\\([^)]+\\) *")
                    (subRegex (mkRegex "^\\([^)]+\\)\n\n") t "") ""
 
 -- FIXME: THS Gods use just their "first" names to refer to {This} in their
--- text. Need to be able to account for that, ideally not with an explicit
--- exception.
+-- text. Also Jarad in RTR. Need to be able to account for that, ideally
+-- not with an explicit exception.
 replaceThis :: Card -> Maybe CardText
 replaceThis c = replace (name c) "{This}" <$> (cardText c)
 
