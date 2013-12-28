@@ -277,8 +277,10 @@ data Cost = CMana ManaCost | CTap | CUntap | CLife Word8 | CSacrificeThis
           | CSacrifice ObjectType | CSacrificeAnother ObjectType
           | CDiscardThis | CDiscard ObjectType -- FIXME: Should be more general,
           -- i.e. for discard two cards, etc.
-          | CLoyalty LoyaltyCost
+          | CLoyalty LoyaltyCost | CRemoveCounter CounterType
           deriving (Show, Eq)
+
+type CounterType = String
 
 data LoyaltyCost = LC Int8 | LCMinusX deriving (Show, Eq)
 
@@ -452,6 +454,11 @@ textToAbilities t = case (parse paras "" t) of
                         return (CSacrifice $ ObjectType Nothing (Just Land) Nothing))
                   <|> try (ciString "Sacrifice an artifact" >>
                         return (CSacrifice $ ObjectType Nothing (Just Artifact) Nothing))
+                  <|> try (do
+                        ciString "Remove a "
+                        counterType <- many1 letter
+                        ciString " counter from {This}"
+                        return $ CRemoveCounter counterType)
                   <|> try ((optional (ciString "Pay ") >>
                         CMana <$> manaCostParser))
                   <|> try (string "-X" >> return (CLoyalty $ LCMinusX))
