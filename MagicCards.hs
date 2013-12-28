@@ -423,9 +423,11 @@ textToAbilities t = case (parse paras "" t) of
         activated = do
           cost <- totalCost
           string ": "
-          effect <- many1 (noneOf "\n")
-          -- FIXME: activation instruction
-          return $ ActivatedAbility cost effect Nothing
+          effect <- try ((noneOf "\n") `manyTill`
+                        (try (string " Activate this ability only ")))
+                    <|> many1 (noneOf "\n")
+          instr <- optionMaybe (many1 (noneOf "\n"))
+          return $ ActivatedAbility cost effect instr
         totalCost = abilityCost `sepBy1` abilityCostSep
         abilityCostSep = try (string ", ")
                      <|> try (string " and ")
