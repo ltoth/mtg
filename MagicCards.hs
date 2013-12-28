@@ -548,10 +548,10 @@ data PlayerType = PTPlayer | PTOpponent deriving (Show, Eq)
 
 type Quality = String -- FIXME
 
--- FIXME: Overgrown Tomb: reminder text takes up whole ability line
 removeReminder :: CardText -> CardText
 -- FIXME: Should not be greedy
-removeReminder t = subRegex (mkRegex " *\\([^)]+\\) *") t ""
+removeReminder t = subRegex (mkRegex " *\\([^)]+\\) *")
+                   (subRegex (mkRegex "^\\([^)]+\\)\n\n") t "") ""
 
 -- FIXME: THS Gods use just their "first" names to refer to {This} in their
 -- text. Need to be able to account for that, ideally not with an explicit
