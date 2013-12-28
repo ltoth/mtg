@@ -277,7 +277,7 @@ data Cost = CMana ManaCost | CTap | CUntap | CLife Word8 | CSacrificeThis
           | CSacrifice ObjectType | CSacrificeAnother ObjectType
           | CDiscardThis | CDiscard ObjectType -- FIXME: Should be more general,
           -- i.e. for discard two cards, etc.
-          | CLoyalty LoyaltyCost | CRemoveCounter CounterType
+          | CLoyalty LoyaltyCost | CRemoveCounter Word8 (Maybe CounterType)
           deriving (Show, Eq)
 
 type CounterType = String
@@ -455,10 +455,13 @@ textToAbilities t = case (parse paras "" t) of
                   <|> try (ciString "Sacrifice an artifact" >>
                         return (CSacrifice $ ObjectType Nothing (Just Artifact) Nothing))
                   <|> try (do
-                        ciString "Remove a "
-                        counterType <- many1 letter
-                        ciString " counter from {This}"
-                        return $ CRemoveCounter counterType)
+                        ciString "Remove "
+                        n <- countParser
+                        string " "
+                        counterType <- optionMaybe (many1 (noneOf " \n"))
+                        optional (string " ")
+                        ciString "counter from {This}"
+                        return $ CRemoveCounter n counterType)
                   <|> try ((optional (ciString "Pay ") >>
                         CMana <$> manaCostParser))
                   <|> try (string "-X" >> return (CLoyalty $ LCMinusX))
@@ -467,6 +470,9 @@ textToAbilities t = case (parse paras "" t) of
                         sign <- option "" (try (many1 (char '-')))
                         l <- many1 digit
                         return $ CLoyalty $ LC $ read $ sign ++ l)
+
+        countParser = try (choice [try (string "an"), try (string "a"),
+                                  try (string "one")] >> return 1)
 
         spell = SpellAbility <$> many1 (noneOf "\n")
 
