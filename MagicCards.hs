@@ -274,11 +274,14 @@ instance FromJSON Card where
     parseJSON _ = fail "Could not parse card"
 
 data Cost = CMana ManaCost | CTap | CUntap | CLife Word8 | CSacrificeThis
-          | CSacrifice ObjectType | CSacrificeAnother ObjectType
+          | CSacrifice [(Count, ObjectType)]
           | CDiscardThis | CDiscard ObjectType -- FIXME: Should be more general,
           -- i.e. for discard two cards, etc.
-          | CLoyalty LoyaltyCost | CRemoveCounter Word8 (Maybe CounterType)
+          | CLoyalty LoyaltyCost | CRemoveCounter Count (Maybe CounterType)
           deriving (Show, Eq)
+
+data Count = Count Word8 | Another
+           deriving (Show, Eq)
 
 type CounterType = String
 
@@ -443,17 +446,10 @@ textToAbilities t = case (parse paras "" t) of
                             n <- many1 digit
                             string " life"
                             return $ CLife $ read n)
-                  -- FIXME: pull these out into an object
-                  -- type/characteristic parser, which could also be used
-                  -- for targets
-                  <|> try (ciString "Sacrifice a creature" >>
-                        return (CSacrifice $ ObjectType Nothing (Just Creature) Nothing))
-                  <|> try (ciString "Sacrifice another creature" >>
-                        return (CSacrificeAnother $ ObjectType Nothing (Just Creature) Nothing))
-                  <|> try (ciString "Sacrifice a land" >>
-                        return (CSacrifice $ ObjectType Nothing (Just Land) Nothing))
-                  <|> try (ciString "Sacrifice an artifact" >>
-                        return (CSacrifice $ ObjectType Nothing (Just Artifact) Nothing))
+                  <|> try (do
+                          ciString "Sacrifice "
+                          ts <- target `sepBy1` abilityCostSep
+                          return $ CSacrifice ts)
                   <|> try (do
                         ciString "Remove "
                         n <- countParser
@@ -471,8 +467,19 @@ textToAbilities t = case (parse paras "" t) of
                         l <- many1 digit
                         return $ CLoyalty $ LC $ read $ sign ++ l)
 
-        countParser = try (choice [try (string "an"), try (string "a"),
-                                  try (string "one")] >> return 1)
+        countParser = try (string "another" >> return Another)
+                  <|> try (choice [try (string "an"), try (string "a"),
+                           try (string "one")] >> (return $ Count $ 1))
+
+        target = do
+                   n <- countParser
+                   string " "
+                   t <- typeParser
+                   return $ (n, t)
+
+        typeParser = try (ciString "creature" >> (return $ ObjectType Nothing (Just Creature) Nothing))
+             <|> try (ciString "land" >> (return $ ObjectType Nothing (Just Land) Nothing))
+             <|> try (ciString "artifact" >> (return $ ObjectType Nothing (Just Artifact) Nothing))
 
         spell = SpellAbility <$> many1 (noneOf "\n")
 
