@@ -470,6 +470,15 @@ textToAbilities t = case (parse paras "" t) of
         countParser = try (string "another" >> return Another)
                   <|> try (choice [try (string "an"), try (string "a"),
                            try (string "one")] >> (return $ Count $ 1))
+                  <|> try (string "two" >> (return $ Count $ 2))
+                  <|> try (string "three" >> (return $ Count $ 3))
+                  <|> try (string "four" >> (return $ Count $ 4))
+                  <|> try (string "five" >> (return $ Count $ 5))
+                  <|> try (string "six" >> (return $ Count $ 6))
+                  <|> try (string "seven" >> (return $ Count $ 7))
+                  <|> try (string "eight" >> (return $ Count $ 8))
+                  <|> try (string "nine" >> (return $ Count $ 9))
+                  <|> try (string "ten" >> (return $ Count $ 10))
 
         target = do
                    n <- countParser
