@@ -169,17 +169,25 @@ data Type = Instant | Sorcery | Artifact | Creature | Enchantment
             | Land | Planeswalker | Tribal
             deriving (Show, Eq)
 instance FromJSON Type where
-    parseJSON (String s)
-      | s == "Instant" = return Instant
-      | s == "Sorcery" = return Sorcery
-      | s == "Artifact" = return Artifact
-      | s == "Creature" = return Creature
-      | s == "Enchantment" = return Enchantment
-      | s == "Land" = return Land
-      | s == "Planeswalker" = return Planeswalker
-      | s == "Tribal" = return Tribal
-      | otherwise = fail "Invalid type string specified"
+    parseJSON (String s) = return . stringToType $ T.unpack s
     parseJSON _ = fail "Could not parse type"
+
+-- TODO: Should this be a custom instance of Read instead?
+-- TODO: Generalize to take the parser fn as argument: parseString
+stringToType :: String -> Type
+stringToType s = case (parse typeParser "" s) of
+                      Left e -> error (show e)
+                      Right xs -> xs
+
+typeParser :: ParsecT String u Identity Type
+typeParser = try (ciString "Instant" >> return Instant)
+         <|> try (ciString "Sorcery" >> return Sorcery)
+         <|> try (ciString "Artifact" >> return Artifact)
+         <|> try (ciString "Creature" >> return Creature)
+         <|> try (ciString "Enchantment" >> return Enchantment)
+         <|> try (ciString "Land" >> return Land)
+         <|> try (ciString "Planeswalker" >> return Planeswalker)
+         <|> try (ciString "Tribal" >> return Tribal)
 
 data Rarity = Common | Uncommon | Rare | MythicRare | BasicLandRarity
               deriving (Show, Eq)
@@ -279,6 +287,8 @@ data Cost = CMana ManaCost | CTap | CUntap | CLife Word8 | CSacrificeThis
           -- i.e. for discard two cards, etc.
           | CLoyalty LoyaltyCost | CRemoveCounter Count (Maybe CounterType)
           deriving (Show, Eq)
+
+data Target = Target Count
 
 data Count = Count Word8 | Another
            deriving (Show, Eq)
@@ -483,12 +493,15 @@ textToAbilities t = case (parse paras "" t) of
         target = do
                    n <- countParser
                    string " "
-                   t <- typeParser
+                   t <- objectTypeParser
+                   optional (string "s") -- FIXME: deal with plural better
+                   -- TODO: optionMaybe (string " you control")
                    return $ (n, t)
 
-        typeParser = try (ciString "creature" >> (return $ ObjectType Nothing (Just Creature) Nothing))
-             <|> try (ciString "land" >> (return $ ObjectType Nothing (Just Land) Nothing))
-             <|> try (ciString "artifact" >> (return $ ObjectType Nothing (Just Artifact) Nothing))
+        objectTypeParser =
+          try (do
+              t <- typeParser
+              return $ ObjectType Nothing (Just t) Nothing)
              <|> try (ciString "Forest" >> (return $ ObjectType (Just $ LandType $ BasicLand $ Forest) Nothing Nothing))
              <|> try (ciString "Island" >> (return $ ObjectType (Just $ LandType $ BasicLand $ Island) Nothing Nothing))
              <|> try (ciString "Mountain" >> (return $ ObjectType (Just $ LandType $ BasicLand $ Mountain) Nothing Nothing))
@@ -545,9 +558,6 @@ textToAbilities t = case (parse paras "" t) of
 
         keywordCostSep = string " " <|> string "—"
 
-        -- http://bit.ly/1bQVGFB
-        ciChar c = char (toLower c) <|> char (toUpper c)
-        ciString s = try (mapM ciChar s) <?> "\"" ++ s ++ "\""
 
 data Keyword = Deathtouch
              | Defender
@@ -595,6 +605,11 @@ replaceThis c = replace (name c) "{This}" <$> (cardText c)
 
 replace :: Eq a => [a] -> [a] -> [a] -> [a]
 replace old new = intercalate new . splitOn old
+
+-- TODO: Pull these into some Parser.Util submodule?
+-- http://bit.ly/1bQVGFB
+ciChar c = char (toLower c) <|> char (toUpper c)
+ciString s = try (mapM ciChar s) <?> "\"" ++ s ++ "\""
 
 type SetName = String
 type SetCode = String
