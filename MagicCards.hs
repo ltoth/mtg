@@ -50,7 +50,7 @@ module MagicCards
 import Control.Applicative
 import Control.Monad
 import Data.Aeson (FromJSON, parseJSON, Value(..), (.:), (.:?))
-import Data.Char (isSpace, toLower, toUpper)
+import Data.Char (isSpace)
 import Data.Functor.Identity (Identity)
 import Data.Int (Int8)
 import Data.List.Split (wordsBy, splitOn)
@@ -58,11 +58,12 @@ import Data.List (intercalate)
 import Data.Maybe (fromMaybe)
 import qualified Data.Text as T
 import Data.Word (Word8)
-import Text.ParserCombinators.Parsec hiding (many, optional, (<|>))
 import Text.Parsec.Prim (ParsecT)
+import Text.ParserCombinators.Parsec hiding (many, optional, (<|>))
 import Text.Regex
 
 import MagicCards.Subtype
+import Text.Parsec.Char.Extra(ciChar, ciString)
 
 data Layout = Normal | Split | Flip | DoubleFaced | Token | Plane | Scheme
             | Phenomenon
@@ -499,14 +500,12 @@ textToAbilities t = case (parse paras "" t) of
                    return $ (n, t)
 
         objectTypeParser =
-          try (do
-              t <- typeParser
-              return $ ObjectType Nothing (Just t) Nothing)
-             <|> try (ciString "Forest" >> (return $ ObjectType (Just $ LandType $ BasicLand $ Forest) Nothing Nothing))
-             <|> try (ciString "Island" >> (return $ ObjectType (Just $ LandType $ BasicLand $ Island) Nothing Nothing))
-             <|> try (ciString "Mountain" >> (return $ ObjectType (Just $ LandType $ BasicLand $ Mountain) Nothing Nothing))
-             <|> try (ciString "Plains" >> (return $ ObjectType (Just $ LandType $ BasicLand $ Plains) Nothing Nothing))
-             <|> try (ciString "Swamp" >> (return $ ObjectType (Just $ LandType $ BasicLand $ Swamp) Nothing Nothing))
+              try (do
+                t <- typeParser
+                return $ ObjectType Nothing (Just t) Nothing)
+          <|> try (do
+                s <- subtypeParser
+                return $ ObjectType (Just s) Nothing Nothing)
 
         spell = SpellAbility <$> many1 (noneOf "\n")
 
@@ -605,11 +604,6 @@ replaceThis c = replace (name c) "{This}" <$> (cardText c)
 
 replace :: Eq a => [a] -> [a] -> [a] -> [a]
 replace old new = intercalate new . splitOn old
-
--- TODO: Pull these into some Parser.Util submodule?
--- http://bit.ly/1bQVGFB
-ciChar c = char (toLower c) <|> char (toUpper c)
-ciString s = try (mapM ciChar s) <?> "\"" ++ s ++ "\""
 
 type SetName = String
 type SetCode = String
