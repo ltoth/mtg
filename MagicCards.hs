@@ -501,7 +501,16 @@ textToAbilities t = case (parse paras "" t) of
                   <|> try (string "eight" >> (return 8))
                   <|> try (string "nine" >> (return 9))
                   <|> try (string "ten" >> (return 10))
-                  -- FIXME: Add up to 20
+                  <|> try (string "eleven" >> (return 11))
+                  <|> try (string "twelve" >> (return 12))
+                  <|> try (string "thirteen" >> (return 13))
+                  <|> try (string "fourteen" >> (return 14))
+                  <|> try (string "fifteen" >> (return 15))
+                  <|> try (string "sixteen" >> (return 16))
+                  <|> try (string "seventeen" >> (return 17))
+                  <|> try (string "eighteen" >> (return 18))
+                  <|> try (string "nineteen" >> (return 19))
+                  <|> try (string "twenty" >> (return 20))
 
         target = do
                    n <- countRange
