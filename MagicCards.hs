@@ -478,6 +478,9 @@ textToAbilities t = case (parse paras "" t) of
                         l <- many1 digit
                         return $ CLoyalty $ LC $ read $ sign ++ l)
 
+        -- FIXME: Deal with "up to one other", "at least two other"
+        -- probably should be UpTo Count | AtLeast Count | Exactly Count
+        -- data Count = AnyCount Word8 | OtherCount 8
         countParser = try (string "another" >> return Another)
                   <|> try (choice [try (string "an"), try (string "a"),
                            try (string "one")] >> (return $ Count $ 1))
