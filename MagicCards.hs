@@ -283,15 +283,16 @@ instance FromJSON Card where
     parseJSON _ = fail "Could not parse card"
 
 data Cost = CMana ManaCost | CTap | CUntap | CLife Word8 | CSacrificeThis
-          | CSacrifice [(Count, ObjectType)]
+          | CSacrifice [(CountRange, ObjectType)]
           | CDiscardThis | CDiscard ObjectType -- FIXME: Should be more general,
           -- i.e. for discard two cards, etc.
-          | CLoyalty LoyaltyCost | CRemoveCounter Count (Maybe CounterType)
+          | CLoyalty LoyaltyCost | CRemoveCounter CountRange (Maybe CounterType)
           deriving (Show, Eq)
 
-data Target = Target Count
+data CountRange = UpTo Count | Exactly Count | AtLeast Count
+                deriving (Show, Eq)
 
-data Count = Count Word8 | Another
+data Count = AnyCount Word8 | OtherCount Word8
            deriving (Show, Eq)
 
 type CounterType = String
@@ -463,7 +464,7 @@ textToAbilities t = case (parse paras "" t) of
                           return $ CSacrifice ts)
                   <|> try (do
                         ciString "Remove "
-                        n <- countParser
+                        n <- countRange
                         string " "
                         counterType <- optionMaybe (many1 (noneOf " \n"))
                         optional (string " ")
@@ -478,24 +479,32 @@ textToAbilities t = case (parse paras "" t) of
                         l <- many1 digit
                         return $ CLoyalty $ LC $ read $ sign ++ l)
 
-        -- FIXME: Deal with "up to one other", "at least two other"
-        -- probably should be UpTo Count | AtLeast Count | Exactly Count
-        -- data Count = AnyCount Word8 | OtherCount 8
-        countParser = try (string "another" >> return Another)
-                  <|> try (choice [try (string "an"), try (string "a"),
-                           try (string "one")] >> (return $ Count $ 1))
-                  <|> try (string "two" >> (return $ Count $ 2))
-                  <|> try (string "three" >> (return $ Count $ 3))
-                  <|> try (string "four" >> (return $ Count $ 4))
-                  <|> try (string "five" >> (return $ Count $ 5))
-                  <|> try (string "six" >> (return $ Count $ 6))
-                  <|> try (string "seven" >> (return $ Count $ 7))
-                  <|> try (string "eight" >> (return $ Count $ 8))
-                  <|> try (string "nine" >> (return $ Count $ 9))
-                  <|> try (string "ten" >> (return $ Count $ 10))
+        countRange = try (string "up to " >> (UpTo <$> countParser))
+                 <|> try (string "at least " >> (AtLeast <$> countParser))
+                 <|> try (Exactly <$> countParser)
+
+        countParser = try (string "another" >> (return $ OtherCount $ 1))
+                  <|> try (do
+                          n <- numberParser
+                          string " other"
+                          return $ OtherCount n)
+                  <|> try (AnyCount <$> numberParser)
+
+        numberParser = try (choice [try (string "an"), try (string "a"),
+                           try (string "one")] >> (return 1))
+                  <|> try (string "two" >> (return 2))
+                  <|> try (string "three" >> (return 3))
+                  <|> try (string "four" >> (return 4))
+                  <|> try (string "five" >> (return 5))
+                  <|> try (string "six" >> (return 6))
+                  <|> try (string "seven" >> (return 7))
+                  <|> try (string "eight" >> (return 8))
+                  <|> try (string "nine" >> (return 9))
+                  <|> try (string "ten" >> (return 10))
+                  -- FIXME: Add up to 20
 
         target = do
-                   n <- countParser
+                   n <- countRange
                    string " "
                    t <- objectTypeParser
                    optional (string "s") -- FIXME: deal with plural better
