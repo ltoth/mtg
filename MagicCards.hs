@@ -298,7 +298,7 @@ instance FromJSON Card where
                            v .:? "border"
     parseJSON _ = fail "Could not parse card"
 
-data Cost = CMana ManaCost | CTap | CUntap | CLife Word8 | CSacrificeThis
+data Cost = CMana ManaCost | CTap | CUntap | CLife Word8
           | CSacrifice [PermanentMatch]
           | CDiscardThis | CDiscard PermanentType -- FIXME: Should be more general,
           -- i.e. for discard two cards, etc.
@@ -306,6 +306,7 @@ data Cost = CMana ManaCost | CTap | CUntap | CLife Word8 | CSacrificeThis
           deriving (Show, Eq)
 
 data PermanentMatch = PermanentMatch (Maybe CountRange) [Color] PermanentType (Maybe Name) (Maybe OwnControl)
+                    | ThisPermanent
                     deriving (Show, Eq)
 
 data OwnControl = Own WhichPlayers | Control WhichPlayers
@@ -490,8 +491,7 @@ textToAbilities t = case (parse paras "" t) of
                      <|> try (string ", ")
                      <|> try (string " and ")
                      <|> string ","
-        abilityCost = try (ciString "Sacrifice {This}" >> return CSacrificeThis)
-                  <|> try (ciString "Discard {This}" >> return CDiscardThis)
+        abilityCost = try (ciString "Discard {This}" >> return CDiscardThis)
                   <|> try (string "{T}" >> return CTap)
                   <|> try (string "{Q}" >> return CUntap)
                   <|> try (do
@@ -555,7 +555,8 @@ textToAbilities t = case (parse paras "" t) of
 
         targets = target `sepBy1` abilityCostSep
 
-        target = do
+        target = try (string "{This}" >> return ThisPermanent)
+             <|> try (do
                    n <- optionMaybe $ try countRange
                    unless (n == Nothing) (string " " >> return ())
                    cs <- colorsParser
@@ -563,7 +564,7 @@ textToAbilities t = case (parse paras "" t) of
                    t <- permanentTypeParser
                    cardName <- optionMaybe $ try cardNamed
                    oc <- optionMaybe $ try ownControl
-                   return $ PermanentMatch n cs t cardName oc
+                   return $ PermanentMatch n cs t cardName oc)
 
         -- FIXME: Should we distinguish between "or" and "and" here?
         colorsParser = colorParser `sepBy` colorSep
