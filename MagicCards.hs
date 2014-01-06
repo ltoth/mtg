@@ -305,7 +305,7 @@ data Cost = CMana ManaCost | CTap | CUntap | CLife Word8
           | CLoyalty LoyaltyCost | CRemoveCounter CountRange (Maybe CounterType)
           deriving (Show, Eq)
 
-data PermanentMatch = PermanentMatch (Maybe CountRange) [Color] PermanentType (Maybe Name) (Maybe OwnControl)
+data PermanentMatch = PermanentMatch (Maybe CountRange) [Color] PermanentType [Ability] (Maybe Name) (Maybe OwnControl)
                     | ThisPermanent
                     deriving (Show, Eq)
 
@@ -563,9 +563,10 @@ textToAbilities t = case (parse paras "" t) of
                    cs <- colorsParser
                    unless (cs == []) (string " " >> return ())
                    t <- permanentTypeParser
+                   as <- withAbilities
                    cardName <- optionMaybe $ try cardNamed
                    oc <- optionMaybe $ try ownControl
-                   return $ PermanentMatch n cs t cardName oc)
+                   return $ PermanentMatch n cs t as cardName oc)
 
         -- FIXME: Should we distinguish between "or" and "and" here?
         colorsParser = colorParser `sepBy` colorSep
@@ -575,6 +576,10 @@ textToAbilities t = case (parse paras "" t) of
                <|> try (string ", ")
                <|> try (string " and ")
                <|> try (string " or ")
+
+        withAbilities = option [] (try (do
+          string " with "
+          keyword `sepBy1` abilityCostSep))
 
         ownControl = try (do
                          string " "
