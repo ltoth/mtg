@@ -524,7 +524,8 @@ textToAbilities t = case (parse paras "" t) of
         countRange = try (string "up to " >> (UpTo <$> countParser))
                  <|> try (string "at least " >> (AtLeast <$> countParser))
                  -- TODO: also support "4 or greater", "3 or less"
-                 -- TODO: also support "all"
+                 -- TODO: also support "one, two, or three"
+                 -- TODO: also support all
                  <|> try (Exactly <$> countParser)
 
         countParser = try (string "another" >> (return $ OtherCount $ 1))
@@ -555,9 +556,12 @@ textToAbilities t = case (parse paras "" t) of
                   <|> try (string "eighteen" >> (return 18))
                   <|> try (string "nineteen" >> (return 19))
                   <|> try (string "twenty" >> (return 20))
+                  -- TODO: also support actualy digits
 
         -- FIXME: We should distinguish between "or" and "and" here
         -- Artisan's Sorrow, Swan Song, etc.
+        -- FIXME: Move countRange outside of permanentMatch
+        -- TODO: Support target Bool flag somehow, outside permanentMatch
         targets = target `sepBy1` abilityCostSep
 
         target = try (string "{This}" >> return ThisPermanent)
@@ -573,8 +577,13 @@ textToAbilities t = case (parse paras "" t) of
                    -- TODO: support "with [other quality]", e.g.
                    -- "power 4 or greater", "CMC 3 or less"
                    -- Elspeth, Abrupt Decay
+                   -- as well as "with(out) a fate counter on it"
+                   -- Oblivion Stone
                    cardName <- optionMaybe $ try cardNamed
                    oc <- optionMaybe $ try ownControl
+                   -- TODO: support other conditions like
+                   -- "that dealt damage to you this turn"
+                   -- Spear of Heliod
                    return $ PermanentMatch n cs t as cardName oc)
 
         -- FIXME: Should we distinguish between "or" and "and" here?
