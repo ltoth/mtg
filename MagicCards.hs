@@ -568,6 +568,9 @@ textToAbilities t = case (parse paras "" t) of
                    unless (cs == []) (string " " >> return ())
                    t <- permanentTypeParser
                    as <- withAbilities
+                   -- TODO: support "with [other quality]", e.g.
+                   -- "power 4 or greater", "CMC 3 or less"
+                   -- Elspeth, Abrupt Decay
                    cardName <- optionMaybe $ try cardNamed
                    oc <- optionMaybe $ try ownControl
                    return $ PermanentMatch n cs t as cardName oc)
