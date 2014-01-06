@@ -319,6 +319,7 @@ data PermanentType = PermanentType (Maybe (Bool,Supertype)) (Maybe (Bool,Type)) 
 data CountRange = UpTo Count | Exactly Count | AtLeast Count
                 deriving (Show, Eq)
 
+-- FIXME: Should support X, so probably need new datatype, not just Word8
 data Count = AnyCount Word8 | OtherCount Word8
            deriving (Show, Eq)
 
