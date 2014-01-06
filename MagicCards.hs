@@ -476,7 +476,7 @@ textToAbilities t = case (parse paras "" t) of
                             return $ CLife $ read n)
                   <|> try (do
                           ciString "Sacrifice "
-                          ts <- target `sepBy1` abilityCostSep
+                          ts <- targets
                           return $ CSacrifice ts)
                   <|> try (do
                         ciString "Remove "
@@ -528,6 +528,8 @@ textToAbilities t = case (parse paras "" t) of
                   <|> try (string "nineteen" >> (return 19))
                   <|> try (string "twenty" >> (return 20))
 
+        targets = target `sepBy1` abilityCostSep
+
         target = do
                    n <- countRange
                    string " "
@@ -559,7 +561,7 @@ textToAbilities t = case (parse paras "" t) of
                   t <- typeParser
                   return (non, t))
                 -- FIXME: Should this be here?
-                optional (string " permanent")
+                optional (try (string " permanent"))
                 return $ PermanentType super t sub)
 
         spell = SpellAbility <$> many1 (noneOf "\n")
