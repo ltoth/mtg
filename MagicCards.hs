@@ -143,14 +143,22 @@ type CMC = Word8
 data Color = White | Blue | Black | Red | Green
              deriving (Show, Eq)
 instance FromJSON Color where
-    parseJSON (String s)
-      | s == "White" = return White
-      | s == "Blue" = return Blue
-      | s == "Black" = return Black
-      | s == "Red" = return Red
-      | s == "Green" = return Green
-      | otherwise = fail "Invalid color string specified"
+    parseJSON (String s) = return . stringToColor $ T.unpack s
     parseJSON _ = fail "Could not parse color"
+
+-- TODO: Should this be a custom instance of Read instead?
+-- TODO: Generalize to take the parser fn as argument: parseString
+stringToColor :: String -> Color
+stringToColor s = case (parse colorParser "" s) of
+                      Left e -> error (show e)
+                      Right xs -> xs
+
+colorParser :: ParsecT String u Identity Color
+colorParser = try (ciString "White" >> return White)
+          <|> try (ciString "Blue" >> return Blue)
+          <|> try (ciString "Black" >> return Black)
+          <|> try (ciString "Red" >> return Red)
+          <|> try (ciString "Green" >> return Green)
 
 type TypeLine = String
 
