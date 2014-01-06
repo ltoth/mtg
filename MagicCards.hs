@@ -554,12 +554,16 @@ textToAbilities t = case (parse paras "" t) of
                   <|> try (string "nineteen" >> (return 19))
                   <|> try (string "twenty" >> (return 20))
 
+        -- FIXME: We should distinguish between "or" and "and" here
+        -- Artisan's Sorrow, Swan Song, etc.
         targets = target `sepBy1` abilityCostSep
 
         target = try (string "{This}" >> return ThisPermanent)
              <|> try (do
                    n <- optionMaybe $ try countRange
                    unless (n == Nothing) (string " " >> return ())
+                   -- TODO: support states like "attacking" "blocking"
+                   -- Agrus Kos, Wojek Veteran
                    cs <- colorsParser
                    unless (cs == []) (string " " >> return ())
                    t <- permanentTypeParser

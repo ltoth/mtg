@@ -1490,7 +1490,7 @@
         "rarity": "Rare",
         "artist": "Yeong-Hao Han",
         "manaCost": "{1}{R}{R}",
-        "text": "Creatures you control have haste.\n\n{2}{R}, {T}, Sacrifice a land with flying, first strike, and deathtouch: Put a 3/3 colorless Golem enchantment artifact creature token onto the battlefield.",
+        "text": "Creatures you control have haste.\n\n{2}{R}, {T}, Sacrifice a land: Put a 3/3 colorless Golem enchantment artifact creature token onto the battlefield.",
         "flavor": "All the world is Purphoros's anvil.",
         "number": "124",
         "imageName": "hammer of purphoros"
