@@ -283,7 +283,7 @@ instance FromJSON Card where
     parseJSON _ = fail "Could not parse card"
 
 data Cost = CMana ManaCost | CTap | CUntap | CLife Word8 | CSacrificeThis
-          | CSacrifice [(CountRange, ObjectType)]
+          | CSacrifice [(CountRange, Bool, ObjectType)]
           | CDiscardThis | CDiscard ObjectType -- FIXME: Should be more general,
           -- i.e. for discard two cards, etc.
           | CLoyalty LoyaltyCost | CRemoveCounter CountRange (Maybe CounterType)
@@ -515,10 +515,16 @@ textToAbilities t = case (parse paras "" t) of
         target = do
                    n <- countRange
                    string " "
+                   non <- nonParser
                    t <- objectTypeParser
                    optional (string "s") -- FIXME: deal with plural better
                    -- TODO: optionMaybe (string " you control")
-                   return $ (n, t)
+                   return $ (n, non, t)
+
+        nonParser = option True (try (do
+                                string "non"
+                                optional (string "-")
+                                return False))
 
         objectTypeParser =
               try (do
