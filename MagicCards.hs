@@ -461,7 +461,8 @@ textToAbilities t = case (parse paras "" t) of
           instr <- optionMaybe (many1 (noneOf "\n"))
           return $ ActivatedAbility cost effect instr
         totalCost = abilityCost `sepBy1` abilityCostSep
-        abilityCostSep = try (string ", ")
+        abilityCostSep = try (string ", and ")
+                     <|> try (string ", ")
                      <|> try (string " and ")
                      <|> string ","
         abilityCost = try (ciString "Sacrifice {This}" >> return CSacrificeThis)
