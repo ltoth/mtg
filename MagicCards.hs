@@ -65,7 +65,7 @@ import Text.Regex
 import MagicCards.Subtype
 import Text.Parsec.Char.Extra(ciChar, ciString)
 
-data Layout = Normal | Split | Flip | DoubleFaced | Token | Plane | Scheme
+data Layout = Normal | Split | Flip | DoubleFaced | TokenLayout | Plane | Scheme
             | Phenomenon
               deriving (Show, Eq)
 instance FromJSON Layout where
@@ -74,7 +74,7 @@ instance FromJSON Layout where
       | s == "split" = return Split
       | s == "flip" = return Flip
       | s == "double-faced" = return DoubleFaced
-      | s == "token" = return Token
+      | s == "token" = return TokenLayout
       | s == "plane" = return Plane
       | s == "scheme" = return Scheme
       | s == "phenomenon" = return Phenomenon
@@ -297,10 +297,11 @@ data Cost = CMana ManaCost | CTap | CUntap | CLife Word8 | CSacrificeThis
           | CLoyalty LoyaltyCost | CRemoveCounter CountRange (Maybe CounterType)
           deriving (Show, Eq)
 
-data PermanentMatch = PermanentMatch CountRange Bool PermanentType
+data PermanentMatch = PermanentMatch CountRange PermanentType
                    deriving (Show, Eq)
 
-data PermanentType = PermanentType (Maybe Supertype) (Maybe Type) (Maybe Subtype)
+data PermanentType = PermanentType (Maybe (Bool,Supertype)) (Maybe (Bool,Type)) (Maybe (Bool,Subtype))
+                   | Token (Maybe Name) | Permanent
                 deriving (Show, Eq)
 
 data CountRange = UpTo Count | Exactly Count | AtLeast Count
@@ -529,22 +530,36 @@ textToAbilities t = case (parse paras "" t) of
         target = do
                    n <- countRange
                    string " "
-                   non <- nonParser
                    t <- permanentTypeParser
                    optional (string "s") -- FIXME: deal with plural better
                    -- TODO: optionMaybe (string " you control")
-                   return $ PermanentMatch n non t
+                   return $ PermanentMatch n t
 
         nonParser = option True (try (do
                                 string "non"
                                 optional (string "-")
                                 return False))
 
-        permanentTypeParser = try (do
-              super <- optionMaybe supertypeParser
-              t <- optionMaybe typeParser
-              sub <- optionMaybe subtypeParser
-              return $ PermanentType super t sub)
+        permanentTypeParser =
+              try (string "permanent" >> (return $ Permanent))
+          <|> try (do
+                super <- optionMaybe $ try (do
+                  non <- nonParser
+                  t <- supertypeParser
+                  return (non, t))
+                sub <- optionMaybe $ try (do
+                  non <- nonParser
+                  t <- subtypeParser
+                  return (non, t))
+                t <- optionMaybe $ try (do
+                  unless (super == Nothing && sub == Nothing)
+                    (string " " >> return ())
+                  non <- nonParser
+                  t <- typeParser
+                  return (non, t))
+                -- FIXME: Should this be here?
+                optional (string " permanent")
+                return $ PermanentType super t sub)
 
         spell = SpellAbility <$> many1 (noneOf "\n")
 
@@ -558,16 +573,16 @@ textToAbilities t = case (parse paras "" t) of
               -- TODO: pull these out into a separate parser for object types/characteristics
               <|> (ciString "Enchant creature" >>
                     (return $ KeywordAbility $ Enchant
-                    (ETObject $ PermanentType Nothing (Just Creature) Nothing)))
+                    (ETObject $ PermanentType Nothing (Just (True,Creature)) Nothing)))
               <|> (ciString "Enchant land" >>
                     (return $ KeywordAbility $ Enchant
-                    (ETObject $ PermanentType Nothing (Just Land) Nothing)))
+                    (ETObject $ PermanentType Nothing (Just (True,Land)) Nothing)))
               <|> (ciString "Enchant artifact" >>
                     (return $ KeywordAbility $ Enchant
-                    (ETObject $ PermanentType Nothing (Just Artifact) Nothing)))
+                    (ETObject $ PermanentType Nothing (Just (True,Artifact)) Nothing)))
               <|> (ciString "Enchant enchantment" >>
                     (return $ KeywordAbility $ Enchant
-                    (ETObject $ PermanentType Nothing (Just Enchantment) Nothing)))
+                    (ETObject $ PermanentType Nothing (Just (True,Enchantment)) Nothing)))
               <|> (ciString "Enchant permanent" >>
                     (return $ KeywordAbility $ Enchant ETPermanent))
               -- FIXME: Make Enchant type more specific: Chained to the
