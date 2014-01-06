@@ -297,11 +297,11 @@ data Cost = CMana ManaCost | CTap | CUntap | CLife Word8 | CSacrificeThis
           | CLoyalty LoyaltyCost | CRemoveCounter CountRange (Maybe CounterType)
           deriving (Show, Eq)
 
-data PermanentMatch = PermanentMatch (Maybe CountRange) PermanentType
+data PermanentMatch = PermanentMatch (Maybe CountRange) PermanentType (Maybe Name)
                     deriving (Show, Eq)
 
 data PermanentType = PermanentType (Maybe (Bool,Supertype)) (Maybe (Bool,Type)) (Maybe (Bool,Subtype))
-                   | Token (Maybe Name) | Permanent
+                   | Token | Permanent
                    deriving (Show, Eq)
 
 data CountRange = UpTo Count | Exactly Count | AtLeast Count
@@ -535,13 +535,20 @@ textToAbilities t = case (parse paras "" t) of
                    unless (n == Nothing) (string " " >> return ())
                    t <- permanentTypeParser
                    optional (string "s") -- FIXME: deal with plural better
+                   cardName <- optionMaybe $ try cardNamed
                    -- TODO: optionMaybe (string " you control")
-                   return $ PermanentMatch n t
+                   return $ PermanentMatch n t cardName
 
         nonParser = option True (try (do
                                 string "non"
                                 optional (string "-")
                                 return False))
+
+        cardNamed = do
+          string " named "
+          many1 (noneOf ",:;.\n") -- FIXME: Actually match against
+          -- possible card names, not just as strings, since
+          -- this doesn't know when to stop properly, i.e. Kher Keep
 
         permanentTypeParser =
               try (string "permanent" >> (return $ Permanent))
