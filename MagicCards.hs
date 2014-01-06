@@ -552,6 +552,7 @@ textToAbilities t = case (parse paras "" t) of
 
         permanentTypeParser =
               try (string "permanent" >> (return $ Permanent))
+          <|> try (string "token" >> (return $ Token))
           <|> try (do
                 super <- optionMaybe $ try (do
                   non <- nonParser
