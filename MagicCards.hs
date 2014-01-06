@@ -154,17 +154,25 @@ instance FromJSON Color where
 
 type TypeLine = String
 
--- FIXME: There might be more possible values
-data Supertype = Basic | Legendary | Snow | World
+data Supertype = Basic | Legendary | Ongoing | Snow | World
                  deriving (Show, Eq)
 instance FromJSON Supertype where
-    parseJSON (String s)
-      | s == "Basic" = return Basic
-      | s == "Legendary" = return Legendary
-      | s == "Snow" = return Snow
-      | s == "World" = return World
-      | otherwise = fail "Invalid supertype string specified"
+    parseJSON (String s) = return . stringToSupertype $ T.unpack s
     parseJSON _ = fail "Could not parse supertype"
+
+-- TODO: Should this be a custom instance of Read instead?
+-- TODO: Generalize to take the parser fn as argument: parseString
+stringToSupertype :: String -> Supertype
+stringToSupertype s = case (parse supertypeParser "" s) of
+                      Left e -> error (show e)
+                      Right xs -> xs
+
+supertypeParser :: ParsecT String u Identity Supertype
+supertypeParser = try (ciString "Basic" >> return Basic)
+              <|> try (ciString "Legendary" >> return Legendary)
+              <|> try (ciString "Ongoing" >> return Ongoing)
+              <|> try (ciString "Snow" >> return Snow)
+              <|> try (ciString "World" >> return World)
 
 data Type = Instant | Sorcery | Artifact | Creature | Enchantment
             | Land | Planeswalker | Tribal
@@ -283,11 +291,17 @@ instance FromJSON Card where
     parseJSON _ = fail "Could not parse card"
 
 data Cost = CMana ManaCost | CTap | CUntap | CLife Word8 | CSacrificeThis
-          | CSacrifice [(CountRange, Bool, ObjectType)]
-          | CDiscardThis | CDiscard ObjectType -- FIXME: Should be more general,
+          | CSacrifice [PermanentMatch]
+          | CDiscardThis | CDiscard PermanentType -- FIXME: Should be more general,
           -- i.e. for discard two cards, etc.
           | CLoyalty LoyaltyCost | CRemoveCounter CountRange (Maybe CounterType)
           deriving (Show, Eq)
+
+data PermanentMatch = PermanentMatch CountRange Bool PermanentType
+                   deriving (Show, Eq)
+
+data PermanentType = PermanentType (Maybe Supertype) (Maybe Type) (Maybe Subtype)
+                deriving (Show, Eq)
 
 data CountRange = UpTo Count | Exactly Count | AtLeast Count
                 deriving (Show, Eq)
@@ -300,7 +314,7 @@ type CounterType = String
 data LoyaltyCost = LC Int8 | LCMinusX deriving (Show, Eq)
 
 data TriggerEvent = TEAt WhichPlayers Step | TEThisETB | TEThisLTB
-                  | TEObjectETB ObjectType | TEObjectLTB ObjectType
+                  | TEObjectETB PermanentType | TEObjectLTB PermanentType
                   | TEOther String -- FIXME: Make more value constr.
                   deriving (Show, Eq)
 
@@ -516,23 +530,21 @@ textToAbilities t = case (parse paras "" t) of
                    n <- countRange
                    string " "
                    non <- nonParser
-                   t <- objectTypeParser
+                   t <- permanentTypeParser
                    optional (string "s") -- FIXME: deal with plural better
                    -- TODO: optionMaybe (string " you control")
-                   return $ (n, non, t)
+                   return $ PermanentMatch n non t
 
         nonParser = option True (try (do
                                 string "non"
                                 optional (string "-")
                                 return False))
 
-        objectTypeParser =
-              try (do
-                t <- typeParser
-                return $ ObjectType Nothing (Just t) Nothing)
-          <|> try (do
-                s <- subtypeParser
-                return $ ObjectType (Just s) Nothing Nothing)
+        permanentTypeParser = try (do
+              super <- optionMaybe supertypeParser
+              t <- optionMaybe typeParser
+              sub <- optionMaybe subtypeParser
+              return $ PermanentType super t sub)
 
         spell = SpellAbility <$> many1 (noneOf "\n")
 
@@ -546,19 +558,16 @@ textToAbilities t = case (parse paras "" t) of
               -- TODO: pull these out into a separate parser for object types/characteristics
               <|> (ciString "Enchant creature" >>
                     (return $ KeywordAbility $ Enchant
-                    (ETObject $ ObjectType Nothing (Just Creature) Nothing)))
+                    (ETObject $ PermanentType Nothing (Just Creature) Nothing)))
               <|> (ciString "Enchant land" >>
                     (return $ KeywordAbility $ Enchant
-                    (ETObject $ ObjectType Nothing (Just Land) Nothing)))
+                    (ETObject $ PermanentType Nothing (Just Land) Nothing)))
               <|> (ciString "Enchant artifact" >>
                     (return $ KeywordAbility $ Enchant
-                    (ETObject $ ObjectType Nothing (Just Artifact) Nothing)))
+                    (ETObject $ PermanentType Nothing (Just Artifact) Nothing)))
               <|> (ciString "Enchant enchantment" >>
                     (return $ KeywordAbility $ Enchant
-                    (ETObject $ ObjectType Nothing (Just Enchantment) Nothing)))
-              <|> (ciString "Enchant Equipment" >>
-                    (return $ KeywordAbility $ Enchant
-                    (ETObject $ ObjectType (Just $ ArtifactType $ Equipment) Nothing Nothing)))
+                    (ETObject $ PermanentType Nothing (Just Enchantment) Nothing)))
               <|> (ciString "Enchant permanent" >>
                     (return $ KeywordAbility $ Enchant ETPermanent))
               -- FIXME: Make Enchant type more specific: Chained to the
@@ -597,7 +606,7 @@ data Keyword = Deathtouch
              | Hexproof
              | Indestructible
              | Intimidate
-             | Landwalk ObjectType
+             | Landwalk PermanentType
              | Lifelink
              | Protection (Either Quality PlayerType)
              | Reach
@@ -607,11 +616,8 @@ data Keyword = Deathtouch
              | Bestow ([Cost])
              deriving (Show, Eq)
 
-data ObjectType = ObjectType (Maybe Subtype) (Maybe Type) (Maybe Supertype)
-                deriving (Show, Eq)
-
 -- TODO: Generalize this to [TargetingCharacteristic]
-data EnchantmentTarget = ETObject ObjectType | ETPlayer PlayerType | ETPermanent
+data EnchantmentTarget = ETObject PermanentType | ETPlayer PlayerType | ETPermanent
                        deriving (Show, Eq)
 
 data PlayerType = PTPlayer | PTOpponent deriving (Show, Eq)
