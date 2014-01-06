@@ -524,6 +524,7 @@ textToAbilities t = case (parse paras "" t) of
         countRange = try (string "up to " >> (UpTo <$> countParser))
                  <|> try (string "at least " >> (AtLeast <$> countParser))
                  -- TODO: also support "4 or greater", "3 or less"
+                 -- TODO: also support "all"
                  <|> try (Exactly <$> countParser)
 
         countParser = try (string "another" >> (return $ OtherCount $ 1))
