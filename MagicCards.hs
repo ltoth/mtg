@@ -297,12 +297,12 @@ data Cost = CMana ManaCost | CTap | CUntap | CLife Word8 | CSacrificeThis
           | CLoyalty LoyaltyCost | CRemoveCounter CountRange (Maybe CounterType)
           deriving (Show, Eq)
 
-data PermanentMatch = PermanentMatch CountRange PermanentType
-                   deriving (Show, Eq)
+data PermanentMatch = PermanentMatch (Maybe CountRange) PermanentType
+                    deriving (Show, Eq)
 
 data PermanentType = PermanentType (Maybe (Bool,Supertype)) (Maybe (Bool,Type)) (Maybe (Bool,Subtype))
                    | Token (Maybe Name) | Permanent
-                deriving (Show, Eq)
+                   deriving (Show, Eq)
 
 data CountRange = UpTo Count | Exactly Count | AtLeast Count
                 deriving (Show, Eq)
@@ -531,8 +531,8 @@ textToAbilities t = case (parse paras "" t) of
         targets = target `sepBy1` abilityCostSep
 
         target = do
-                   n <- countRange
-                   string " "
+                   n <- optionMaybe $ try countRange
+                   unless (n == Nothing) (string " " >> return ())
                    t <- permanentTypeParser
                    optional (string "s") -- FIXME: deal with plural better
                    -- TODO: optionMaybe (string " you control")
