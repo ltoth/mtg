@@ -534,7 +534,6 @@ textToAbilities t = case (parse paras "" t) of
                    n <- optionMaybe $ try countRange
                    unless (n == Nothing) (string " " >> return ())
                    t <- permanentTypeParser
-                   optional (string "s") -- FIXME: deal with plural better
                    cardName <- optionMaybe $ try cardNamed
                    -- TODO: optionMaybe (string " you control")
                    return $ PermanentMatch n t cardName
@@ -551,8 +550,10 @@ textToAbilities t = case (parse paras "" t) of
           -- this doesn't know when to stop properly, i.e. Kher Keep
 
         permanentTypeParser =
-              try (string "permanent" >> (return $ Permanent))
-          <|> try (string "token" >> (return $ Token))
+              try (string "permanent" >> optional (string "s") >>
+                (return $ Permanent))
+          <|> try (string "token" >> optional (string "s") >>
+                (return $ Token))
           <|> try (do
                 super <- optionMaybe $ try (do
                   non <- nonParser
@@ -568,8 +569,8 @@ textToAbilities t = case (parse paras "" t) of
                   non <- nonParser
                   t <- typeParser
                   return (non, t))
-                -- FIXME: Should this be here?
                 optional (try (string " permanent"))
+                optional (string "s") -- FIXME: deal with plural better
                 return $ PermanentType super t sub)
 
         spell = SpellAbility <$> many1 (noneOf "\n")
