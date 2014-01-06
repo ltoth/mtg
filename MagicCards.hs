@@ -305,8 +305,11 @@ data Cost = CMana ManaCost | CTap | CUntap | CLife Word8 | CSacrificeThis
           | CLoyalty LoyaltyCost | CRemoveCounter CountRange (Maybe CounterType)
           deriving (Show, Eq)
 
-data PermanentMatch = PermanentMatch (Maybe CountRange) [Color] PermanentType (Maybe Name)
+data PermanentMatch = PermanentMatch (Maybe CountRange) [Color] PermanentType (Maybe Name) (Maybe OwnControl)
                     deriving (Show, Eq)
+
+data OwnControl = Own WhichPlayers | Control WhichPlayers
+                deriving (Show, Eq)
 
 data PermanentType = PermanentType (Maybe (Bool,Supertype)) (Maybe (Bool,Type)) (Maybe (Bool,Subtype))
                    | Token | Permanent
@@ -424,7 +427,7 @@ textToAbilities t = case (parse paras "" t) of
         trigEvent =
               try (ciString "At " >>
                     try (ciString "the beginning of " >>
-                      TEAt <$> whichPlayer <*> step)
+                      TEAt <$> whichPlayers <*> step)
                     <|> try (ciString "the end of combat" >>
                       return (TEAt EachPlayer EndOfCombat))
                     <|> TEOther <$> many (noneOf ",\n"))
@@ -440,11 +443,25 @@ textToAbilities t = case (parse paras "" t) of
         -- the same for effects
         -- TODO: Also have to deal with "the next" and "it's controller's
         -- next"
-        whichPlayer =
-          try ((try (ciString "each player's ") <|> ciString "each ")
+        whichPlayers =
+          try (    try (ciString "each player's ")
+               <|> try (ciString "each player ")
             >> return EachPlayer)
-          <|> try (ciString "your " >> return You)
-          <|> try (ciString "each opponent's " >> return Opponents)
+          <|> try (try (ciString "your ")
+               <|> try (ciString "you ")
+            >> return You)
+          <|> try (try (ciString "each opponent's ")
+               <|> try (ciString "each opponent ")
+               <|> try (ciString "opponent's ")
+               <|> try (ciString "an opponent ")
+               <|> try (ciString "your opponents' ")
+               <|> try (ciString "your opponents ")
+               <|> try (ciString "your opponent ")
+               <|> try (ciString "all opponents' ")
+               <|> try (ciString "all opponents ")
+               <|> try (ciString "opponent ")
+            >> return Opponents)
+          <|> try (ciString "each " >> return EachPlayer)
 
         step =
           try (ciString "untap step" >> return Untap)
@@ -545,8 +562,8 @@ textToAbilities t = case (parse paras "" t) of
                    unless (cs == []) (string " " >> return ())
                    t <- permanentTypeParser
                    cardName <- optionMaybe $ try cardNamed
-                   -- TODO: optionMaybe (string " you control")
-                   return $ PermanentMatch n cs t cardName
+                   oc <- optionMaybe $ try ownControl
+                   return $ PermanentMatch n cs t cardName oc
 
         -- FIXME: Should we distinguish between "or" and "and" here?
         colorsParser = colorParser `sepBy` colorSep
@@ -556,6 +573,19 @@ textToAbilities t = case (parse paras "" t) of
                <|> try (string ", ")
                <|> try (string " and ")
                <|> try (string " or ")
+
+        ownControl = try (do
+                         string " "
+                         p <- whichPlayers
+                         string "own"
+                         optional (string "s")
+                         return $ Own $ p)
+                 <|> try (do
+                         string " "
+                         p <- whichPlayers
+                         string "control"
+                         optional (string "s")
+                         return $ Control $ p)
 
         nonParser = option True (try (do
                                 string "non"
