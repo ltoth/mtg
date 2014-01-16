@@ -744,11 +744,14 @@ removeReminder :: CardText -> CardText
 removeReminder t = subRegex (mkRegex " *\\([^)]+\\) *")
                    (subRegex (mkRegex "^\\([^)]+\\)\n\n") t "") ""
 
--- FIXME: THS Gods use just their "first" names to refer to {This} in their
--- text. Also Jarad in RTR. Need to be able to account for that, ideally
--- not with an explicit exception.
 replaceThis :: Card -> Maybe CardText
-replaceThis c = replace (name c) "{This}" <$> (cardText c)
+replaceThis c =
+    (replace shortName "{This}")
+    . (replace (name c) "{This}")
+    <$> (cardText c)
+    where shortName = subRegex (mkRegex ", .*$") (name c) ""
+          -- This handles the THS Gods, Tymaret, Jarad, etc.
+          -- since only their first names are used in ability text
 
 replace :: Eq a => [a] -> [a] -> [a] -> [a]
 replace old new = intercalate new . splitOn old
