@@ -319,6 +319,26 @@ data PermanentType = PermanentType ([Non Supertype]) ([Non Type]) ([Non Subtype]
 data Non a = Non Bool a
            deriving (Show, Eq)
 
+data PermanentStatus =
+    PermanentStatus TapStatus FlipStatus FaceStatus PhaseStatus
+    deriving (Show, Eq)
+
+data PermanentStatusMatch =
+    PermanentStatusMatch (Maybe TapStatus) (Maybe FlipStatus) (Maybe FaceStatus) (Maybe PhaseStatus)
+    deriving (Show, Eq)
+
+data TapStatus = Tapped | Untapped
+               deriving (Show, Eq)
+
+data FlipStatus = Flipped | Unflipped
+                deriving (Show, Eq)
+
+data FaceStatus = FaceUp | FaceDown
+                deriving (Show, Eq)
+
+data PhaseStatus = PhasedIn | PhasedOut
+                 deriving (Show, Eq)
+
 data CountRange = UpTo Count | Exactly Count | AtLeast Count
                 deriving (Show, Eq)
 
