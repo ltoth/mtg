@@ -428,6 +428,8 @@ textToAbilities t = case (parse paras "" t) of
 
         trigEvent =
               try (ciString "At " >>
+                    -- TODO: first check "at the beginning of combat
+                    -- on your turn" (Battle-Rattle Shaman)
                     try (ciString "the beginning of " >>
                       TEAt <$> whichPlayers <*> step)
                     <|> try (ciString "the end of combat" >>
