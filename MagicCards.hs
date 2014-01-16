@@ -342,9 +342,11 @@ data PhaseStatus = PhasedIn | PhasedOut
 data CountRange = UpTo Count | Exactly Count | AtLeast Count
                 deriving (Show, Eq)
 
--- FIXME: Should support X, so probably need new datatype, not just Word8
-data Count = AnyCount Word8 | OtherCount Word8
+data Count = AnyCount NumValue | OtherCount NumValue
            deriving (Show, Eq)
+
+data NumValue = NumValue Word8 | NumValueX
+              deriving (Show, Eq)
 
 type CounterType = String
 
@@ -453,6 +455,8 @@ textToAbilities t = case (parse paras "" t) of
               try (ciString "At " >>
                     -- TODO: first check "at the beginning of combat
                     -- on your turn" (Battle-Rattle Shaman)
+                    -- TODO: first check "at the beginning of each of
+                    -- your main phases" (Carpet of Flowers)
                     try (ciString "the beginning of " >>
                       TEAt <$> whichPlayers <*> step)
                     <|> try (ciString "the end of combat" >>
@@ -466,10 +470,8 @@ textToAbilities t = case (parse paras "" t) of
                       return TEThisLTB)
                     <|> TEOther <$> many (noneOf ",\n"))
 
-        -- TODO: Probably should parse non-possessives "each player" "you"
-        -- the same for effects
         -- TODO: Also have to deal with "the next" and "it's controller's
-        -- next"
+        -- next" and "your next"
         whichPlayers =
           try (    try (ciString "each player's ")
                <|> try (ciString "each player ")
@@ -553,7 +555,8 @@ textToAbilities t = case (parse paras "" t) of
                  -- TODO: also support all
                  <|> try (Exactly <$> countParser)
 
-        countParser = try (string "another" >> (return $ OtherCount $ 1))
+        countParser = try (string "another" >>
+                          (return $ (OtherCount . NumValue) $ 1))
                   <|> try (do
                           n <- numberParser
                           string " other"
@@ -561,27 +564,28 @@ textToAbilities t = case (parse paras "" t) of
                   <|> try (AnyCount <$> numberParser)
 
         numberParser = try (choice [try (string "an"), try (string "a"),
-                           try (string "one")] >> (return 1))
-                  <|> try (string "two" >> (return 2))
-                  <|> try (string "three" >> (return 3))
-                  <|> try (string "four" >> (return 4))
-                  <|> try (string "five" >> (return 5))
-                  <|> try (string "six" >> (return 6))
-                  <|> try (string "seven" >> (return 7))
-                  <|> try (string "eight" >> (return 8))
-                  <|> try (string "nine" >> (return 9))
-                  <|> try (string "ten" >> (return 10))
-                  <|> try (string "eleven" >> (return 11))
-                  <|> try (string "twelve" >> (return 12))
-                  <|> try (string "thirteen" >> (return 13))
-                  <|> try (string "fourteen" >> (return 14))
-                  <|> try (string "fifteen" >> (return 15))
-                  <|> try (string "sixteen" >> (return 16))
-                  <|> try (string "seventeen" >> (return 17))
-                  <|> try (string "eighteen" >> (return 18))
-                  <|> try (string "nineteen" >> (return 19))
-                  <|> try (string "twenty" >> (return 20))
-                  -- TODO: also support actualy digits
+                           try (string "one")] >> (return $ NumValue 1))
+                  <|> try (string "two" >> (return $ NumValue 2))
+                  <|> try (string "three" >> (return $ NumValue 3))
+                  <|> try (string "four" >> (return $ NumValue 4))
+                  <|> try (string "five" >> (return $ NumValue 5))
+                  <|> try (string "six" >> (return $ NumValue 6))
+                  <|> try (string "seven" >> (return $ NumValue 7))
+                  <|> try (string "eight" >> (return $ NumValue 8))
+                  <|> try (string "nine" >> (return $ NumValue 9))
+                  <|> try (string "ten" >> (return $ NumValue 10))
+                  <|> try (string "eleven" >> (return $ NumValue 11))
+                  <|> try (string "twelve" >> (return $ NumValue 12))
+                  <|> try (string "thirteen" >> (return $ NumValue 13))
+                  <|> try (string "fourteen" >> (return $ NumValue 14))
+                  <|> try (string "fifteen" >> (return $ NumValue 15))
+                  <|> try (string "sixteen" >> (return $ NumValue 16))
+                  <|> try (string "seventeen" >> (return $ NumValue 17))
+                  <|> try (string "eighteen" >> (return $ NumValue 18))
+                  <|> try (string "nineteen" >> (return $ NumValue 19))
+                  <|> try (string "twenty" >> (return $ NumValue 20))
+                  <|> try (string "X" >> (return NumValueX))
+                  <|> try ((NumValue . read) <$> (many1 digit))
 
         -- FIXME: We should distinguish between "or" and "and" here
         -- Artisan's Sorrow, Swan Song, Corrupted Roots etc.
@@ -605,7 +609,9 @@ textToAbilities t = case (parse paras "" t) of
                 -- Elspeth, Abrupt Decay
                 -- as well as "with(out) a fate counter on it"
                 -- Oblivion Stone
+                optional (string " ")
                 cardName <- optionMaybe $ try cardNamed
+                optional (string " ")
                 oc <- optionMaybe $ try ownControl
                 -- TODO: support other conditions like
                 -- "that dealt damage to you this turn"
@@ -623,17 +629,15 @@ textToAbilities t = case (parse paras "" t) of
                <|> try (string " or ")
 
         withAbilities = option [] (try (do
-          string " with "
+          string "with "
           keyword `sepBy1` abilityCostSep))
 
         ownControl = try (do
-                         string " "
                          p <- whichPlayers
                          string "own"
                          optional (string "s")
                          return $ Own $ p)
                  <|> try (do
-                         string " "
                          p <- whichPlayers
                          string "control"
                          optional (string "s")
@@ -645,7 +649,7 @@ textToAbilities t = case (parse paras "" t) of
                                 return False))
 
         cardNamed = do
-          string " named "
+          string "named "
           many1 (noneOf ",:;.\n") -- FIXME: Actually match against
           -- possible card names, not just as strings, since
           -- this doesn't know when to stop properly, i.e. Kher Keep
