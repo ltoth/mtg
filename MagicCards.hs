@@ -305,6 +305,22 @@ data Cost = CMana ManaCost | CTap | CUntap | CLife Word8
           | CLoyalty LoyaltyCost | CRemoveCounter CountRange (Maybe CounterType)
           deriving (Show, Eq)
 
+data TargetMatch = TMPermanent [PermanentMatch] | TMPlayer PlayerMatch
+                 | TMSpell SpellMatch | TMCard CardMatch
+                 deriving (Show, Eq)
+
+data PlayerMatch = Player | Opponent deriving (Show, Eq)
+
+-- TODO: for targeting spells (i.e. counterspells)
+type SpellMatch = String
+
+-- TODO: for targeting/choosing cards (in graveyards, hands, libraries?)
+type CardMatch = String
+
+-- FIXME: This is for the protection keyword
+type Quality = String
+
+-- TODO: Support "nontoken permanent"
 data PermanentMatch = PermanentMatch (Maybe CountRange) [Color] PermanentType [Ability] (Maybe Name) (Maybe OwnControl)
                     | ThisPermanent
                     deriving (Show, Eq)
@@ -312,7 +328,7 @@ data PermanentMatch = PermanentMatch (Maybe CountRange) [Color] PermanentType [A
 data OwnControl = Own WhichPlayers | Control WhichPlayers
                 deriving (Show, Eq)
 
-data PermanentType = PermanentType ([Non Supertype]) ([Non Type]) ([Non Subtype])
+data PermanentType = PermanentType [Non Supertype] [Non Type] [Non Subtype]
                    | Token | Permanent
                    deriving (Show, Eq)
 
@@ -677,16 +693,15 @@ textToAbilities t = case (parse paras "" t) of
         keyword = (ciString "Deathtouch" >> (return $ KeywordAbility Deathtouch))
               <|> (ciString "Defender" >> (return $ KeywordAbility Defender))
               <|> (ciString "Double strike" >> (return $ KeywordAbility DoubleStrike))
+              -- TODO: Pull these out into general target match parser
+              -- to also deal with "creature card in a graveyard"
+              -- (Animate Dead etc.)
               <|> (ciString "Enchant player" >>
-                    (return $ KeywordAbility $ Enchant (ETPlayer PTPlayer)))
+                    (return $ KeywordAbility $ Enchant (TMPlayer Player)))
               <|> (ciString "Enchant opponent" >>
-                    (return $ KeywordAbility $ Enchant (ETPlayer PTOpponent)))
-              -- TODO: pull these out into a separate parser for object types/characteristics
-              -- using permanentMatch
-              <|> (ciString "Enchant permanent" >>
-                    (return $ KeywordAbility $ Enchant ETPermanent))
-              -- FIXME: Make Enchant type more specific: Chained to the
-              -- Rocks, Aggression, Controlled Instincts
+                    (return $ KeywordAbility $ Enchant (TMPlayer Opponent)))
+              <|> (ciString "Enchant " >>
+                    (KeywordAbility . Enchant . TMPermanent) <$> permanentMatches)
               <|> (ciString "Equip" >> keywordCostSep >>
                     (KeywordAbility . Equip) <$> totalCost)
               <|> (ciString "First strike" >> (return $ KeywordAbility FirstStrike))
@@ -712,7 +727,7 @@ textToAbilities t = case (parse paras "" t) of
 data Keyword = Deathtouch
              | Defender
              | DoubleStrike
-             | Enchant EnchantmentTarget
+             | Enchant TargetMatch
              | Equip ([Cost])
              | FirstStrike
              | Flash
@@ -723,21 +738,13 @@ data Keyword = Deathtouch
              | Intimidate
              | Landwalk PermanentType
              | Lifelink
-             | Protection (Either Quality PlayerType)
+             | Protection (Either Quality PlayerMatch)
              | Reach
              | Shroud
              | Trample
              | Vigilance
              | Bestow ([Cost])
              deriving (Show, Eq)
-
--- TODO: Generalize this to [TargetingCharacteristic]
-data EnchantmentTarget = ETObject PermanentType | ETPlayer PlayerType | ETPermanent
-                       deriving (Show, Eq)
-
-data PlayerType = PTPlayer | PTOpponent deriving (Show, Eq)
-
-type Quality = String -- FIXME
 
 removeReminder :: CardText -> CardText
 -- FIXME: Should not be greedy
