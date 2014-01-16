@@ -676,8 +676,6 @@ textToAbilities t = case (parse paras "" t) of
           <|> try (string "token" >> optional (string "s") >>
                 (return $ Token))
           <|> try (do
-                -- TODO: support multiple types, i.e. "artifact creature"
-                -- TODO: Make Non polymorphic type
                 super <- ((try (Non <$> nonParser <*> supertypeParser))
                         `sepEndBy` (string " "))
                 sub <- ((try (Non <$> nonParser <*> subtypeParser))
