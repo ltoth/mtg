@@ -123,8 +123,9 @@ manaCostParser = many1 symbol
              <|> try (string "{G}" >> return G)
              <|> try (string "{S}" >> return S)
              <|> try (string "{X}" >> return X)
-             <|> try (string "{Y}" >> return Y)
-             <|> try (string "{Z}" >> return Z)
+             <|> try (string "{Y}" >> return Y) -- TODO: Only Unhinged,
+             -- so get rid of it?
+             <|> try (string "{Z}" >> return Z) -- TODO: Only Unhinged
              <|> try (string "{P}" >> return P)
              <|> (do
                     char '{'
@@ -137,7 +138,6 @@ data ManaSymbol = W | U | B | R | G | S | CL Word8 | X | Y | Z
                   | W2 | U2 | B2 | R2 | G2 | WP | UP | BP | RP | GP | P
                   deriving (Show, Eq)
 
--- FIXME: This really should support decimals, because of Unhinged
 type CMC = Word8
 
 data Color = White | Blue | Black | Red | Green
