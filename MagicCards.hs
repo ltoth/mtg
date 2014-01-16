@@ -312,9 +312,12 @@ data PermanentMatch = PermanentMatch (Maybe CountRange) [Color] PermanentType [A
 data OwnControl = Own WhichPlayers | Control WhichPlayers
                 deriving (Show, Eq)
 
-data PermanentType = PermanentType (Maybe (Bool,Supertype)) (Maybe (Bool,Type)) (Maybe (Bool,Subtype))
+data PermanentType = PermanentType ([Non Supertype]) ([Non Type]) ([Non Subtype])
                    | Token | Permanent
                    deriving (Show, Eq)
+
+data Non a = Non Bool a
+           deriving (Show, Eq)
 
 data CountRange = UpTo Count | Exactly Count | AtLeast Count
                 deriving (Show, Eq)
@@ -504,7 +507,7 @@ textToAbilities t = case (parse paras "" t) of
                             return $ CLife $ read n)
                   <|> try (do
                           ciString "Sacrifice "
-                          ts <- targets
+                          ts <- permanentMatches
                           return $ CSacrifice ts)
                   <|> try (do
                         ciString "Remove "
@@ -561,34 +564,36 @@ textToAbilities t = case (parse paras "" t) of
                   -- TODO: also support actualy digits
 
         -- FIXME: We should distinguish between "or" and "and" here
-        -- Artisan's Sorrow, Swan Song, etc.
+        -- Artisan's Sorrow, Swan Song, Corrupted Roots etc.
         -- FIXME: Move countRange outside of permanentMatch
         -- TODO: Support target Bool flag somehow, outside permanentMatch
-        targets = target `sepBy1` abilityCostSep
+        permanentMatches = permanentMatch `sepBy1` abilityCostSep
 
-        target = try (string "{This}" >> return ThisPermanent)
-             <|> try (do
-                   n <- optionMaybe $ try countRange
-                   unless (n == Nothing) (string " " >> return ())
-                   -- TODO: support states like "attacking" "blocking"
-                   -- Agrus Kos, Wojek Veteran
-                   cs <- colorsParser
-                   unless (cs == []) (string " " >> return ())
-                   t <- permanentTypeParser
-                   as <- withAbilities
-                   -- TODO: support "with [other quality]", e.g.
-                   -- "power 4 or greater", "CMC 3 or less"
-                   -- Elspeth, Abrupt Decay
-                   -- as well as "with(out) a fate counter on it"
-                   -- Oblivion Stone
-                   cardName <- optionMaybe $ try cardNamed
-                   oc <- optionMaybe $ try ownControl
-                   -- TODO: support other conditions like
-                   -- "that dealt damage to you this turn"
-                   -- Spear of Heliod
-                   return $ PermanentMatch n cs t as cardName oc)
+        permanentMatch =
+              try (string "{This}" >> return ThisPermanent)
+          <|> try (do
+                n <- optionMaybe $ try countRange
+                unless (n == Nothing) (string " " >> return ())
+                -- TODO: support states like "attacking" "blocking"
+                -- Agrus Kos, Wojek Veteran
+                cs <- colorsParser
+                unless (cs == []) (string " " >> return ())
+                t <- permanentTypeParser
+                as <- withAbilities
+                -- TODO: support "with [other quality]", e.g.
+                -- "power 4 or greater", "CMC 3 or less"
+                -- Elspeth, Abrupt Decay
+                -- as well as "with(out) a fate counter on it"
+                -- Oblivion Stone
+                cardName <- optionMaybe $ try cardNamed
+                oc <- optionMaybe $ try ownControl
+                -- TODO: support other conditions like
+                -- "that dealt damage to you this turn"
+                -- Spear of Heliod
+                return $ PermanentMatch n cs t as cardName oc)
 
         -- FIXME: Should we distinguish between "or" and "and" here?
+        -- TODO: Support "non-black"
         colorsParser = colorParser `sepBy` colorSep
 
         colorSep = try (string ", and ")
@@ -631,21 +636,15 @@ textToAbilities t = case (parse paras "" t) of
           <|> try (string "token" >> optional (string "s") >>
                 (return $ Token))
           <|> try (do
-                super <- optionMaybe $ try (do
-                  non <- nonParser
-                  t <- supertypeParser
-                  return (non, t))
-                sub <- optionMaybe $ try (do
-                  non <- nonParser
-                  t <- subtypeParser
-                  return (non, t))
-                t <- optionMaybe $ try (do
-                  unless (super == Nothing && sub == Nothing)
-                    (string " " >> return ())
-                  non <- nonParser
-                  t <- typeParser
-                  return (non, t))
-                optional (try (string " permanent"))
+                -- TODO: support multiple types, i.e. "artifact creature"
+                -- TODO: Make Non polymorphic type
+                super <- ((try (Non <$> nonParser <*> supertypeParser))
+                        `sepEndBy` (string " "))
+                sub <- ((try (Non <$> nonParser <*> subtypeParser))
+                      `sepEndBy` (string " "))
+                t <- ((try (Non <$> nonParser <*> typeParser))
+                    `sepEndBy` (string " "))
+                optional (try (string "permanent"))
                 optional (string "s") -- FIXME: deal with plural better
                 return $ PermanentType super t sub)
 
@@ -659,18 +658,7 @@ textToAbilities t = case (parse paras "" t) of
               <|> (ciString "Enchant opponent" >>
                     (return $ KeywordAbility $ Enchant (ETPlayer PTOpponent)))
               -- TODO: pull these out into a separate parser for object types/characteristics
-              <|> (ciString "Enchant creature" >>
-                    (return $ KeywordAbility $ Enchant
-                    (ETObject $ PermanentType Nothing (Just (True,Creature)) Nothing)))
-              <|> (ciString "Enchant land" >>
-                    (return $ KeywordAbility $ Enchant
-                    (ETObject $ PermanentType Nothing (Just (True,Land)) Nothing)))
-              <|> (ciString "Enchant artifact" >>
-                    (return $ KeywordAbility $ Enchant
-                    (ETObject $ PermanentType Nothing (Just (True,Artifact)) Nothing)))
-              <|> (ciString "Enchant enchantment" >>
-                    (return $ KeywordAbility $ Enchant
-                    (ETObject $ PermanentType Nothing (Just (True,Enchantment)) Nothing)))
+              -- using permanentMatch
               <|> (ciString "Enchant permanent" >>
                     (return $ KeywordAbility $ Enchant ETPermanent))
               -- FIXME: Make Enchant type more specific: Chained to the
