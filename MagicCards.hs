@@ -64,6 +64,7 @@ import Text.Regex
 
 import MagicCards.Subtype
 import Text.Parsec.Char.Extra(ciChar, ciString)
+import Text.ParserCombinators.Parsec.Extra (sepBy2)
 
 data Layout = Normal | Split | Flip | DoubleFaced | TokenLayout | Plane | Scheme
             | Phenomenon
@@ -363,6 +364,7 @@ data PhaseStatus = PhasedIn | PhasedOut
                  deriving (Show, Eq)
 
 data CountRange = UpTo Count | Exactly Count | AtLeast Count
+                | OneOf [NumValue]
                 deriving (Show, Eq)
 
 data Count = AnyCount NumValue | OtherCount NumValue
@@ -538,11 +540,11 @@ textToAbilities t = case (parse paras "" t) of
                     <|> many1 (noneOf "\n")
           instr <- optionMaybe (many1 (noneOf "\n"))
           return $ ActivatedAbility cost effect instr
-        totalCost = abilityCost `sepBy1` abilityCostSep
-        abilityCostSep = try (string ", and ")
+        totalCost = abilityCost `sepBy1` andSep
+        andSep = try (string ", and ")
                      <|> try (string ", ")
                      <|> try (string " and ")
-                     <|> string ","
+                     <|> string ","  -- FIXME: Is this necessary?
         abilityCost = try (ciString "Discard {This}" >> return CDiscardThis)
                   <|> try (string "{T}" >> return CTap)
                   <|> try (string "{Q}" >> return CUntap)
@@ -577,7 +579,7 @@ textToAbilities t = case (parse paras "" t) of
                  <|> try (AtLeast <$> countParser <* string " or greater")
                  <|> try (AtLeast <$> countParser <* string " or more")
                  <|> try (UpTo <$> countParser <* string " or less")
-                 -- TODO: also support "one, two, or three"
+                 <|> try (OneOf <$> (numberParser `sepBy2` orSep))
                  <|> try (Exactly <$> countParser)
 
         countParser = try (string "another" >>
@@ -587,6 +589,10 @@ textToAbilities t = case (parse paras "" t) of
                           string " other"
                           return $ OtherCount n)
                   <|> try (AnyCount <$> numberParser)
+
+        orSep = try (string ", or ")
+            <|> try (string ", ")
+            <|> try (string " or ")
 
         numberParser = try (string "all" >> (return All))
                   <|> try (string "an" >> (return $ NumValue 1))
@@ -618,7 +624,7 @@ textToAbilities t = case (parse paras "" t) of
         -- Artisan's Sorrow, Swan Song, Corrupted Roots etc.
         -- FIXME: Move countRange outside of permanentMatch
         -- TODO: Support target Bool flag somehow, outside permanentMatch
-        permanentMatches = permanentMatch `sepBy1` abilityCostSep
+        permanentMatches = permanentMatch `sepBy1` andSep
 
         permanentMatch =
               try (string "{This}" >> return ThisPermanent)
@@ -657,10 +663,10 @@ textToAbilities t = case (parse paras "" t) of
                                    Non True Green]))
            -- FIXME: Should we distinguish between "or" and "and" here?
            <|> CMColors <$> ((Non <$> nonParser <*> colorParser)
-           `sepBy` colorSep)
+           `sepBy` andOrSep)
           ) <* optional (string " ")
 
-        colorSep = try (string ", and ")
+        andOrSep = try (string ", and ")
                <|> try (string ", or ")
                <|> try (string ", ")
                <|> try (string " and ")
@@ -668,7 +674,7 @@ textToAbilities t = case (parse paras "" t) of
 
         withAbilities = option [] (try (do
           string "with "
-          keyword `sepBy1` abilityCostSep))
+          keyword `sepBy1` andSep))
 
         ownControl = try (do
                          p <- whichPlayers
