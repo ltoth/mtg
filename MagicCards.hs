@@ -321,7 +321,7 @@ type CardMatch = String
 type Quality = String
 
 -- TODO: Support "nontoken permanent"
-data PermanentMatch = PermanentMatch (Maybe CountRange) [Color] PermanentType [Ability] (Maybe Name) (Maybe OwnControl)
+data PermanentMatch = PermanentMatch (Maybe CountRange) [Non Color] PermanentType [Ability] (Maybe Name) (Maybe OwnControl)
                     | ThisPermanent
                     deriving (Show, Eq)
 
@@ -635,8 +635,8 @@ textToAbilities t = case (parse paras "" t) of
                 return $ PermanentMatch n cs t as cardName oc)
 
         -- FIXME: Should we distinguish between "or" and "and" here?
-        -- TODO: Support "non-black"
-        colorsParser = colorParser `sepBy` colorSep
+        colorsParser = (Non <$> nonParser <*> colorParser)
+                       `sepBy` colorSep
 
         colorSep = try (string ", and ")
                <|> try (string ", or ")
