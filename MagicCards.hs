@@ -662,8 +662,8 @@ textToAbilities t = case (parse paras "" t) of
                                    Non True Black, Non True Red,
                                    Non True Green]))
            -- FIXME: Should we distinguish between "or" and "and" here?
-           <|> CMColors <$> ((Non <$> nonParser <*> colorParser)
-           `sepBy` andOrSep)
+           <|> try (CMColors <$> (try (Non <$> nonParser <*> colorParser)
+           `sepBy` andOrSep))
           ) <* optional (string " ")
 
         andOrSep = try (string ", and ")
