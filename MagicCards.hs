@@ -641,9 +641,7 @@ textToAbilities t = case (parse paras "" t) of
                 -- Elspeth, Abrupt Decay
                 -- as well as "with(out) a fate counter on it"
                 -- Oblivion Stone
-                optional (string " ")
                 cardName <- optionMaybe $ try cardNamed
-                optional (string " ")
                 oc <- optionMaybe $ try ownControl
                 -- TODO: support other conditions like
                 -- "that dealt damage to you this turn"
@@ -673,15 +671,18 @@ textToAbilities t = case (parse paras "" t) of
                <|> try (string " or ")
 
         withAbilities = option [] (try (do
+          optional (string " ")
           string "with "
           keyword `sepBy1` andSep))
 
         ownControl = try (do
+                         optional (string " ")
                          p <- whichPlayers
                          string "own"
                          optional (string "s")
                          return $ Own $ p)
                  <|> try (do
+                         optional (string " ")
                          p <- whichPlayers
                          string "control"
                          optional (string "s")
@@ -693,6 +694,7 @@ textToAbilities t = case (parse paras "" t) of
                                 return False))
 
         cardNamed = do
+          optional (string " ")
           string "named "
           many1 (noneOf ",:;.\n") -- FIXME: Actually match against
           -- possible card names, not just as strings, since
@@ -710,6 +712,7 @@ textToAbilities t = case (parse paras "" t) of
                       `sepEndBy` (string " "))
                 t <- ((try (Non <$> nonParser <*> typeParser))
                     `sepEndBy` (string " "))
+                optional (string " ")
                 optional (try (string "permanent"))
                 optional (string "s") -- FIXME: deal with plural better
                 return $ PermanentTypeMatch super t sub)
