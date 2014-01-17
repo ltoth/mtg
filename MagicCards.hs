@@ -300,7 +300,7 @@ instance FromJSON Card where
 
 data Cost = CMana ManaCost | CTap | CUntap | CLife Word8
           | CSacrifice [PermanentMatch]
-          | CDiscardThis | CDiscard PermanentType -- FIXME: Should be more general,
+          | CDiscardThis | CDiscard [CardMatch] -- FIXME: Should be more general,
           -- i.e. for discard two cards, etc.
           | CLoyalty LoyaltyCost | CRemoveCounter CountRange (Maybe CounterType)
           deriving (Show, Eq)
@@ -321,16 +321,23 @@ type CardMatch = String
 type Quality = String
 
 -- TODO: Support "nontoken permanent"
-data PermanentMatch = PermanentMatch (Maybe CountRange) [Non Color] PermanentType [Ability] (Maybe Name) (Maybe OwnControl)
+-- TODO: Ability should be Non Ability ("with" vs. "without")
+data PermanentMatch = PermanentMatch (Maybe CountRange) ColorMatch
+                        PermanentTypeMatch [Ability] (Maybe Name)
+                        (Maybe OwnControl)
                     | ThisPermanent
                     deriving (Show, Eq)
+
+data ColorMatch = CMColors [Non Color] | CMMonocolored | CMMulticolored
+                deriving (Show, Eq)
 
 data OwnControl = Own WhichPlayers | Control WhichPlayers
                 deriving (Show, Eq)
 
-data PermanentType = PermanentType [Non Supertype] [Non Type] [Non Subtype]
-                   | Token | Permanent
-                   deriving (Show, Eq)
+data PermanentTypeMatch = PermanentTypeMatch [Non Supertype] [Non Type]
+                            [Non Subtype]
+                        | Token | Permanent
+                        deriving (Show, Eq)
 
 data Non a = Non Bool a
            deriving (Show, Eq)
@@ -369,7 +376,8 @@ type CounterType = String
 data LoyaltyCost = LC Int8 | LCMinusX deriving (Show, Eq)
 
 data TriggerEvent = TEAt WhichPlayers Step | TEThisETB | TEThisLTB
-                  | TEObjectETB PermanentType | TEObjectLTB PermanentType
+                  | TEObjectETB PermanentMatch
+                  | TEObjectLTB PermanentMatch
                   | TEOther String -- FIXME: Make more value constr.
                   deriving (Show, Eq)
 
@@ -616,8 +624,7 @@ textToAbilities t = case (parse paras "" t) of
                 unless (n == Nothing) (string " " >> return ())
                 -- TODO: support states like "attacking" "blocking"
                 -- Agrus Kos, Wojek Veteran
-                cs <- colorsParser
-                unless (cs == []) (string " " >> return ())
+                cs <- colorMatch
                 t <- permanentTypeParser
                 as <- withAbilities
                 -- TODO: support "with [other quality]", e.g.
@@ -634,9 +641,21 @@ textToAbilities t = case (parse paras "" t) of
                 -- Spear of Heliod
                 return $ PermanentMatch n cs t as cardName oc)
 
-        -- FIXME: Should we distinguish between "or" and "and" here?
-        colorsParser = (Non <$> nonParser <*> colorParser)
-                       `sepBy` colorSep
+        colorMatch =
+          (try (ciString "colorless" >>
+                   return (CMColors [Non False White, Non False Blue,
+                                   Non False Black, Non False Red,
+                                   Non False Green]))
+           <|> try (ciString "monocolored" >> return CMMonocolored)
+           <|> try (ciString "multicolored" >> return CMMulticolored)
+           <|> try ((ciString "colored" <|> ciString "all colors") >>
+                   return (CMColors [Non True White, Non True Blue,
+                                   Non True Black, Non True Red,
+                                   Non True Green]))
+           -- FIXME: Should we distinguish between "or" and "and" here?
+           <|> CMColors <$> ((Non <$> nonParser <*> colorParser)
+           `sepEndBy` colorSep)
+          ) <* optional (string " ")
 
         colorSep = try (string ", and ")
                <|> try (string ", or ")
@@ -684,7 +703,7 @@ textToAbilities t = case (parse paras "" t) of
                     `sepEndBy` (string " "))
                 optional (try (string "permanent"))
                 optional (string "s") -- FIXME: deal with plural better
-                return $ PermanentType super t sub)
+                return $ PermanentTypeMatch super t sub)
 
         spell = SpellAbility <$> many1 (noneOf "\n")
 
@@ -734,7 +753,7 @@ data Keyword = Deathtouch
              | Hexproof
              | Indestructible
              | Intimidate
-             | Landwalk PermanentType
+             | Landwalk PermanentTypeMatch
              | Lifelink
              | Protection (Either Quality PlayerMatch)
              | Reach
