@@ -368,7 +368,7 @@ data CountRange = UpTo Count | Exactly Count | AtLeast Count
 data Count = AnyCount NumValue | OtherCount NumValue
            deriving (Show, Eq)
 
-data NumValue = NumValue Word8 | NumValueX
+data NumValue = NumValue Word8 | NumValueX | All
               deriving (Show, Eq)
 
 type CounterType = String
@@ -572,13 +572,12 @@ textToAbilities t = case (parse paras "" t) of
                         l <- many1 digit
                         return $ CLoyalty $ LC $ read $ sign ++ l)
 
-        countRange = try (string "up to " >> (UpTo <$> countParser))
-                 <|> try (string "at least " >> (AtLeast <$> countParser))
+        countRange = try (ciString "up to " >> (UpTo <$> countParser))
+                 <|> try (ciString "at least " >> (AtLeast <$> countParser))
                  <|> try (AtLeast <$> countParser <* string " or greater")
                  <|> try (AtLeast <$> countParser <* string " or more")
                  <|> try (UpTo <$> countParser <* string " or less")
                  -- TODO: also support "one, two, or three"
-                 -- TODO: also support all
                  <|> try (Exactly <$> countParser)
 
         countParser = try (string "another" >>
@@ -589,17 +588,9 @@ textToAbilities t = case (parse paras "" t) of
                           return $ OtherCount n)
                   <|> try (AnyCount <$> numberParser)
 
-        numberParser = try (choice [try (string "an"), try (string "a"),
-                           try (string "one")] >> (return $ NumValue 1))
-                  <|> try (string "two" >> (return $ NumValue 2))
-                  <|> try (string "three" >> (return $ NumValue 3))
-                  <|> try (string "four" >> (return $ NumValue 4))
-                  <|> try (string "five" >> (return $ NumValue 5))
-                  <|> try (string "six" >> (return $ NumValue 6))
-                  <|> try (string "seven" >> (return $ NumValue 7))
-                  <|> try (string "eight" >> (return $ NumValue 8))
-                  <|> try (string "nine" >> (return $ NumValue 9))
-                  <|> try (string "ten" >> (return $ NumValue 10))
+        numberParser = try (string "all" >> (return All))
+                  <|> try (string "an" >> (return $ NumValue 1))
+                  <|> try (string "a" >> (return $ NumValue 1))
                   <|> try (string "eleven" >> (return $ NumValue 11))
                   <|> try (string "twelve" >> (return $ NumValue 12))
                   <|> try (string "thirteen" >> (return $ NumValue 13))
@@ -610,6 +601,16 @@ textToAbilities t = case (parse paras "" t) of
                   <|> try (string "eighteen" >> (return $ NumValue 18))
                   <|> try (string "nineteen" >> (return $ NumValue 19))
                   <|> try (string "twenty" >> (return $ NumValue 20))
+                  <|> try (string "one" >> (return $ NumValue 1))
+                  <|> try (string "two" >> (return $ NumValue 2))
+                  <|> try (string "three" >> (return $ NumValue 3))
+                  <|> try (string "four" >> (return $ NumValue 4))
+                  <|> try (string "five" >> (return $ NumValue 5))
+                  <|> try (string "six" >> (return $ NumValue 6))
+                  <|> try (string "seven" >> (return $ NumValue 7))
+                  <|> try (string "eight" >> (return $ NumValue 8))
+                  <|> try (string "nine" >> (return $ NumValue 9))
+                  <|> try (string "ten" >> (return $ NumValue 10))
                   <|> try (string "X" >> (return NumValueX))
                   <|> try ((NumValue . read) <$> (many1 digit))
 
