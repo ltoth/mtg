@@ -307,8 +307,13 @@ data Cost = CMana ManaCost | CTap | CUntap | CLife Word8
           deriving (Show, Eq)
 
 -- FIXME: Support targeting zones ("target library" Circu, Dimir Lobotomist)
-data TargetMatch = TMPermanent [PermanentMatch] | TMPlayer PlayerMatch
-                 | TMSpell SpellMatch | TMCard CardMatch
+-- § 114.1 "targets are object(s), player(s), and/or zone(s)"
+-- § 109.1 "an object is an ability on the stack, a card, a copy of a card,
+-- a token, a spell, a permanent or an emblem"
+--
+-- However, an emblem is not a valid target
+data TargetMatch = TMPermanent [PermanentMatch] | TMSpell SpellMatch
+                 | TMCard CardMatch | TMPlayer PlayerMatch
                  deriving (Show, Eq)
 
 data PlayerMatch = Player | Opponent deriving (Show, Eq)
@@ -322,16 +327,18 @@ type CardMatch = String
 -- FIXME: This is for the protection keyword
 type Quality = String
 
--- TODO: Support "nontoken permanent"
 -- TODO: Ability should be Non Ability ("with" vs. "without")
 data PermanentMatch = PermanentMatch (Maybe CountRange) ColorMatch
-                        PermanentTypeMatch [Ability] (Maybe Name)
+                        NonToken PermanentTypeMatch [Ability] (Maybe Name)
                         (Maybe OwnControl)
                     | ThisPermanent
                     deriving (Show, Eq)
 
 data ColorMatch = CMColors [Non Color] | CMMonocolored | CMMulticolored
                 deriving (Show, Eq)
+
+data NonToken = NonToken | CardOrToken
+              deriving (Show, Eq)
 
 data OwnControl = Own WhichPlayers | Control WhichPlayers
                 deriving (Show, Eq)
@@ -635,6 +642,7 @@ textToAbilities t = case (parse paras "" t) of
                 -- TODO: support states like "attacking" "blocking"
                 -- Agrus Kos, Wojek Veteran
                 cs <- colorMatch
+                nt <- nonToken
                 t <- permanentTypeParser
                 as <- withAbilities
                 -- TODO: support "with [other quality]", e.g.
@@ -647,7 +655,7 @@ textToAbilities t = case (parse paras "" t) of
                 -- TODO: support other conditions like
                 -- "that dealt damage to you this turn"
                 -- Spear of Heliod
-                return $ PermanentMatch n cs t as cardName oc)
+                return $ PermanentMatch n cs nt t as cardName oc)
 
         colorMatch =
           (try (ciString "colorless" >>
@@ -670,6 +678,9 @@ textToAbilities t = case (parse paras "" t) of
                <|> try (string ", ")
                <|> try (string " and ")
                <|> try (string " or ")
+
+        nonToken = option CardOrToken $
+                   try (string "nontoken " >> return NonToken)
 
         withAbilities = option [] (try (do
           optional (string " ")
