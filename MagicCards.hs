@@ -329,7 +329,7 @@ type Quality = String
 
 -- TODO: Ability should be Non Ability ("with" vs. "without")
 data PermanentMatch = PermanentMatch (Maybe CountRange) (Maybe BlockedStatus)
-                        ColorMatch
+                        [CombatStatus] ColorMatch
                         NonToken PermanentTypeMatch [Ability] (Maybe Name)
                         (Maybe OwnControl)
                     | ThisPermanent
@@ -340,6 +340,9 @@ data ColorMatch = CMColors [Non Color] | CMMonocolored | CMMulticolored
 
 data BlockedStatus = Blocked | Unblocked
                    deriving (Show, Eq)
+
+data CombatStatus = Attacking | Blocking
+                  deriving (Show, Eq)
 
 data NonToken = NonToken | CardOrToken
               deriving (Show, Eq)
@@ -644,8 +647,7 @@ textToAbilities t = case (parse paras "" t) of
                 n <- optionMaybe $ try countRange
                 unless (n == Nothing) (string " " >> return ())
                 b <- optionMaybe $ try blocked
-                -- TODO: support states like "attacking" "blocking",
-                -- Agrus Kos, Wojek Veteran
+                combat <- combatStatuses
                 cs <- colorMatch
                 nt <- nonToken
                 t <- permanentTypeParser
@@ -660,10 +662,16 @@ textToAbilities t = case (parse paras "" t) of
                 -- TODO: support other conditions like
                 -- "that dealt damage to you this turn"
                 -- Spear of Heliod
-                return $ PermanentMatch n b cs nt t as cardName oc)
+                return $ PermanentMatch n b combat cs nt t as cardName oc)
 
         blocked = try (ciString "blocked " >> return Blocked)
               <|> try (ciString "unblocked " >> return Unblocked)
+
+        combatStatuses = combatStatus `sepBy` orSep
+                         <* optional (string " ")
+
+        combatStatus = try (ciString "attacking" >> return Attacking)
+                   <|> try (ciString "blocking" >> return Blocking)
 
         colorMatch =
           (try (ciString "colorless" >>
