@@ -328,7 +328,8 @@ type CardMatch = String
 type Quality = String
 
 -- TODO: Ability should be Non Ability ("with" vs. "without")
-data PermanentMatch = PermanentMatch (Maybe CountRange) ColorMatch
+data PermanentMatch = PermanentMatch (Maybe CountRange) (Maybe BlockedStatus)
+                        ColorMatch
                         NonToken PermanentTypeMatch [Ability] (Maybe Name)
                         (Maybe OwnControl)
                     | ThisPermanent
@@ -336,6 +337,9 @@ data PermanentMatch = PermanentMatch (Maybe CountRange) ColorMatch
 
 data ColorMatch = CMColors [Non Color] | CMMonocolored | CMMulticolored
                 deriving (Show, Eq)
+
+data BlockedStatus = Blocked | Unblocked
+                   deriving (Show, Eq)
 
 data NonToken = NonToken | CardOrToken
               deriving (Show, Eq)
@@ -639,7 +643,8 @@ textToAbilities t = case (parse paras "" t) of
           <|> try (do
                 n <- optionMaybe $ try countRange
                 unless (n == Nothing) (string " " >> return ())
-                -- TODO: support states like "attacking" "blocking"
+                b <- optionMaybe $ try blocked
+                -- TODO: support states like "attacking" "blocking",
                 -- Agrus Kos, Wojek Veteran
                 cs <- colorMatch
                 nt <- nonToken
@@ -655,7 +660,10 @@ textToAbilities t = case (parse paras "" t) of
                 -- TODO: support other conditions like
                 -- "that dealt damage to you this turn"
                 -- Spear of Heliod
-                return $ PermanentMatch n cs nt t as cardName oc)
+                return $ PermanentMatch n b cs nt t as cardName oc)
+
+        blocked = try (ciString "blocked " >> return Blocked)
+              <|> try (ciString "unblocked " >> return Unblocked)
 
         colorMatch =
           (try (ciString "colorless" >>
