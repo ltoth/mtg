@@ -306,6 +306,7 @@ data Cost = CMana ManaCost | CTap | CUntap | CLife Word8
           | CLoyalty LoyaltyCost | CRemoveCounter CountRange (Maybe CounterType)
           deriving (Show, Eq)
 
+-- FIXME: Support targeting zones ("target library" Circu, Dimir Lobotomist)
 data TargetMatch = TMPermanent [PermanentMatch] | TMPlayer PlayerMatch
                  | TMSpell SpellMatch | TMCard CardMatch
                  deriving (Show, Eq)
