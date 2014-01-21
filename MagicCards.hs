@@ -300,11 +300,15 @@ instance FromJSON Card where
     parseJSON _ = fail "Could not parse card"
 
 data Cost = CMana ManaCost | CTap | CUntap | CLife Word8
-          | CSacrifice [PermanentMatch]
+          | CSacrifice Targets
           | CDiscardThis | CDiscard [CardMatch] -- FIXME: Should be more general,
           -- i.e. for discard two cards, etc.
           | CLoyalty LoyaltyCost | CRemoveCounter CountRange (Maybe CounterType)
           deriving (Show, Eq)
+
+data Targets = Target CountRange [TargetMatch]
+             | NoTarget CountRange [TargetMatch]
+             deriving (Show, Eq)
 
 -- FIXME: Support targeting zones ("target library" Circu, Dimir Lobotomist)
 -- § 114.1 "targets are object(s), player(s), and/or zone(s)"
@@ -312,7 +316,7 @@ data Cost = CMana ManaCost | CTap | CUntap | CLife Word8
 -- a token, a spell, a permanent or an emblem"
 --
 -- However, an emblem is not a valid target
-data TargetMatch = TMPermanent [PermanentMatch] | TMSpell SpellMatch
+data TargetMatch = TMPermanent PermanentMatch | TMSpell SpellMatch
                  | TMCard CardMatch | TMPlayer PlayerMatch
                  deriving (Show, Eq)
 
@@ -328,7 +332,7 @@ type CardMatch = String
 type Quality = String
 
 -- TODO: Ability should be Non Ability ("with" vs. "without")
-data PermanentMatch = PermanentMatch (Maybe CountRange) (Maybe BlockedStatus)
+data PermanentMatch = PermanentMatch (Maybe BlockedStatus)
                         [CombatStatus] ColorMatch
                         NonToken PermanentTypeMatch [Ability] (Maybe Name)
                         (Maybe OwnControl)
@@ -568,10 +572,7 @@ textToAbilities t = case (parse paras "" t) of
                             n <- many1 digit
                             string " life"
                             return $ CLife $ read n)
-                  <|> try (do
-                          ciString "Sacrifice "
-                          ts <- permanentMatches
-                          return $ CSacrifice ts)
+                  <|> try (ciString "Sacrifice " >> CSacrifice <$> targets)
                   <|> try (do
                         ciString "Remove "
                         n <- countRange
@@ -637,15 +638,32 @@ textToAbilities t = case (parse paras "" t) of
 
         -- FIXME: We should distinguish between "or" and "and" here
         -- Artisan's Sorrow, Swan Song, Corrupted Roots etc.
-        -- FIXME: Move countRange outside of permanentMatch
-        -- TODO: Support target Bool flag somehow, outside permanentMatch
-        permanentMatches = permanentMatch `sepBy1` andSep
+        targets =
+          try (do
+              n <- option (Exactly (AnyCount (NumValue 1)))
+                   (try $ countRange <* string " ")
+              ciString "target "
+              tms <- targetMatch `sepBy1` andOrSep
+              return $ Target n tms)
+          <|> try (do
+              n <- option (Exactly (AnyCount (NumValue 1)))
+                   (try $ countRange <* string " ")
+              tms <- targetMatch `sepBy1` andOrSep
+              return $ NoTarget n tms)
+
+        targetMatch = try (TMPlayer <$> playerMatch)
+                  <|> try (TMPermanent <$> permanentMatch)
+
+        playerMatch = try (ciString "player" >> return Player)
+                  <|> try (ciString "opponent" >> return Opponent)
 
         permanentMatch =
               try (string "{This}" >> return ThisPermanent)
           <|> try (do
-                n <- optionMaybe $ try countRange
-                unless (n == Nothing) (string " " >> return ())
+                -- These are necessary for "a creature, a land, and a Wall"
+                optional (try $ string "an ")
+                optional (try $ string "a ")
+
                 b <- optionMaybe $ try blocked
                 combat <- combatStatuses
                 cs <- colorMatch
@@ -662,7 +680,7 @@ textToAbilities t = case (parse paras "" t) of
                 -- TODO: support other conditions like
                 -- "that dealt damage to you this turn"
                 -- Spear of Heliod
-                return $ PermanentMatch n b combat cs nt t as cardName oc)
+                return $ PermanentMatch b combat cs nt t as cardName oc)
 
         blocked = try (ciString "blocked " >> return Blocked)
               <|> try (ciString "unblocked " >> return Unblocked)
@@ -750,15 +768,10 @@ textToAbilities t = case (parse paras "" t) of
         keyword = (ciString "Deathtouch" >> (return $ KeywordAbility Deathtouch))
               <|> (ciString "Defender" >> (return $ KeywordAbility Defender))
               <|> (ciString "Double strike" >> (return $ KeywordAbility DoubleStrike))
-              -- TODO: Pull these out into general target match parser
-              -- to also deal with "creature card in a graveyard"
-              -- (Animate Dead etc.)
-              <|> (ciString "Enchant player" >>
-                    (return $ KeywordAbility $ Enchant (TMPlayer Player)))
-              <|> (ciString "Enchant opponent" >>
-                    (return $ KeywordAbility $ Enchant (TMPlayer Opponent)))
               <|> (ciString "Enchant " >>
-                    (KeywordAbility . Enchant . TMPermanent) <$> permanentMatches)
+                    (KeywordAbility . Enchant .
+                      (Target (Exactly (AnyCount (NumValue 1)))))
+                    <$> (targetMatch `sepBy1` orSep))
               <|> (ciString "Equip" >> keywordCostSep >>
                     (KeywordAbility . Equip) <$> totalCost)
               <|> (ciString "First strike" >> (return $ KeywordAbility FirstStrike))
@@ -784,7 +797,7 @@ textToAbilities t = case (parse paras "" t) of
 data Keyword = Deathtouch
              | Defender
              | DoubleStrike
-             | Enchant TargetMatch
+             | Enchant Targets
              | Equip ([Cost])
              | FirstStrike
              | Flash
