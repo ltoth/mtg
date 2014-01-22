@@ -317,7 +317,7 @@ data Targets = Target CountRange [TargetMatch]
 --
 -- However, an emblem is not a valid target
 data TargetMatch = TMPermanent PermanentMatch | TMSpell SpellMatch
-                 | TMCard CardMatch | TMPlayer PlayerMatch
+                 | TMCard CardMatch | TMPlayer PlayerMatch | TMIt
                  deriving (Show, Eq)
 
 -- TODO: for targeting spells (i.e. counterspells)
@@ -699,8 +699,16 @@ textToAbilities t = case (parse paras "" t) of
                <|> try (string "and ")
                <|> try (string "or ")
 
-        targetMatch = try (TMPlayer <$> playerMatch)
+        targetMatch = try it
+                  <|> try (TMPlayer <$> playerMatch)
                   <|> try (TMPermanent <$> permanentMatch)
+
+        -- FIXME: Make this more robust
+        it = (try (ciString "that card")
+          <|> try (ciString "it")
+          >> return TMIt)
+          <* optional (string " ")  -- to match permanentType's behavior
+          -- of consuming trailing spaces
 
         permanentMatch =
               try (string "{This}" >> return ThisPermanent)
