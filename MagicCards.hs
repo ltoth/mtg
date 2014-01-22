@@ -387,8 +387,11 @@ data CountRange = UpTo Count | Exactly Count | AtLeast Count
 data Count = AnyCount NumValue | OtherCount NumValue
            deriving (Show, Eq)
 
-data NumValue = NumValue Word8 | NumValueX | All
+data NumValue = NumValue Word8 | NumValueX | All | NumVariable Calculation
               deriving (Show, Eq)
+
+-- FIXME: Actually parse calculations properly
+type Calculation = String
 
 type CounterType = String
 
@@ -651,6 +654,14 @@ textToAbilities t = case (parse paras "" t) of
             <|> try (string " or ")
 
         numberParser = try (string "all" >> (return All))
+                  -- FIXME: Parse "a number of ... equal to [c]" as NumVariable
+                  -- Abhorrent Overlord
+                  -- FIXME: Parse "an amount of ... equal to [c]" as NumVariable
+                  -- Karametra's Acolyte
+                  -- FIXME: Parse "X ..., where X is [c]" as NumVariable
+                  -- Mogis's Marauder, Gray Merchant of Asphodel
+                  -- FIXME: Parse "... equal to [c]" as NumVariable
+                  -- Fanatic of Mogis, Gray Merchant of Asphodel
                   <|> try (string "an" >> (return $ NumValue 1))
                   <|> try (string "a" >> (return $ NumValue 1))
                   <|> try (string "eleven" >> (return $ NumValue 11))
