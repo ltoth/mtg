@@ -423,6 +423,7 @@ data Ability = AdditionalCost ([Cost])
              deriving (Show, Eq)
 
 data Effect = Destroy Targets
+            | Exile Targets
             | OptionalEffect PlayerMatch Effect
             | OtherEffect String
             deriving (Show, Eq)
@@ -569,6 +570,7 @@ textToAbilities t = case (parse paras "" t) of
         effect = (try (OptionalEffect <$> playerMatch
                          <*> (try $ ciString "may " *> effect))
               <|> try (ciString "destroy " >> Destroy <$> targets)
+              <|> try (ciString "exile " >> Exile <$> targets)
               <|> (OtherEffect <$> many1 (noneOf ",.\n"))
               ) <* optional (string ".") <* optional (string " ")
 
