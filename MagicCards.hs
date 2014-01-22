@@ -535,6 +535,9 @@ textToAbilities t = case (parse paras "" t) of
                <|> try (ciString "your opponents")
                <|> try (ciString "all opponents'")
                <|> try (ciString "all opponents")
+               <|> try (ciString "each other player's") -- FIXME: Not sure if
+               -- it always means opponents, but it does on Prophet of Kruphix
+               <|> try (ciString "each other player")
             >> return Opponents)
           <|> try (try (ciString "opponent's")
                <|> try (ciString "an opponent")
