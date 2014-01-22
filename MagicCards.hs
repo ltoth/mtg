@@ -320,8 +320,6 @@ data TargetMatch = TMPermanent PermanentMatch | TMSpell SpellMatch
                  | TMCard CardMatch | TMPlayer PlayerMatch
                  deriving (Show, Eq)
 
-data PlayerMatch = Player | Opponent deriving (Show, Eq)
-
 -- TODO: for targeting spells (i.e. counterspells)
 type SpellMatch = String
 
@@ -351,7 +349,7 @@ data CombatStatus = Attacking | Blocking
 data NonToken = NonToken | CardOrToken
               deriving (Show, Eq)
 
-data OwnControl = Own WhichPlayers | Control WhichPlayers
+data OwnControl = Own PlayerMatch | Control PlayerMatch
                 deriving (Show, Eq)
 
 data PermanentTypeMatch = PermanentTypeMatch [Non Supertype] [Non Type]
@@ -396,13 +394,13 @@ type CounterType = String
 
 data LoyaltyCost = LC Int8 | LCMinusX deriving (Show, Eq)
 
-data TriggerEvent = TEAt WhichPlayers Step | TEThisETB | TEThisLTB
+data TriggerEvent = TEAt PlayerMatch Step | TEThisETB | TEThisLTB
                   | TEObjectETB PermanentMatch
                   | TEObjectLTB PermanentMatch
                   | TEOther String -- FIXME: Make more value constr.
                   deriving (Show, Eq)
 
-data WhichPlayers = EachPlayer | You | Opponents deriving (Show, Eq)
+data PlayerMatch = EachPlayer | You | Player | Opponent | Opponents deriving (Show, Eq)
 
 data Step = Untap | Upkeep | Draw | PreCombatMain
           | BeginningOfCombat | DeclareAttackers | DeclareBlockers
@@ -510,7 +508,7 @@ textToAbilities t = case (parse paras "" t) of
                     -- TODO: first check "at the beginning of each of
                     -- your main phases" (Carpet of Flowers)
                     try (ciString "the beginning of " >>
-                      TEAt <$> whichPlayers <*> step)
+                      TEAt <$> playerMatch <*> step)
                     <|> try (ciString "the end of combat" >>
                       return (TEAt EachPlayer EndOfCombat))
                     <|> TEOther <$> many (noneOf ",\n"))
@@ -524,25 +522,30 @@ textToAbilities t = case (parse paras "" t) of
 
         -- TODO: Also have to deal with "the next" and "it's controller's
         -- next" and "your next"
-        whichPlayers =
-          try (    try (ciString "each player's ")
-               <|> try (ciString "each player ")
+        playerMatch =
+          (try (   try (ciString "each player's")
+               <|> try (ciString "each player")
             >> return EachPlayer)
-          <|> try (try (ciString "your ")
-               <|> try (ciString "you ")
+          <|> try (try (ciString "your")
+               <|> try (ciString "you")
             >> return You)
-          <|> try (try (ciString "each opponent's ")
-               <|> try (ciString "each opponent ")
-               <|> try (ciString "opponent's ")
-               <|> try (ciString "an opponent ")
-               <|> try (ciString "your opponents' ")
-               <|> try (ciString "your opponents ")
-               <|> try (ciString "your opponent ")
-               <|> try (ciString "all opponents' ")
-               <|> try (ciString "all opponents ")
-               <|> try (ciString "opponent ")
+          <|> try (try (ciString "each opponent's")
+               <|> try (ciString "each opponent")
+               <|> try (ciString "your opponents'")
+               <|> try (ciString "your opponents")
+               <|> try (ciString "all opponents'")
+               <|> try (ciString "all opponents")
             >> return Opponents)
-          <|> try (ciString "each " >> return EachPlayer)
+          <|> try (try (ciString "opponent's")
+               <|> try (ciString "an opponent")
+               <|> try (ciString "your opponent")
+               <|> try (ciString "opponent")
+            >> return Opponent)
+          <|> try (try (ciString "player's")
+               <|> try (ciString "player")
+            >> return Player)
+          <|> try (ciString "each" >> return EachPlayer))
+          <* optional (string " ")
 
         step =
           try (ciString "untap step" >> return Untap)
@@ -674,9 +677,6 @@ textToAbilities t = case (parse paras "" t) of
         targetMatch = try (TMPlayer <$> playerMatch)
                   <|> try (TMPermanent <$> permanentMatch)
 
-        playerMatch = try (ciString "player" >> return Player)
-                  <|> try (ciString "opponent" >> return Opponent)
-
         permanentMatch =
               try (string "{This}" >> return ThisPermanent)
           <|> try (do
@@ -744,13 +744,13 @@ textToAbilities t = case (parse paras "" t) of
 
         ownControl = try (do
                          optional (string " ")
-                         p <- whichPlayers
+                         p <- playerMatch
                          string "own"
                          optional (string "s")
                          return $ Own $ p)
                  <|> try (do
                          optional (string " ")
-                         p <- whichPlayers
+                         p <- playerMatch
                          string "control"
                          optional (string "s")
                          return $ Control $ p)
