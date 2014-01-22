@@ -395,6 +395,7 @@ type CounterType = String
 data LoyaltyCost = LC Int8 | LCMinusX deriving (Show, Eq)
 
 data TriggerEvent = TEAt PlayerMatch Step | TEThisETB | TEThisLTB
+                  | TEThisETBOrDies | TEThisDies
                   | TEObjectETB PermanentMatch
                   | TEObjectLTB PermanentMatch
                   | TEOther String -- FIXME: Make more value constr.
@@ -516,8 +517,17 @@ textToAbilities t = case (parse paras "" t) of
                     <|> TEOther <$> many (noneOf ",\n"))
           <|> try (ciString "Whenever " >> TEOther <$> many (noneOf ",\n"))
           <|> try (ciString "When " >>
-                    try (ciString "{This} enters the battlefield" >>
+                    -- TODO: Should really return OrList [TrigEvent]
+                    -- for cards like Ashen Rider, Absolver Thrull
+                    -- TODO: Should use permanentMatch to match what
+                    -- ETBs/dies/LTBs, and consolidate the This value
+                    -- constructors with the Other
+                    try (ciString "{This} enters the battlefield or dies" >>
+                      return TEThisETBOrDies)
+                    <|> try (ciString "{This} enters the battlefield" >>
                       return TEThisETB)
+                    <|> try (ciString "{This} dies" >>
+                      return TEThisDies)
                     <|> try (ciString "{This} leaves the battlefield" >>
                       return TEThisLTB)
                     <|> TEOther <$> many (noneOf ",\n"))
