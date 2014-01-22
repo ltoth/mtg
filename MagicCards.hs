@@ -411,7 +411,6 @@ data Step = Untap | Upkeep | Draw | PreCombatMain
           deriving (Show, Eq)
 
 type TriggerCondition = String -- TODO: should this be the same as AltCostCondition?
-type Effect = String
 type ContinuousEffect = String
 type ActivationInst = String
 type AltCostCondition = String
@@ -425,6 +424,10 @@ data Ability = AdditionalCost ([Cost])
              | SpellAbility Effect
              deriving (Show, Eq)
 
+data Effect = Destroy Targets
+            | OtherEffect String
+            deriving (Show, Eq)
+
 -- TODO: Use arrows? to keep the reference to the card throughout,
 -- as we need to refer to types etc.
 abilities :: Card -> [Ability]
@@ -437,6 +440,10 @@ textToAbilities :: CardText -> [Ability]
 textToAbilities t = case (parse paras "" t) of
                       Left e -> error (show e)
                       Right xs -> concat xs  -- flatten the list
+                      -- FIXME: Perhaps we shouldn't flatten the list, so
+                      -- that when Artisan's Sorrow has an illegal target,
+                      -- we know not to resolve Scry 2. Those effects are
+                      -- one ability.
   where paras = abilityPara `sepBy` (string "\n\n")
         abilityPara = try (keyword `sepBy1` commas)
                   <|> (optional abilityWord >>
@@ -493,8 +500,8 @@ textToAbilities t = case (parse paras "" t) of
             event <- trigEvent
             string ", "
             cond <- optionMaybe $ try (string "if " *> conditions <* string ", ")
-            effect <- many (noneOf "\n") -- TODO: sepEndBy1 try(". ") <|> "."
-            return $ TriggeredAbility event effect cond
+            e <- effect
+            return $ TriggeredAbility event e cond
 
         trigEvent =
               try (ciString "At " >>
@@ -549,16 +556,20 @@ textToAbilities t = case (parse paras "" t) of
           <|> try (ciString "end step" >> return End)
           <|> try (ciString "cleanup step" >> return Cleanup)
 
+        effect = (
+             try (ciString "destroy " >> Destroy <$> targets)
+             <|> (OtherEffect <$> many1 (noneOf ",.\n"))
+             ) <* optional (string ".") <* optional (string " ")
+
         -- FIXME: Replace "it" with "{This}" in some cases? How to tell?
         -- FIXME: Quoting: Witches' Eye - reuse abilityPara
         activated = do
           cost <- totalCost
           string ": "
-          effect <- try ((noneOf "\n") `manyTill`
-                        (try (string " Activate this ability only ")))
-                    <|> many1 (noneOf "\n")
+          e <- try (effect <* (try (string " Activate this ability only ")))
+               <|> effect
           instr <- optionMaybe (many1 (noneOf "\n"))
-          return $ ActivatedAbility cost effect instr
+          return $ ActivatedAbility cost e instr
         totalCost = abilityCost `sepBy1` andSep
         andSep = try (string ", and ")
                      <|> try (string ", ")
@@ -637,19 +648,28 @@ textToAbilities t = case (parse paras "" t) of
                   <|> try ((NumValue . read) <$> (many1 digit))
 
         -- FIXME: We should distinguish between "or" and "and" here
-        -- Artisan's Sorrow, Swan Song, Corrupted Roots etc.
+        -- Artisan's Sorrow, Swan Song, Corrupted Roots etc., Hero's
+        -- Downfall
         targets =
           try (do
               n <- option (Exactly (AnyCount (NumValue 1)))
                    (try $ countRange <* string " ")
               ciString "target "
-              tms <- targetMatch `sepBy1` andOrSep
+              tms <- targetMatch `sepBy1` andOrSep' --FIXME: deal with spaces better
               return $ Target n tms)
           <|> try (do
               n <- option (Exactly (AnyCount (NumValue 1)))
                    (try $ countRange <* string " ")
-              tms <- targetMatch `sepBy1` andOrSep
+              tms <- targetMatch `sepBy1` andOrSep'
               return $ NoTarget n tms)
+
+        -- FIXME: Remove this and deal with consuming trailing spaces
+        -- in permanentTypeParser better
+        andOrSep' = try (string ", and ")
+               <|> try (string ", or ")
+               <|> try (string ", ")
+               <|> try (string "and ")
+               <|> try (string "or ")
 
         targetMatch = try (TMPlayer <$> playerMatch)
                   <|> try (TMPermanent <$> permanentMatch)
@@ -716,6 +736,7 @@ textToAbilities t = case (parse paras "" t) of
         nonToken = option CardOrToken $
                    try (string "nontoken " >> return NonToken)
 
+        -- FIXME: Deal with "without", probably using Non type
         withAbilities = option [] (try (do
           optional (string " ")
           string "with "
@@ -763,7 +784,7 @@ textToAbilities t = case (parse paras "" t) of
                 optional (string "s") -- FIXME: deal with plural better
                 return $ PermanentTypeMatch super t sub)
 
-        spell = SpellAbility <$> many1 (noneOf "\n")
+        spell = SpellAbility <$> effect
 
         keyword = (ciString "Deathtouch" >> (return $ KeywordAbility Deathtouch))
               <|> (ciString "Defender" >> (return $ KeywordAbility Defender))
