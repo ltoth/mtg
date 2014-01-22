@@ -423,7 +423,7 @@ data Ability = AdditionalCost ([Cost])
              deriving (Show, Eq)
 
 data Effect = Destroy Targets
-            | OptionalEffect Effect
+            | OptionalEffect PlayerMatch Effect
             | OtherEffect String
             deriving (Show, Eq)
 
@@ -566,7 +566,8 @@ textToAbilities t = case (parse paras "" t) of
           <|> try (ciString "end step" >> return End)
           <|> try (ciString "cleanup step" >> return Cleanup)
 
-        effect = (try (ciString "you may " >> OptionalEffect <$> effect)
+        effect = (try (OptionalEffect <$> playerMatch
+                         <*> (try $ ciString "may " *> effect))
               <|> try (ciString "destroy " >> Destroy <$> targets)
               <|> (OtherEffect <$> many1 (noneOf ",.\n"))
               ) <* optional (string ".") <* optional (string " ")
