@@ -423,6 +423,7 @@ data Ability = AdditionalCost ([Cost])
              deriving (Show, Eq)
 
 data Effect = Destroy Targets
+            | OptionalEffect Effect
             | OtherEffect String
             deriving (Show, Eq)
 
@@ -562,10 +563,10 @@ textToAbilities t = case (parse paras "" t) of
           <|> try (ciString "end step" >> return End)
           <|> try (ciString "cleanup step" >> return Cleanup)
 
-        effect = (
-             try (ciString "destroy " >> Destroy <$> targets)
-             <|> (OtherEffect <$> many1 (noneOf ",.\n"))
-             ) <* optional (string ".") <* optional (string " ")
+        effect = (try (ciString "you may " >> OptionalEffect <$> effect)
+              <|> try (ciString "destroy " >> Destroy <$> targets)
+              <|> (OtherEffect <$> many1 (noneOf ",.\n"))
+              ) <* optional (string ".") <* optional (string " ")
 
         -- FIXME: Replace "it" with "{This}" in some cases? How to tell?
         -- FIXME: Quoting: Witches' Eye - reuse abilityPara
