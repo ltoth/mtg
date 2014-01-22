@@ -423,11 +423,15 @@ data Ability = AdditionalCost ([Cost])
              | SpellAbility Effect
              deriving (Show, Eq)
 
-data Effect = Destroy Targets
-            | Exile Targets
-            | OptionalEffect PlayerMatch Effect
-            | OtherEffect String
-            deriving (Show, Eq)
+data Effect =
+    -- One-shot effects
+    Destroy Targets
+    | Exile Targets (Maybe TriggerEvent)
+
+    -- Other effects
+    | OptionalEffect PlayerMatch Effect
+    | OtherEffect String
+    deriving (Show, Eq)
 
 -- TODO: Use arrows? to keep the reference to the card throughout,
 -- as we need to refer to types etc.
@@ -516,7 +520,7 @@ textToAbilities t = case (parse paras "" t) of
                       return (TEAt EachPlayer EndOfCombat))
                     <|> TEOther <$> many (noneOf ",\n"))
           <|> try (ciString "Whenever " >> TEOther <$> many (noneOf ",\n"))
-          <|> try (ciString "When " >>
+          <|> try (ciString "When " <|> ciString " until " >>
                     -- TODO: Should really return OrList [TrigEvent]
                     -- for cards like Ashen Rider, Absolver Thrull
                     -- TODO: Should use permanentMatch to match what
@@ -580,7 +584,8 @@ textToAbilities t = case (parse paras "" t) of
         effect = (try (OptionalEffect <$> playerMatch
                          <*> (try $ ciString "may " *> effect))
               <|> try (ciString "destroy " >> Destroy <$> targets)
-              <|> try (ciString "exile " >> Exile <$> targets)
+              <|> try (ciString "exile " >> Exile <$> targets
+                      <*> optionMaybe trigEvent)
               <|> (OtherEffect <$> many1 (noneOf ",.\n"))
               ) <* optional (string ".") <* optional (string " ")
 
