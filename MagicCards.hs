@@ -547,6 +547,9 @@ textToAbilities t = case (parse paras "" t) of
             >> return Opponent)
           <|> try (try (ciString "player's")
                <|> try (ciString "player")
+               <|> try (ciString "any player's") -- FIXME: Perhaps this should be
+               -- a separate value constructor, i.e. AnyPlayer
+               <|> try (ciString "any player")
             >> return Player)
           <|> try (ciString "each" >> return EachPlayer))
           <* optional (string " ")
