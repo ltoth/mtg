@@ -408,7 +408,7 @@ data PlayerMatch = EachPlayer | You | Player | Opponent | Opponents
                  | Controller | Owner
                  deriving (Show, Eq)
 
-data Step = UntapStep | Upkeep | Draw | PreCombatMain
+data Step = UntapStep | Upkeep | DrawStep | PreCombatMain
           | BeginningOfCombat | DeclareAttackers | DeclareBlockers
           | CombatDamage | EndOfCombat | PostCombatMain
           | End | Cleanup
@@ -437,6 +437,7 @@ data Effect =
     | LoseLife PlayerMatch NumValue
     | GainLife PlayerMatch NumValue
     | HaveAbilities Targets [Ability]
+    | DrawCard Targets NumValue
 
     -- TODO: Parse "for each" multipliers, which can
     -- be at the beginning (Curse of the Swine) or end
@@ -600,7 +601,7 @@ textToAbilities t = case (parse paras "" t) of
         step =
           try (ciString "untap step" >> return UntapStep)
           <|> try (ciString "upkeep" >> return Upkeep)
-          <|> try (ciString "draw step" >> return Draw)
+          <|> try (ciString "draw step" >> return DrawStep)
           <|> try (ciString "precombat main phase" >> return PreCombatMain)
           <|> try (ciString "combat" >> return BeginningOfCombat)
           <|> try (ciString "declare attackers step" >> return DeclareAttackers)
@@ -630,6 +631,11 @@ textToAbilities t = case (parse paras "" t) of
                          <*> (try $ (optional (string " ") >>
                              try (ciString "have") <|> (ciString "has")
                              >> string " ") *> (keyword `sepBy1` andSep)))
+              <|> try (DrawCard <$> option (NoTarget Nothing [TMPlayer You]) targets
+                         <*> (try $ (ciString "draw" >> optional (string "s")
+                             >> string " ") *> numberParser
+                             <* (optional (string " ") >> string "card"
+                             >> optional (string "s"))))
               <|> (OtherEffect <$> many1 (noneOf ".\n"))
               ) <* optional (numVariableConsume)
               <* optional (string ".") <* optional (string " ")
@@ -891,6 +897,8 @@ textToAbilities t = case (parse paras "" t) of
                 optional (string " ")
                 optional (try (string "permanent"))
                 optional (string "s") -- FIXME: deal with plural better
+                when (super == [] && sub == [] && t == [])
+                  (fail "Did not match any permanent type")
                 return $ PermanentTypeMatch super t sub)
 
         spell = SpellAbility <$> effect
