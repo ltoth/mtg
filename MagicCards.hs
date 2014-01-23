@@ -307,7 +307,7 @@ data Cost = CMana ManaCost | CTap | CUntap | CLife Word8
           deriving (Show, Eq)
 
 data Targets = Target CountRange [TargetMatch]
-             | NoTarget CountRange [TargetMatch]
+             | NoTarget (Maybe CountRange) [TargetMatch]
              deriving (Show, Eq)
 
 -- FIXME: Support targeting zones ("target library" Circu, Dimir Lobotomist)
@@ -434,6 +434,7 @@ data Effect =
     | Exile Targets (Maybe TriggerEvent)
     | LoseLife PlayerMatch NumValue
     | GainLife PlayerMatch NumValue
+    | HaveAbilities Targets [Ability]
 
     -- TODO: Parse "for each" multipliers, which can
     -- be at the beginning (Curse of the Swine) or end
@@ -621,7 +622,11 @@ textToAbilities t = case (parse paras "" t) of
                          <*> (try $ (ciString "gain" >> optional (string "s")
                              >> string " ") *> numberParser
                              <* (optional (string " ") >> string "life")))
-              <|> (OtherEffect <$> many1 (noneOf ",.\n"))
+              <|> try (HaveAbilities <$> targets
+                         <*> (try $ (optional (string " ") >>
+                             try (ciString "have") <|> (ciString "has")
+                             >> string " ") *> (keyword `sepBy1` andSep)))
+              <|> (OtherEffect <$> many1 (noneOf ".\n"))
               ) <* optional (numVariableConsume)
               <* optional (string ".") <* optional (string " ")
 
@@ -738,8 +743,7 @@ textToAbilities t = case (parse paras "" t) of
               tms <- targetMatch `sepBy1` andOrSep' --FIXME: deal with spaces better
               return $ Target n tms)
           <|> try (do
-              n <- option (Exactly (AnyCount (NumValue 1)))
-                   (try $ countRange <* string " ")
+              n <- optionMaybe (try $ countRange <* string " ")
               tms <- targetMatch `sepBy1` andOrSep'
               return $ NoTarget n tms)
 
