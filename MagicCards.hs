@@ -404,7 +404,9 @@ data TriggerEvent = TEAt PlayerMatch Step | TEThisETB | TEThisLTB
                   | TEOther String -- FIXME: Make more value constr.
                   deriving (Show, Eq)
 
-data PlayerMatch = EachPlayer | You | Player | Opponent | Opponents deriving (Show, Eq)
+data PlayerMatch = EachPlayer | You | Player | Opponent | Opponents
+                 | Controller | Owner
+                 deriving (Show, Eq)
 
 data Step = Untap | Upkeep | Draw | PreCombatMain
           | BeginningOfCombat | DeclareAttackers | DeclareBlockers
@@ -574,6 +576,20 @@ textToAbilities t = case (parse paras "" t) of
                -- a separate value constructor, i.e. AnyPlayer
                <|> try (ciString "any player")
             >> return Player)
+          <|> try (try (ciString "its controller's")
+               <|> try (ciString "its controller")
+               <|> try (ciString "their controllers'") -- FIXME: Perhaps separate?
+               <|> try (ciString "their controllers")
+               <|> try (ciString "their controller's")
+               <|> try (ciString "their controller")
+            >> return Controller)
+          <|> try (try (ciString "its owner's")
+               <|> try (ciString "its owner")
+               <|> try (ciString "their owners'") -- FIXME: Perhaps separate?
+               <|> try (ciString "their owners")
+               <|> try (ciString "their owner's")
+               <|> try (ciString "their owner")
+            >> return Owner)
           <|> try (ciString "each" >> return EachPlayer))
           <* optional (string " ")
 
