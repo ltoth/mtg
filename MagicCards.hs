@@ -590,9 +590,11 @@ textToAbilities t = case (parse paras "" t) of
 
         effect = (try (OptionalEffect <$> playerMatch
                          <*> (try $ ciString "may " *> effect))
-              <|> try (ciString "destroy " >> Destroy <$> targets)
-              <|> try (ciString "exile " >> Exile <$> targets
-                      <*> optionMaybe trigEvent)
+              <|> try (ciString "destroy" >> optional (string "s")
+                         >> string " " >> Destroy <$> targets)
+              <|> try (ciString "exile" >> optional (string "s")
+                         >> string " " >> Exile <$> targets
+                         <*> optionMaybe trigEvent)
               <|> (OtherEffect <$> many1 (noneOf ",.\n"))
               ) <* optional (string ".") <* optional (string " ")
 
@@ -662,10 +664,10 @@ textToAbilities t = case (parse paras "" t) of
                   -- Abhorrent Overlord
                   -- FIXME: Parse "an amount of ... equal to [c]" as NumVariable
                   -- Karametra's Acolyte
-                  -- FIXME: Parse "X ..., where X is [c]" as NumVariable
-                  -- Mogis's Marauder, Gray Merchant of Asphodel
                   -- FIXME: Parse "... equal to [c]" as NumVariable
                   -- Fanatic of Mogis, Gray Merchant of Asphodel
+                  -- FIXME: Parse "X ..., where X is [c]" as NumVariable
+                  -- Mogis's Marauder, Gray Merchant of Asphodel
                   <|> try (string "an" >> (return $ NumValue 1))
                   <|> try (string "a" >> (return $ NumValue 1))
                   <|> try (string "eleven" >> (return $ NumValue 11))
