@@ -440,6 +440,7 @@ data Effect =
     | Sacrifice Targets
     | Discard Targets Targets
     | RemoveCounters CountRange (Maybe CounterType) Targets
+    | PutCounters CountRange (Maybe CounterType) Targets
 
     -- TODO: Parse "for each" multipliers, which can
     -- be at the beginning (Curse of the Swine) or end
@@ -649,6 +650,10 @@ textToAbilities t = case (parse paras "" t) of
                          <*> (try $ (optional (string " ") *>
                          optionMaybe (many1 (noneOf " \n")) <* optional (string " "))
                          <* ciString "counter from ") <*> targets)
+              <|> try (ciString "Put " >> PutCounters <$> countRange
+                         <*> (try $ (optional (string " ") *>
+                         optionMaybe (many1 (noneOf " \n")) <* optional (string " "))
+                         <* ciString "counter on ") <*> targets)
               <|> (OtherEffect <$> many1 (noneOf ".\n"))
               ) <* optional (numVariableConsume)
               <* optional (string ".") <* optional (string " ")
