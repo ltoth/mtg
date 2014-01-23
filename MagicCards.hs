@@ -408,7 +408,7 @@ data PlayerMatch = EachPlayer | You | Player | Opponent | Opponents
                  | Controller | Owner
                  deriving (Show, Eq)
 
-data Step = Untap | Upkeep | Draw | PreCombatMain
+data Step = UntapStep | Upkeep | Draw | PreCombatMain
           | BeginningOfCombat | DeclareAttackers | DeclareBlockers
           | CombatDamage | EndOfCombat | PostCombatMain
           | End | Cleanup
@@ -432,6 +432,8 @@ data Effect =
     -- One-shot effects
     Destroy Targets
     | Exile Targets (Maybe TriggerEvent)
+    | Tap Targets
+    | Untap Targets
     | LoseLife PlayerMatch NumValue
     | GainLife PlayerMatch NumValue
     | HaveAbilities Targets [Ability]
@@ -596,7 +598,7 @@ textToAbilities t = case (parse paras "" t) of
           <* optional (string " ")
 
         step =
-          try (ciString "untap step" >> return Untap)
+          try (ciString "untap step" >> return UntapStep)
           <|> try (ciString "upkeep" >> return Upkeep)
           <|> try (ciString "draw step" >> return Draw)
           <|> try (ciString "precombat main phase" >> return PreCombatMain)
@@ -614,6 +616,8 @@ textToAbilities t = case (parse paras "" t) of
               <|> try (ciString "exile" >> optional (string "s")
                          >> string " " >> Exile <$> targets
                          <*> optionMaybe trigEvent)
+              <|> try (ciString "tap " >> Tap <$> targets)
+              <|> try (ciString "untap " >> Untap <$> targets)
               <|> try (LoseLife <$> playerMatch
                          <*> (try $ (ciString "lose" >> optional (string "s")
                              >> string " ") *> numberParser
