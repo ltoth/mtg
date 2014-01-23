@@ -622,7 +622,7 @@ textToAbilities t = case (parse paras "" t) of
                              >> string " ") *> numberParser
                              <* (optional (string " ") >> string "life")))
               <|> (OtherEffect <$> many1 (noneOf ",.\n"))
-              ) <* numVariableConsume
+              ) <* optional (numVariableConsume)
               <* optional (string ".") <* optional (string " ")
 
         -- FIXME: Quoting: Witches' Eye - reuse abilityPara
@@ -687,13 +687,16 @@ textToAbilities t = case (parse paras "" t) of
 
         numberParser = try (string "all" >> (return All))
                   <|> try (do
+                          try (string "X")
+                          lookAhead $ try (do
+                            noneOf ("\n") `manyTill` try (string ", where X is ")
+                            NumVariable <$> many1 (noneOf (".\n"))))
+                  <|> try (do
                           optional $ try (string "a number of")
                           optional $ try (string "an amount of")
                           lookAhead $ try (do
                             noneOf ("\n") `manyTill` try (string "equal to ")
                             NumVariable <$> many1 (noneOf (".\n"))))
-                  -- FIXME: Parse "X ..., where X is [c]" as NumVariable
-                  -- Mogis's Marauder, Gray Merchant of Asphodel
                   <|> try (string "an" >> (return $ NumValue 1))
                   <|> try (string "a" >> (return $ NumValue 1))
                   <|> try (string "eleven" >> (return $ NumValue 11))
