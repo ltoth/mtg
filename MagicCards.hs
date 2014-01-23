@@ -624,7 +624,6 @@ textToAbilities t = case (parse paras "" t) of
               <|> (OtherEffect <$> many1 (noneOf ",.\n"))
               ) <* optional (string ".") <* optional (string " ")
 
-        -- FIXME: Replace "it" with "{This}" in some cases? How to tell?
         -- FIXME: Quoting: Witches' Eye - reuse abilityPara
         activated = do
           cost <- totalCost
