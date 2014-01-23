@@ -431,6 +431,10 @@ data Effect =
     Destroy Targets
     | Exile Targets (Maybe TriggerEvent)
 
+    -- TODO: Parse "for each" multipliers, which can
+    -- be at the beginning (Curse of the Swine) or end
+    -- of the effect (Nemesis of Mortals)
+
     -- Other effects
     | OptionalEffect PlayerMatch Effect
     | OtherEffect String
