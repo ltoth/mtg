@@ -301,8 +301,6 @@ instance FromJSON Card where
 
 data Cost = CMana ManaCost | CTap | CUntap
           | CEffect Effect
-          | CDiscardThis | CDiscard [CardMatch] -- FIXME: Should be more general,
-          -- i.e. for discard two cards, etc.
           | CLoyalty LoyaltyCost | CRemoveCounter CountRange (Maybe CounterType)
           deriving (Show, Eq)
 
@@ -440,6 +438,7 @@ data Effect =
     | HaveAbilities Targets [Ability]
     | DrawCard Targets NumValue
     | Sacrifice Targets
+    | Discard Targets Targets
 
     -- TODO: Parse "for each" multipliers, which can
     -- be at the beginning (Curse of the Swine) or end
@@ -640,7 +639,11 @@ textToAbilities t = case (parse paras "" t) of
                              >> string " ") *> numberParser
                              <* (optional (string " ") >> string "card"
                              >> optional (string "s"))))
-              <|> try (ciString "Sacrifice " >> Sacrifice <$> targets)
+              <|> try (ciString "Sacrifice" >> optional (string "s")
+                             >> string " " >> Sacrifice <$> targets)
+              <|> try (Discard <$> option (NoTarget Nothing [TMPlayer You]) targets
+                         <*> (try $ (ciString "discard" >> optional (string "s")
+                             >> string " ") *> targets))
               <|> (OtherEffect <$> many1 (noneOf ".\n"))
               ) <* optional (numVariableConsume)
               <* optional (string ".") <* optional (string " ")
@@ -649,7 +652,7 @@ textToAbilities t = case (parse paras "" t) of
         activated = do
           cost <- totalCost
           string ": "
-          e <- try (effect <* (try (string " Activate this ability only ")))
+          e <- try (effect <* (try (string "Activate this ability only ")))
                <|> effect
           instr <- optionMaybe (many1 (noneOf "\n"))
           return $ ActivatedAbility cost e instr
@@ -658,8 +661,7 @@ textToAbilities t = case (parse paras "" t) of
                      <|> try (string ", ")
                      <|> try (string " and ")
                      <|> string ","  -- FIXME: Is this necessary?
-        abilityCost = try (ciString "Discard {This}" >> return CDiscardThis)
-                  <|> try (string "{T}" >> return CTap)
+        abilityCost = try (string "{T}" >> return CTap)
                   <|> try (string "{Q}" >> return CUntap)
                   <|> try (do
                         ciString "Remove "
