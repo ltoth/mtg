@@ -616,11 +616,11 @@ textToAbilities t = case (parse paras "" t) of
               <|> try (LoseLife <$> playerMatch
                          <*> (try $ (ciString "lose" >> optional (string "s")
                              >> string " ") *> numberParser
-                             <* ciString " life"))
+                             <* (optional (string " ") >> string "life")))
               <|> try (GainLife <$> playerMatch
                          <*> (try $ (ciString "gain" >> optional (string "s")
                              >> string " ") *> numberParser
-                             <* ciString " life"))
+                             <* (optional (string " ") >> string "life")))
               <|> (OtherEffect <$> many1 (noneOf ",.\n"))
               ) <* optional (string ".") <* optional (string " ")
 
@@ -685,12 +685,12 @@ textToAbilities t = case (parse paras "" t) of
             <|> try (string " or ")
 
         numberParser = try (string "all" >> (return All))
-                  -- FIXME: Parse "a number of ... equal to [c]" as NumVariable
-                  -- Abhorrent Overlord
-                  -- FIXME: Parse "an amount of ... equal to [c]" as NumVariable
-                  -- Karametra's Acolyte
-                  -- FIXME: Parse "... equal to [c]" as NumVariable
-                  -- Fanatic of Mogis, Gray Merchant of Asphodel
+                  <|> try (do
+                          optional $ try (string "a number of")
+                          optional $ try (string "an amount of")
+                          lookAhead $ try (do
+                            noneOf ("\n") `manyTill` try (string "equal to ")
+                            NumVariable <$> many1 (noneOf (".\n"))))
                   -- FIXME: Parse "X ..., where X is [c]" as NumVariable
                   -- Mogis's Marauder, Gray Merchant of Asphodel
                   <|> try (string "an" >> (return $ NumValue 1))
