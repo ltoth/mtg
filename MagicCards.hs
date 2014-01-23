@@ -705,6 +705,7 @@ textToAbilities t = case (parse paras "" t) of
                             NumVariable <$> many1 (noneOf (".\n"))))
                   <|> try (string "an" >> (return $ NumValue 1))
                   <|> try (string "a" >> (return $ NumValue 1))
+                  <|> try (string "both" >> (return $ NumValue 2))
                   <|> try (string "eleven" >> (return $ NumValue 11))
                   <|> try (string "twelve" >> (return $ NumValue 12))
                   <|> try (string "thirteen" >> (return $ NumValue 13))
