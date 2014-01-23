@@ -299,9 +299,8 @@ instance FromJSON Card where
                            v .:? "border"
     parseJSON _ = fail "Could not parse card"
 
-data Cost = CMana ManaCost | CTap | CUntap
+data Cost = CMana ManaCost | CTap | CUntap | CLoyalty LoyaltyCost
           | CEffect Effect
-          | CLoyalty LoyaltyCost | CRemoveCounter CountRange (Maybe CounterType)
           deriving (Show, Eq)
 
 data Targets = Target CountRange [TargetMatch]
@@ -391,6 +390,7 @@ data NumValue = NumValue Word8 | NumValueX | All | NumVariable Calculation
 -- FIXME: Actually parse calculations properly
 type Calculation = String
 
+-- FIXME: Should this be parsed into possible counter types?
 type CounterType = String
 
 data LoyaltyCost = LC Int8 | LCMinusX deriving (Show, Eq)
@@ -439,6 +439,7 @@ data Effect =
     | DrawCard Targets NumValue
     | Sacrifice Targets
     | Discard Targets Targets
+    | RemoveCounters CountRange (Maybe CounterType) Targets
 
     -- TODO: Parse "for each" multipliers, which can
     -- be at the beginning (Curse of the Swine) or end
@@ -644,6 +645,10 @@ textToAbilities t = case (parse paras "" t) of
               <|> try (Discard <$> option (NoTarget Nothing [TMPlayer You]) targets
                          <*> (try $ (ciString "discard" >> optional (string "s")
                              >> string " ") *> targets))
+              <|> try (ciString "Remove " >> RemoveCounters <$> countRange
+                         <*> (try $ (optional (string " ") *>
+                         optionMaybe (many1 (noneOf " \n")) <* optional (string " "))
+                         <* ciString "counter from ") <*> targets)
               <|> (OtherEffect <$> many1 (noneOf ".\n"))
               ) <* optional (numVariableConsume)
               <* optional (string ".") <* optional (string " ")
@@ -663,14 +668,6 @@ textToAbilities t = case (parse paras "" t) of
                      <|> string ","  -- FIXME: Is this necessary?
         abilityCost = try (string "{T}" >> return CTap)
                   <|> try (string "{Q}" >> return CUntap)
-                  <|> try (do
-                        ciString "Remove "
-                        n <- countRange
-                        string " "
-                        counterType <- optionMaybe (many1 (noneOf " \n"))
-                        optional (string " ")
-                        ciString "counter from {This}"
-                        return $ CRemoveCounter n counterType)
                   <|> try ((optional (ciString "Pay ") >>
                         CMana <$> manaCostParser))
                   <|> try (string "-X" >> return (CLoyalty $ LCMinusX))
