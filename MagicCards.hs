@@ -381,7 +381,7 @@ data PhaseStatus = PhasedIn | PhasedOut
                  deriving (Show, Eq)
 
 data CountRange = UpTo Count | Exactly Count | AtLeast Count
-                | OneOf [NumValue] | AnyNumber
+                | OneOf [NumValue] | AnyNumber | Other
                 deriving (Show, Eq)
 
 data Count = AnyCount NumValue | OtherCount NumValue
@@ -670,6 +670,7 @@ textToAbilities t = case (parse paras "" t) of
                         return $ CLoyalty $ LC $ read $ sign ++ l)
 
         countRange = try (ciString "any number of" >> return AnyNumber)
+                 <|> try (ciString "other" >> return Other)
                  <|> try (ciString "up to " >> (UpTo <$> countParser))
                  <|> try (ciString "at least " >> (AtLeast <$> countParser))
                  <|> try (AtLeast <$> countParser <* string " or greater")
