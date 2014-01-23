@@ -430,6 +430,7 @@ data Effect =
     -- One-shot effects
     Destroy Targets
     | Exile Targets (Maybe TriggerEvent)
+    | LoseLife PlayerMatch NumValue
 
     -- TODO: Parse "for each" multipliers, which can
     -- be at the beginning (Curse of the Swine) or end
@@ -595,6 +596,10 @@ textToAbilities t = case (parse paras "" t) of
               <|> try (ciString "exile" >> optional (string "s")
                          >> string " " >> Exile <$> targets
                          <*> optionMaybe trigEvent)
+              <|> try (LoseLife <$> playerMatch
+                         <*> (try $ (ciString "lose" >> optional (string "s")
+                             >> string " ") *> numberParser
+                             <* ciString " life"))
               <|> (OtherEffect <$> many1 (noneOf ",.\n"))
               ) <* optional (string ".") <* optional (string " ")
 
