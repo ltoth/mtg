@@ -317,7 +317,7 @@ data Targets = Target CountRange [TargetMatch]
 --
 -- However, an emblem is not a valid target
 data TargetMatch = TMPermanent PermanentMatch | TMSpell SpellMatch
-                 | TMCard CardMatch | TMPlayer PlayerMatch | TMIt
+                 | TMCard CardMatch | TMPlayer PlayerMatch | TMThis | TMIt
                  deriving (Show, Eq)
 
 -- TODO: for targeting spells (i.e. counterspells)
@@ -334,7 +334,6 @@ data PermanentMatch = PermanentMatch (Maybe BlockedStatus)
                         [CombatStatus] ColorMatch
                         NonToken PermanentTypeMatch [Ability] (Maybe Name)
                         (Maybe OwnControl)
-                    | ThisPermanent
                     deriving (Show, Eq)
 
 data ColorMatch = CMColors [Non Color] | CMMonocolored | CMMulticolored
@@ -762,6 +761,7 @@ textToAbilities t = case (parse paras "" t) of
                <|> try (string "or ")
 
         targetMatch = try it
+                  <|> try (string "{This}" >> return TMThis)
                   <|> try (TMPlayer <$> playerMatch)
                   <|> try (TMPermanent <$> permanentMatch)
 
@@ -772,30 +772,28 @@ textToAbilities t = case (parse paras "" t) of
           <* optional (string " ")  -- to match permanentType's behavior
           -- of consuming trailing spaces
 
-        permanentMatch =
-              try (string "{This}" >> return ThisPermanent)
-          <|> try (do
-                -- These are necessary for "a creature, a land, and a Wall"
-                optional (try $ string "an ")
-                optional (try $ string "a ")
+        permanentMatch = try (do
+          -- These are necessary for "a creature, a land, and a Wall"
+          optional (try $ string "an ")
+          optional (try $ string "a ")
 
-                b <- optionMaybe $ try blocked
-                combat <- combatStatuses
-                cs <- colorMatch
-                nt <- nonToken
-                t <- permanentTypeParser
-                as <- withAbilities
-                -- TODO: support "with [other quality]", e.g.
-                -- "power 4 or greater", "CMC 3 or less"
-                -- Elspeth, Abrupt Decay
-                -- as well as "with(out) a fate counter on it"
-                -- Oblivion Stone
-                cardName <- optionMaybe $ try cardNamed
-                oc <- optionMaybe $ try ownControl
-                -- TODO: support other conditions like
-                -- "that dealt damage to you this turn"
-                -- Spear of Heliod
-                return $ PermanentMatch b combat cs nt t as cardName oc)
+          b <- optionMaybe $ try blocked
+          combat <- combatStatuses
+          cs <- colorMatch
+          nt <- nonToken
+          t <- permanentTypeParser
+          as <- withAbilities
+          -- TODO: support "with [other quality]", e.g.
+          -- "power 4 or greater", "CMC 3 or less"
+          -- Elspeth, Abrupt Decay
+          -- as well as "with(out) a fate counter on it"
+          -- Oblivion Stone
+          cardName <- optionMaybe $ try cardNamed
+          oc <- optionMaybe $ try ownControl
+          -- TODO: support other conditions like
+          -- "that dealt damage to you this turn"
+          -- Spear of Heliod
+          return $ PermanentMatch b combat cs nt t as cardName oc)
 
         blocked = try (ciString "blocked " >> return Blocked)
               <|> try (ciString "unblocked " >> return Unblocked)
