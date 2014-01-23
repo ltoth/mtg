@@ -622,7 +622,8 @@ textToAbilities t = case (parse paras "" t) of
                              >> string " ") *> numberParser
                              <* (optional (string " ") >> string "life")))
               <|> (OtherEffect <$> many1 (noneOf ",.\n"))
-              ) <* optional (string ".") <* optional (string " ")
+              ) <* numVariableConsume
+              <* optional (string ".") <* optional (string " ")
 
         -- FIXME: Quoting: Witches' Eye - reuse abilityPara
         activated = do
@@ -717,6 +718,11 @@ textToAbilities t = case (parse paras "" t) of
                   <|> try (string "ten" >> (return $ NumValue 10))
                   <|> try (string "X" >> (return NumValueX))
                   <|> try ((NumValue . read) <$> (many1 digit))
+
+        -- used to consume this input, normally seen using lookAhead
+        numVariableConsume =
+              try (string " equal to " >> many1 (noneOf (".\n")))
+          <|> try (string ", where X is " >> many1 (noneOf (".\n")))
 
         -- FIXME: We should distinguish between "or" and "and" here
         -- Artisan's Sorrow, Swan Song, Corrupted Roots etc., Hero's
