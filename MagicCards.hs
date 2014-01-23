@@ -301,7 +301,6 @@ instance FromJSON Card where
 
 data Cost = CMana ManaCost | CTap | CUntap
           | CEffect Effect
-          | CSacrifice Targets
           | CDiscardThis | CDiscard [CardMatch] -- FIXME: Should be more general,
           -- i.e. for discard two cards, etc.
           | CLoyalty LoyaltyCost | CRemoveCounter CountRange (Maybe CounterType)
@@ -440,6 +439,7 @@ data Effect =
     | PayLife NumValue
     | HaveAbilities Targets [Ability]
     | DrawCard Targets NumValue
+    | Sacrifice Targets
 
     -- TODO: Parse "for each" multipliers, which can
     -- be at the beginning (Curse of the Swine) or end
@@ -640,6 +640,7 @@ textToAbilities t = case (parse paras "" t) of
                              >> string " ") *> numberParser
                              <* (optional (string " ") >> string "card"
                              >> optional (string "s"))))
+              <|> try (ciString "Sacrifice " >> Sacrifice <$> targets)
               <|> (OtherEffect <$> many1 (noneOf ".\n"))
               ) <* optional (numVariableConsume)
               <* optional (string ".") <* optional (string " ")
@@ -660,7 +661,6 @@ textToAbilities t = case (parse paras "" t) of
         abilityCost = try (ciString "Discard {This}" >> return CDiscardThis)
                   <|> try (string "{T}" >> return CTap)
                   <|> try (string "{Q}" >> return CUntap)
-                  <|> try (ciString "Sacrifice " >> CSacrifice <$> targets)
                   <|> try (do
                         ciString "Remove "
                         n <- countRange
