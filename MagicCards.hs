@@ -299,7 +299,8 @@ instance FromJSON Card where
                            v .:? "border"
     parseJSON _ = fail "Could not parse card"
 
-data Cost = CMana ManaCost | CTap | CUntap | CLife Word8
+data Cost = CMana ManaCost | CTap | CUntap
+          | CEffect Effect
           | CSacrifice Targets
           | CDiscardThis | CDiscard [CardMatch] -- FIXME: Should be more general,
           -- i.e. for discard two cards, etc.
@@ -436,6 +437,7 @@ data Effect =
     | Untap Targets
     | LoseLife PlayerMatch NumValue
     | GainLife PlayerMatch NumValue
+    | PayLife NumValue
     | HaveAbilities Targets [Ability]
     | DrawCard Targets NumValue
 
@@ -627,6 +629,8 @@ textToAbilities t = case (parse paras "" t) of
                          <*> (try $ (ciString "gain" >> optional (string "s")
                              >> string " ") *> numberParser
                              <* (optional (string " ") >> string "life")))
+              <|> try (PayLife <$> (ciString "Pay " *> numberParser
+                             <* (optional (string " ") >> string "life")))
               <|> try (HaveAbilities <$> targets
                          <*> (try $ (optional (string " ") >>
                              try (ciString "have") <|> (ciString "has")
@@ -656,11 +660,6 @@ textToAbilities t = case (parse paras "" t) of
         abilityCost = try (ciString "Discard {This}" >> return CDiscardThis)
                   <|> try (string "{T}" >> return CTap)
                   <|> try (string "{Q}" >> return CUntap)
-                  <|> try (do
-                            ciString "Pay "
-                            n <- many1 digit
-                            string " life"
-                            return $ CLife $ read n)
                   <|> try (ciString "Sacrifice " >> CSacrifice <$> targets)
                   <|> try (do
                         ciString "Remove "
@@ -678,6 +677,7 @@ textToAbilities t = case (parse paras "" t) of
                         sign <- option "" (try (many1 (char '-')))
                         l <- many1 digit
                         return $ CLoyalty $ LC $ read $ sign ++ l)
+                  <|> try (CEffect <$> effect)
 
         countRange = try (ciString "any number of" >> return AnyNumber)
                  <|> try (ciString "other" >> return Other)
