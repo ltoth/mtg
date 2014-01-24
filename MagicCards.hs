@@ -439,8 +439,8 @@ data Effect =
     | DrawCard Targets NumValue
     | Sacrifice Targets Targets
     | Discard Targets Targets
-    | GainControl Targets Targets
-      -- TODO: Duration "until end of turn", "for as long as"
+    | GainControl Targets Targets (Maybe TriggerEvent)
+      -- TODO: Duration "for as long as"
     | RemoveCounters CountRange (Maybe CounterType) Targets
     | PutCounters CountRange (Maybe CounterType) Targets
     | PutTokens Targets NumValue NumValue NumValue PermanentMatch
@@ -532,18 +532,22 @@ textToAbilities t = case (parse paras "" t) of
             return $ TriggeredAbility event e cond
 
         trigEvent =
-              try (ciString "At " >>
+              try (ciString "At " <|>
+                  (optional (string " ") >> ciString "until ") >>
                     -- TODO: first check "at the beginning of combat
                     -- on your turn" (Battle-Rattle Shaman)
                     -- TODO: first check "at the beginning of each of
                     -- your main phases" (Carpet of Flowers)
                     try (ciString "the beginning of " >>
                       TEAt <$> playerMatch <*> step)
-                    <|> try (ciString "the end of combat" >>
+                    <|> try (optional (string "the ")
+                      >> ciString "end of combat" >>
                       return (TEAt EachPlayer EndOfCombat))
-                    <|> TEOther <$> many (noneOf ",\n"))
+                    <|> try (ciString "end of turn" >>
+                      return (TEAt EachPlayer Cleanup)))
           <|> try (ciString "Whenever " >> TEOther <$> many (noneOf ",\n"))
-          <|> try (ciString "When " <|> ciString " until " >>
+          <|> try (ciString "When " <|>
+                  (optional (string " ") >> ciString "until ") >>
                     -- TODO: Should really return OrList [TrigEvent]
                     -- for cards like Ashen Rider, Absolver Thrull
                     -- TODO: Should use permanentMatch to match what
@@ -654,7 +658,8 @@ textToAbilities t = case (parse paras "" t) of
                              >> string " ") *> targets))
               <|> try (GainControl <$> option (NoTarget Nothing [TMPlayer You]) targets
                          <*> (try $ (ciString "gain" >> optional (string "s")
-                             >> string " control of ") *> targets))
+                             >> string " control of ") *> targets)
+                         <*> optionMaybe trigEvent)
               <|> try (ciString "Remove " >> RemoveCounters <$> countRange
                          <*> (try $ (optional (string " ") *>
                          optionMaybe (many1 (noneOf " \n")) <* optional (string " "))
