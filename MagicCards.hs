@@ -438,7 +438,7 @@ data Effect =
     | LoseLife PlayerMatch NumValue
     | GainLife PlayerMatch NumValue
     | PayLife NumValue
-    | HaveAbilities Targets [Ability]
+    | AddAbilities Targets [Ability] (Maybe Duration)
     | DrawCard Targets NumValue
     | Sacrifice Targets Targets
     | Discard Targets Targets
@@ -648,10 +648,17 @@ textToAbilities t = case (parse paras "" t) of
                              <* (optional (string " ") >> string "life")))
               <|> try (PayLife <$> (ciString "Pay " *> numberParser
                              <* (optional (string " ") >> string "life")))
-              <|> try (HaveAbilities <$> targets
+              <|> try (AddAbilities <$> targets
                          <*> (try $ (optional (string " ") >>
                              try (ciString "have") <|> (ciString "has")
-                             >> string " ") *> (keyword `sepBy1` andSep)))
+                             >> string " ") *> (keyword `sepBy1` andSep))
+                         <*> pure Nothing)
+              <|> try (AddAbilities <$> (optional (string "each ") *> targets)
+                         <*> (try $ (optional (string " ") >>
+                             optional (string "each ") >>
+                             ciString "gain" >> optional (string "s")
+                             >> string " ") *> (keyword `sepBy1` andSep))
+                         <*> optionMaybe duration)
               <|> try (DrawCard <$> option (NoTarget Nothing [TMPlayer You]) targets
                          <*> (try $ (ciString "draw" >> optional (string "s")
                              >> string " ") *> numberParser
@@ -692,6 +699,7 @@ textToAbilities t = case (parse paras "" t) of
           string ": "
           e <- try (effect <* (try (string "Activate this ability only ")))
                <|> effect
+          -- FIXME: This catches other abilities, like Prognostic Sphinx
           instr <- optionMaybe (many1 (noneOf "\n"))
           return $ ActivatedAbility cost e instr
         totalCost = abilityCost `sepBy1` andSep
