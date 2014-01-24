@@ -738,14 +738,14 @@ textToAbilities t = case (parse paras "" t) of
                           optional $ try (string "a number of")
                           optional $ try (string "an amount of")
                           lookAhead $ try (do
-                            noneOf ("\n") `manyTill` try (string "equal to ")
+                            noneOf (".\n") `manyTill` try (string "equal to ")
                             NumVariable <$> many1 (noneOf (".\n"))))
                   <|> try explicitNumber
 
         explicitNumber = try (do
                            try (string "X")
                            lookAhead $ try (do
-                             noneOf ("\n") `manyTill` try (string ", where X is ")
+                             noneOf (".\n") `manyTill` try (string ", where X is ")
                              NumVariable <$> many1 (noneOf (".\n"))))
                   <|> try (string "X" >> (return NumValueX))
                   <|> try (string "an" >> (return $ NumValue 1))
