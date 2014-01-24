@@ -395,6 +395,9 @@ type CounterType = String
 
 data LoyaltyCost = LC Int8 | LCMinusX deriving (Show, Eq)
 
+data Duration = DurationUntil TriggerEvent | DurationForAsLongAs TriggerEvent
+              deriving (Show, Eq)
+
 data TriggerEvent = TEAt PlayerMatch Step | TEThisETB | TEThisLTB
                   | TEThisETBOrDies | TEThisDies
                   | TEObjectETB PermanentMatch
@@ -429,7 +432,7 @@ data Ability = AdditionalCost ([Cost])
 data Effect =
     -- One-shot effects
     Destroy Targets
-    | Exile Targets (Maybe TriggerEvent)
+    | Exile Targets (Maybe Duration)
     | Tap Targets
     | Untap Targets
     | LoseLife PlayerMatch NumValue
@@ -439,8 +442,7 @@ data Effect =
     | DrawCard Targets NumValue
     | Sacrifice Targets Targets
     | Discard Targets Targets
-    | GainControl Targets Targets (Maybe TriggerEvent)
-      -- TODO: Duration "for as long as"
+    | GainControl Targets Targets (Maybe Duration)
     | RemoveCounters CountRange (Maybe CounterType) Targets
     | PutCounters CountRange (Maybe CounterType) Targets
     | PutTokens Targets NumValue NumValue NumValue PermanentMatch
@@ -532,28 +534,33 @@ textToAbilities t = case (parse paras "" t) of
             return $ TriggeredAbility event e cond
 
         trigEvent =
-              try (ciString "At " <|>
-                  (optional (string " ") >> ciString "until ") >>
-                    -- TODO: first check "at the beginning of combat
-                    -- on your turn" (Battle-Rattle Shaman)
-                    -- TODO: first check "at the beginning of each of
-                    -- your main phases" (Carpet of Flowers)
-                    try (ciString "the beginning of " >>
+              try (ciString "At " >> turnEvent)
+          <|> try (ciString "Whenever " >> TEOther <$> many (noneOf ",\n"))
+          <|> try (ciString "When " >> effectEvent)
+
+        duration = try (DurationUntil <$> (optional (string " ") >>
+                     ciString "until " >> turnEvent <|> effectEvent))
+               <|> try (DurationForAsLongAs <$> (optional (string " ") >>
+                     ciString "for as long as " >> effectEvent))
+
+        -- TODO: first check "at the beginning of combat on your turn"
+        -- (Battle-Rattle Shaman)
+        -- TODO: first check "at the beginning of each of your main phases"
+        -- (Carpet of Flowers)
+        turnEvent = try (ciString "the beginning of " >>
                       TEAt <$> playerMatch <*> step)
                     <|> try (optional (string "the ")
                       >> ciString "end of combat" >>
                       return (TEAt EachPlayer EndOfCombat))
                     <|> try (ciString "end of turn" >>
-                      return (TEAt EachPlayer Cleanup)))
-          <|> try (ciString "Whenever " >> TEOther <$> many (noneOf ",\n"))
-          <|> try (ciString "When " <|>
-                  (optional (string " ") >> ciString "until ") >>
-                    -- TODO: Should really return OrList [TrigEvent]
-                    -- for cards like Ashen Rider, Absolver Thrull
-                    -- TODO: Should use permanentMatch to match what
-                    -- ETBs/dies/LTBs, and consolidate the This value
-                    -- constructors with the Other
-                    try (ciString "{This} enters the battlefield or dies" >>
+                      return (TEAt EachPlayer Cleanup))
+
+        -- TODO: Should really return OrList [TrigEvent]
+        -- for cards like Ashen Rider, Absolver Thrull
+        -- TODO: Should use permanentMatch to match what
+        -- ETBs/dies/LTBs, and consolidate the This value
+        -- constructors with the Other
+        effectEvent = try (ciString "{This} enters the battlefield or dies" >>
                       return TEThisETBOrDies)
                     <|> try (ciString "{This} enters the battlefield" >>
                       return TEThisETB)
@@ -561,7 +568,7 @@ textToAbilities t = case (parse paras "" t) of
                       return TEThisDies)
                     <|> try (ciString "{This} leaves the battlefield" >>
                       return TEThisLTB)
-                    <|> TEOther <$> many (noneOf ",\n"))
+                    <|> TEOther <$> many (noneOf ",\n")
 
         -- TODO: Also have to deal with "the next" and "it's controller's
         -- next" and "your next"
@@ -628,7 +635,7 @@ textToAbilities t = case (parse paras "" t) of
                          >> string " " >> Destroy <$> targets)
               <|> try (ciString "exile" >> optional (string "s")
                          >> string " " >> Exile <$> targets
-                         <*> optionMaybe trigEvent)
+                         <*> optionMaybe duration)
               <|> try (ciString "tap " >> Tap <$> targets)
               <|> try (ciString "untap " >> Untap <$> targets)
               <|> try (LoseLife <$> playerMatch
@@ -659,7 +666,7 @@ textToAbilities t = case (parse paras "" t) of
               <|> try (GainControl <$> option (NoTarget Nothing [TMPlayer You]) targets
                          <*> (try $ (ciString "gain" >> optional (string "s")
                              >> string " control of ") *> targets)
-                         <*> optionMaybe trigEvent)
+                         <*> optionMaybe duration)
               <|> try (ciString "Remove " >> RemoveCounters <$> countRange
                          <*> (try $ (optional (string " ") *>
                          optionMaybe (many1 (noneOf " \n")) <* optional (string " "))
