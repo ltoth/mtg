@@ -439,6 +439,8 @@ data Effect =
     | DrawCard Targets NumValue
     | Sacrifice Targets Targets
     | Discard Targets Targets
+    | GainControl Targets Targets
+      -- TODO: Duration "until end of turn", "for as long as"
     | RemoveCounters CountRange (Maybe CounterType) Targets
     | PutCounters CountRange (Maybe CounterType) Targets
     | PutTokens Targets NumValue NumValue NumValue PermanentMatch
@@ -650,6 +652,9 @@ textToAbilities t = case (parse paras "" t) of
               <|> try (Discard <$> option (NoTarget Nothing [TMPlayer You]) targets
                          <*> (try $ (ciString "discard" >> optional (string "s")
                              >> string " ") *> targets))
+              <|> try (GainControl <$> option (NoTarget Nothing [TMPlayer You]) targets
+                         <*> (try $ (ciString "gain" >> optional (string "s")
+                             >> string " control of ") *> targets))
               <|> try (ciString "Remove " >> RemoveCounters <$> countRange
                          <*> (try $ (optional (string " ") *>
                          optionMaybe (many1 (noneOf " \n")) <* optional (string " "))
