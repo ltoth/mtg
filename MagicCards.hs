@@ -437,7 +437,7 @@ data Effect =
     | PayLife NumValue
     | HaveAbilities Targets [Ability]
     | DrawCard Targets NumValue
-    | Sacrifice Targets
+    | Sacrifice Targets Targets
     | Discard Targets Targets
     | RemoveCounters CountRange (Maybe CounterType) Targets
     | PutCounters CountRange (Maybe CounterType) Targets
@@ -644,8 +644,9 @@ textToAbilities t = case (parse paras "" t) of
                              >> string " ") *> numberParser
                              <* (optional (string " ") >> string "card"
                              >> optional (string "s"))))
-              <|> try (ciString "Sacrifice" >> optional (string "s")
-                             >> string " " >> Sacrifice <$> targets)
+              <|> try (Sacrifice <$> option (NoTarget Nothing [TMPlayer You]) targets
+                         <*> (try $ (ciString "sacrifice" >> optional (string "s")
+                             >> string " ") *> targets))
               <|> try (Discard <$> option (NoTarget Nothing [TMPlayer You]) targets
                          <*> (try $ (ciString "discard" >> optional (string "s")
                              >> string " ") *> targets))
