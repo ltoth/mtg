@@ -441,6 +441,9 @@ data Effect =
     | Discard Targets Targets
     | RemoveCounters CountRange (Maybe CounterType) Targets
     | PutCounters CountRange (Maybe CounterType) Targets
+    | PutTokens Targets NumValue NumValue NumValue PermanentMatch
+      -- TODO: PermanentStatusMatch for "tapped"
+      -- TODO: CombatStatus for "attacking" "blocking"
 
     -- TODO: Parse "for each" multipliers, which can
     -- be at the beginning (Curse of the Swine) or end
@@ -654,6 +657,13 @@ textToAbilities t = case (parse paras "" t) of
                          <*> (try $ (optional (string " ") *>
                          optionMaybe (many1 (noneOf " \n")) <* optional (string " "))
                          <* ciString "counter on ") <*> targets)
+              <|> try (PutTokens <$> option (NoTarget Nothing [TMPlayer You]) targets
+                         <*> ((ciString "put" >> optional (string "s")
+                             >> string " ") *> numberParser)
+                         <*> (string " " *> explicitNumber)
+                         <*> (string "/" *> explicitNumber)
+                         <*> (string " " *> permanentMatch)
+                         <* (string " onto the battlefield"))
               <|> (OtherEffect <$> many1 (noneOf ".\n"))
               ) <* optional (numVariableConsume)
               <* optional (string ".") <* optional (string " ")
@@ -707,16 +717,19 @@ textToAbilities t = case (parse paras "" t) of
 
         numberParser = try (string "all" >> (return All))
                   <|> try (do
-                          try (string "X")
-                          lookAhead $ try (do
-                            noneOf ("\n") `manyTill` try (string ", where X is ")
-                            NumVariable <$> many1 (noneOf (".\n"))))
-                  <|> try (do
                           optional $ try (string "a number of")
                           optional $ try (string "an amount of")
                           lookAhead $ try (do
                             noneOf ("\n") `manyTill` try (string "equal to ")
                             NumVariable <$> many1 (noneOf (".\n"))))
+                  <|> try explicitNumber
+
+        explicitNumber = try (do
+                           try (string "X")
+                           lookAhead $ try (do
+                             noneOf ("\n") `manyTill` try (string ", where X is ")
+                             NumVariable <$> many1 (noneOf (".\n"))))
+                  <|> try (string "X" >> (return NumValueX))
                   <|> try (string "an" >> (return $ NumValue 1))
                   <|> try (string "a" >> (return $ NumValue 1))
                   <|> try (string "both" >> (return $ NumValue 2))
@@ -740,7 +753,6 @@ textToAbilities t = case (parse paras "" t) of
                   <|> try (string "eight" >> (return $ NumValue 8))
                   <|> try (string "nine" >> (return $ NumValue 9))
                   <|> try (string "ten" >> (return $ NumValue 10))
-                  <|> try (string "X" >> (return NumValueX))
                   <|> try ((NumValue . read) <$> (many1 digit))
 
         -- used to consume this input, normally seen using lookAhead
@@ -900,6 +912,7 @@ textToAbilities t = case (parse paras "" t) of
                     `sepEndBy` (string " "))
                 optional (string " ")
                 optional (try (string "permanent"))
+                optional (try (string "token"))
                 optional (string "s") -- FIXME: deal with plural better
                 when (super == [] && sub == [] && t == [])
                   (fail "Did not match any permanent type")
