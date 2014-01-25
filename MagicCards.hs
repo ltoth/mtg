@@ -387,6 +387,9 @@ data Count = AnyCount NumValue | OtherCount NumValue
 data NumValue = NumValue Word8 | NumValueX | All | NumVariable Calculation
               deriving (Show, Eq)
 
+data NumChange = Plus NumValue | Minus NumValue
+               deriving (Show, Eq)
+
 -- FIXME: Actually parse calculations properly
 type Calculation = String
 
@@ -439,6 +442,7 @@ data Effect =
     | GainLife PlayerMatch NumValue
     | PayLife NumValue
     | AddAbilities Targets [Ability] (Maybe Duration)
+    | ModifyPT Targets NumChange NumChange (Maybe Duration)
     | DrawCard Targets NumValue
     | Sacrifice Targets Targets
     | Discard Targets Targets
@@ -653,11 +657,18 @@ textToAbilities t = case (parse paras "" t) of
                              try (ciString "have") <|> (ciString "has")
                              >> string " ") *> (keyword `sepBy1` andSep))
                          <*> pure Nothing)
-              <|> try (AddAbilities <$> (optional (string "each ") *> targets)
+              <|> try (AddAbilities <$> (optional (ciString "each ") *> targets)
                          <*> (try $ (optional (string " ") >>
                              optional (string "each ") >>
                              ciString "gain" >> optional (string "s")
                              >> string " ") *> (keyword `sepBy1` andSep))
+                         <*> optionMaybe duration)
+              <|> try (ModifyPT <$> (optional (ciString "each ") *> targets)
+                         <*> (try $ (optional (string " ") >>
+                             optional (string "each ") >>
+                             ciString "get" >> optional (string "s")
+                             >> string " ") *> numChange)
+                         <*> (try $ string "/" *> numChange)
                          <*> optionMaybe duration)
               <|> try (DrawCard <$> option (NoTarget Nothing [TMPlayer You]) targets
                          <*> (try $ (ciString "draw" >> optional (string "s")
@@ -711,6 +722,7 @@ textToAbilities t = case (parse paras "" t) of
                   <|> try (string "{Q}" >> return CUntap)
                   <|> try ((optional (ciString "Pay ") >>
                         CMana <$> manaCostParser))
+                  -- TODO: Reimplement in terms of NumChange
                   <|> try (string "-X" >> return (CLoyalty $ LCMinusX))
                   <|> (do
                         optional (char '+')
@@ -785,6 +797,9 @@ textToAbilities t = case (parse paras "" t) of
         numVariableConsume =
               try (string " equal to " >> many1 (noneOf (".\n")))
           <|> try (string ", where X is " >> many1 (noneOf (".\n")))
+
+        numChange = try (Plus <$> (string "+" *> explicitNumber))
+                <|> try (Minus <$> (string "-" *> explicitNumber))
 
         -- FIXME: We should distinguish between "or" and "and" here
         -- Artisan's Sorrow, Swan Song, Corrupted Roots etc., Hero's
