@@ -631,8 +631,31 @@ textToAbilities t = case (parse paras "" t) of
           <|> try (ciString "end step" >> return End)
           <|> try (ciString "cleanup step" >> return Cleanup)
 
-        -- FIXME: This should consider the various separators
-        effects = many1 effect
+        effects = try (do
+                      optional (ciString "each ")
+                      ts <- targets
+                      pt <- modifyPTPartial
+                      ciString " and "
+                      ks <- addAbilitiesPartial
+                      d <- optionMaybe duration
+                      return $ [(uncurry (ModifyPT ts)) pt d,
+                                AddAbilities (NoTarget Nothing [TMIt]) ks d])
+              <|> many1 effect
+
+        modifyPTPartial = do
+          p <- try $ (optional (string " ") >>
+                 optional (string "each ") >>
+                 ciString "get" >> optional (string "s")
+                 >> string " ") *> numChange
+          t <- try $ string "/" *> numChange
+          return (p, t)
+
+        addAbilitiesPartial =
+          try $ (optional (string " ") >>
+                optional (string "each ") >>
+                try (ciString "gain" <* optional (string "s"))
+                  <|> try (ciString "have") <|> (ciString "has")
+                >> string " ") *> (keyword `sepBy1` andSep)
 
         effect = (try (OptionalEffect <$> playerMatch
                          <*> (try $ ciString "may " *> effect))
@@ -653,24 +676,14 @@ textToAbilities t = case (parse paras "" t) of
                              <* (optional (string " ") >> string "life")))
               <|> try (PayLife <$> (ciString "Pay " *> numberParser
                              <* (optional (string " ") >> string "life")))
-              <|> try (AddAbilities <$> targets
-                         <*> (try $ (optional (string " ") >>
-                             try (ciString "have") <|> (ciString "has")
-                             >> string " ") *> (keyword `sepBy1` andSep))
-                         <*> pure Nothing)
               <|> try (AddAbilities <$> (optional (ciString "each ") *> targets)
-                         <*> (try $ (optional (string " ") >>
-                             optional (string "each ") >>
-                             ciString "gain" >> optional (string "s")
-                             >> string " ") *> (keyword `sepBy1` andSep))
-                         <*> optionMaybe duration)
-              <|> try (ModifyPT <$> (optional (ciString "each ") *> targets)
-                         <*> (try $ (optional (string " ") >>
-                             optional (string "each ") >>
-                             ciString "get" >> optional (string "s")
-                             >> string " ") *> numChange)
-                         <*> (try $ string "/" *> numChange)
-                         <*> optionMaybe duration)
+                        <*> addAbilitiesPartial
+                        <*> (optionMaybe duration))
+              <|> try ((uncurry <$>
+                         (ModifyPT <$>
+                           (optional (ciString "each ") *> targets)))
+                       <*> modifyPTPartial
+                       <*> (optionMaybe duration))
               <|> try (DrawCard <$> option (NoTarget Nothing [TMPlayer You]) targets
                          <*> (try $ (ciString "draw" >> optional (string "s")
                              >> string " ") *> numberParser
@@ -838,6 +851,7 @@ textToAbilities t = case (parse paras "" t) of
           -- of consuming trailing spaces
 
         -- FIXME: Make this more robust
+        -- FIXME: Should this be the same as TMIt?
         they = (try (ciString "those cards")
           <|> try (string "those " <* permanentTypeParser)
           <|> try (ciString "they")
