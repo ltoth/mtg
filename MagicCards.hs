@@ -315,7 +315,8 @@ data Targets = Target CountRange [TargetMatch]
 -- However, an emblem is not a valid target
 data TargetMatch = TMPermanent PermanentMatch | TMSpell SpellMatch
                  | TMCard CardMatch | TMPlayer PlayerMatch
-                 | TMThis | TMEnchantedPermanent | TMIt | TMThey
+                 | TMThis | TMEnchantedPermanent | TMEquippedCreature
+                 | TMIt | TMThey
                  deriving (Show, Eq)
 
 -- TODO: for targeting spells (i.e. counterspells)
@@ -837,6 +838,7 @@ textToAbilities t = case (parse paras "" t) of
         targetMatch = try it
                   <|> try they
                   <|> try enchanted
+                  <|> try equipped
                   <|> try (string "{This}" >> optional (string " ")
                         >> return TMThis)
                   <|> try (TMPlayer <$> playerMatch)
@@ -859,8 +861,11 @@ textToAbilities t = case (parse paras "" t) of
           <* optional (string " ")  -- to match permanentType's behavior
           -- of consuming trailing spaces
 
-        enchanted = (try (ciString "enchanted " <* permanentTypeParser)
-          >> return TMEnchantedPermanent)
+        enchanted = try (ciString "enchanted " <* permanentTypeParser)
+          >> return TMEnchantedPermanent
+
+        equipped = try $ ciString "equipped creature"
+          >> return TMEquippedCreature
 
         permanentMatch = try (do
           -- These are necessary for "a creature, a land, and a Wall"
