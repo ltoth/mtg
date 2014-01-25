@@ -299,7 +299,7 @@ instance FromJSON Card where
                            v .:? "border"
     parseJSON _ = fail "Could not parse card"
 
-data Cost = CMana ManaCost | CTap | CUntap | CLoyalty LoyaltyCost
+data Cost = CMana ManaCost | CTap | CUntap | CLoyalty NumChange
           | CEffect Effect
           deriving (Show, Eq)
 
@@ -395,8 +395,6 @@ type Calculation = String
 
 -- FIXME: Should this be parsed into possible counter types?
 type CounterType = String
-
-data LoyaltyCost = LC Int8 | LCMinusX deriving (Show, Eq)
 
 data Duration = DurationUntil TriggerEvent | DurationForAsLongAs TriggerEvent
               deriving (Show, Eq)
@@ -722,13 +720,8 @@ textToAbilities t = case (parse paras "" t) of
                   <|> try (string "{Q}" >> return CUntap)
                   <|> try ((optional (ciString "Pay ") >>
                         CMana <$> manaCostParser))
-                  -- TODO: Reimplement in terms of NumChange
-                  <|> try (string "-X" >> return (CLoyalty $ LCMinusX))
-                  <|> (do
-                        optional (char '+')
-                        sign <- option "" (try (many1 (char '-')))
-                        l <- many1 digit
-                        return $ CLoyalty $ LC $ read $ sign ++ l)
+                  <|> try (CLoyalty <$> numChange)
+                  <|> try (string "0" >> (return $ CLoyalty (Plus (NumValue 0))))
                   <|> try (CEffect <$> effect)
 
         countRange = try (ciString "any number of" >> return AnyNumber)
