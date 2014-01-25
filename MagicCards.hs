@@ -424,10 +424,10 @@ type AltCostCondition = String
 data Ability = AdditionalCost ([Cost])
              | AlternativeCost ([Cost]) (Maybe [AltCostCondition])
              | KeywordAbility Keyword
-             | ActivatedAbility ([Cost]) Effect (Maybe ActivationInst)
-             | TriggeredAbility TriggerEvent Effect (Maybe [TriggerCondition])
+             | ActivatedAbility ([Cost]) [Effect] (Maybe ActivationInst)
+             | TriggeredAbility TriggerEvent [Effect] (Maybe [TriggerCondition])
              | StaticAbility ContinuousEffect
-             | SpellAbility Effect
+             | SpellAbility [Effect]
              deriving (Show, Eq)
 
 data Effect =
@@ -471,7 +471,7 @@ abilities c = fromMaybe [] $
 textToAbilities :: CardText -> [Ability]
 textToAbilities t = case (parse paras "" t) of
                       Left e -> error (show e)
-                      Right xs -> xs  -- flatten the list
+                      Right xs -> xs
                       -- FIXME: Perhaps we shouldn't flatten the list, so
                       -- that when Artisan's Sorrow has an illegal target,
                       -- we know not to resolve Scry 2. Those effects are
@@ -532,8 +532,8 @@ textToAbilities t = case (parse paras "" t) of
             event <- trigEvent
             string ", "
             cond <- optionMaybe $ try (string "if " *> conditions <* string ", ")
-            e <- effect
-            return $ TriggeredAbility event e cond
+            es <- effects
+            return $ TriggeredAbility event es cond
 
         trigEvent =
               try (ciString "At " >> turnEvent)
@@ -631,6 +631,9 @@ textToAbilities t = case (parse paras "" t) of
           <|> try (ciString "end step" >> return End)
           <|> try (ciString "cleanup step" >> return Cleanup)
 
+        -- FIXME: This should consider the various separators
+        effects = many1 effect
+
         effect = (try (OptionalEffect <$> playerMatch
                          <*> (try $ ciString "may " *> effect))
               <|> try (ciString "destroy" >> optional (string "s")
@@ -703,14 +706,15 @@ textToAbilities t = case (parse paras "" t) of
               <* optional (string ".") <* optional (string " ")
 
         -- FIXME: Quoting: Witches' Eye - reuse abilityPara
-        activated = do
-          cost <- totalCost
-          string ": "
-          e <- try (effect <* (try (string "Activate this ability only ")))
-               <|> effect
-          -- FIXME: This catches other abilities, like Prognostic Sphinx
-          instr <- optionMaybe (many1 (noneOf "\n"))
-          return $ ActivatedAbility cost e instr
+        activated = ActivatedAbility <$> totalCost
+          <*> (string ": " *> effects)
+          <*> optionMaybe activationInst
+
+        -- FIXME: This will only work once all effects are accounted for
+        -- and we take out OtherEffect
+        activationInst = try $ string "Activate this ability only "
+                               *> many1 (noneOf ("\n"))
+
         totalCost = abilityCost `sepBy1` andSep
         andSep = try (string ", and ")
                      <|> try (string ", ")
@@ -952,7 +956,7 @@ textToAbilities t = case (parse paras "" t) of
                   (fail "Did not match any permanent type")
                 return $ PermanentTypeMatch super t sub)
 
-        spell = SpellAbility <$> effect
+        spell = SpellAbility <$> effects
 
         keyword = (ciString "Deathtouch" >> (return $ KeywordAbility Deathtouch))
               <|> (ciString "Defender" >> (return $ KeywordAbility Defender))
