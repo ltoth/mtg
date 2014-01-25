@@ -471,12 +471,12 @@ abilities c = fromMaybe [] $
 textToAbilities :: CardText -> [Ability]
 textToAbilities t = case (parse paras "" t) of
                       Left e -> error (show e)
-                      Right xs -> concat xs  -- flatten the list
+                      Right xs -> xs  -- flatten the list
                       -- FIXME: Perhaps we shouldn't flatten the list, so
                       -- that when Artisan's Sorrow has an illegal target,
                       -- we know not to resolve Scry 2. Those effects are
                       -- one ability.
-  where paras = abilityPara `sepBy` (string "\n\n")
+  where paras = concat <$> abilityPara `sepBy` (string "\n\n")
         abilityPara = try (keyword `sepBy1` commas)
                   <|> (optional abilityWord >>
                        many1 (try additional
