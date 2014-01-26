@@ -478,7 +478,7 @@ textToAbilities t = case (parse paras "" t) of
                       -- that when Artisan's Sorrow has an illegal target,
                       -- we know not to resolve Scry 2. Those effects are
                       -- one ability.
-  where paras = concat <$> abilityPara `sepBy` (string "\n\n")
+  where paras = concat <$> abilityPara `sepBy` (string "\n\n") <* eof
         abilityPara = try (keyword `sepBy1` commas)
                   <|> (optional abilityWord >>
                        many1 (try additional
