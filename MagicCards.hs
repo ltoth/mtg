@@ -656,7 +656,11 @@ textToAbilities t = case (parse paras "" t) of
                 optional (string "each ") >>
                 try (ciString "gain" <* optional (string "s"))
                   <|> try (ciString "have") <|> (ciString "has")
-                >> string " ") *> (keyword `sepBy1` andSep)
+                >> string " ") *>
+                (try (keyword `sepBy1` andSep)
+                  <|> quotedAbilities)
+
+        quotedAbilities = string "\"" *> abilityPara <* string "\""
 
         effect = (try (OptionalEffect <$> playerMatch
                          <*> (try $ ciString "may " *> effect))
@@ -715,11 +719,10 @@ textToAbilities t = case (parse paras "" t) of
                          <*> (string "/" *> explicitNumber)
                          <*> (string " " *> permanentMatch)
                          <* (string " onto the battlefield"))
-              <|> (OtherEffect <$> many1 (noneOf ".\n"))
+              <|> (OtherEffect <$> many1 (noneOf ".\n\""))
               ) <* optional (numVariableConsume)
               <* optional (string ".") <* optional (string " ")
 
-        -- FIXME: Quoting: Witches' Eye - reuse abilityPara
         activated = ActivatedAbility <$> totalCost
           <*> (string ": " *> effects)
           <*> optionMaybe activationInst
