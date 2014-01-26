@@ -442,6 +442,7 @@ data Effect =
     | PayLife NumValue
     | AddAbilities Targets [Ability] (Maybe Duration)
     | ModifyPT Targets NumChange NumChange (Maybe Duration)
+    | DealDamage Targets NumValue Targets
     | DrawCard Targets NumValue
     | Sacrifice Targets Targets
     | Discard Targets Targets
@@ -609,7 +610,8 @@ textToAbilities t = case (parse paras "" t) of
                <|> try (ciString "their controllers")
                <|> try (ciString "their controller's")
                <|> try (ciString "their controller")
-            >> return Controller)
+            >> return Controller) -- FIXME: Should this be recursive for
+            -- Destructive Revelry and the like?
           <|> try (try (ciString "its owner's")
                <|> try (ciString "its owner")
                <|> try (ciString "their owners'") -- FIXME: Perhaps separate?
@@ -689,6 +691,11 @@ textToAbilities t = case (parse paras "" t) of
                            (optional (ciString "each ") *> targets)))
                        <*> modifyPTPartial
                        <*> (optionMaybe duration))
+              <|> try (DealDamage <$> targets
+                         <*> (try $ (ciString "deal" >> optional (string "s")
+                             >> string " ") *> numberParser
+                             <* (optional (string " ") >> string "damage to "))
+                         <*> targets)
               <|> try (DrawCard <$> option (NoTarget Nothing [TMPlayer You]) targets
                          <*> (try $ (ciString "draw" >> optional (string "s")
                              >> string " ") *> numberParser
