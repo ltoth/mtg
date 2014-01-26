@@ -842,14 +842,13 @@ textToAbilities t = case (parse paras "" t) of
                   <|> try they
                   <|> try enchanted
                   <|> try equipped
-                  <|> try (string "{This}" >> optional (string " ")
-                        >> return TMThis)
+                  <|> try this
                   <|> try (TMPlayer <$> playerMatch)
                   <|> try (TMPermanent <$> permanentMatch)
 
         -- FIXME: Make this more robust
         it = (try (ciString "that card")
-          <|> try (string "that " <* permanentTypeParser)
+          <|> try (ciString "that " <* permanentTypeParser)
           <|> try (ciString "it")
           >> return TMIt)
           <* optional (string " ")  -- to match permanentType's behavior
@@ -858,7 +857,7 @@ textToAbilities t = case (parse paras "" t) of
         -- FIXME: Make this more robust
         -- FIXME: Should this be the same as TMIt?
         they = (try (ciString "those cards")
-          <|> try (string "those " <* permanentTypeParser)
+          <|> try (ciString "those " <* permanentTypeParser)
           <|> try (ciString "they")
           >> return TMThey)
           <* optional (string " ")  -- to match permanentType's behavior
@@ -869,6 +868,12 @@ textToAbilities t = case (parse paras "" t) of
 
         equipped = try $ ciString "equipped creature"
           >> return TMEquippedCreature
+
+        this = (try (ciString "this card")
+          <|> try (ciString "this " <* permanentTypeParser)
+          <|> try (ciString "{This}")
+          >> return TMThis)
+          <* optional (string " ")  -- to match permanentType's behavior
 
         permanentMatch = try (do
           -- These are necessary for "a creature, a land, and a Wall"
