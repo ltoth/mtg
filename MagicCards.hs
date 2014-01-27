@@ -407,7 +407,7 @@ data TriggerEvent = TEAt PlayerMatch Step | TEThisETB | TEThisLTB
                   | TEOther String -- FIXME: Make more value constr.
                   deriving (Show, Eq)
 
-data PlayerMatch = EachPlayer | You | Player | Opponent | Opponents
+data PlayerMatch = EachPlayer | You | Player | Players | Opponent | Opponents
                  | Controller | Owner
                  deriving (Show, Eq)
 
@@ -597,6 +597,9 @@ textToAbilities t = case (parse paras "" t) of
                <|> try (ciString "your opponent")
                <|> try (ciString "opponent")
             >> return Opponent)
+          <|> try (try (ciString "players'")
+               <|> try (ciString "players")
+            >> return Players)
           <|> try (try (ciString "player's")
                <|> try (ciString "player")
                <|> try (ciString "any player's") -- FIXME: Perhaps this should be
@@ -847,9 +850,11 @@ textToAbilities t = case (parse paras "" t) of
 
         -- FIXME: Remove this and deal with consuming trailing spaces
         -- in permanentTypeParser better
-        andOrSep' = try (string ", and ")
+        andOrSep' = try (string ", and/or ")
+               <|> try (string ", and ")
                <|> try (string ", or ")
                <|> try (string ", ")
+               <|> try (string "and/or ")
                <|> try (string "and ")
                <|> try (string "or ")
 
@@ -994,6 +999,7 @@ textToAbilities t = case (parse paras "" t) of
                 optional (try (string "permanent"))
                 optional (try (string "token"))
                 optional (string "s") -- FIXME: deal with plural better
+                optional (string " ")
                 when (super == [] && sub == [] && t == [])
                   (fail "Did not match any permanent type")
                 return $ PermanentTypeMatch super t sub)
