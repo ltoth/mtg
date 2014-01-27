@@ -417,6 +417,8 @@ data Step = UntapStep | Upkeep | DrawStep | PreCombatMain
           | End | Cleanup
           deriving (Show, Eq)
 
+data Divided = Divided deriving (Show, Eq)
+
 type TriggerCondition = String -- TODO: should this be the same as AltCostCondition?
 type ContinuousEffect = String
 type ActivationInst = String
@@ -442,7 +444,7 @@ data Effect =
     | PayLife NumValue
     | AddAbilities Targets [Ability] (Maybe Duration)
     | ModifyPT Targets NumChange NumChange (Maybe Duration)
-    | DealDamage Targets NumValue Targets
+    | DealDamage Targets NumValue (Maybe Divided) Targets
     | DrawCard Targets NumValue
     | Sacrifice Targets Targets
     | Discard Targets Targets
@@ -580,9 +582,6 @@ textToAbilities t = case (parse paras "" t) of
           (try (   try (ciString "each player's")
                <|> try (ciString "each player")
             >> return EachPlayer)
-          <|> try (try (ciString "your")
-               <|> try (ciString "you")
-            >> return You)
           <|> try (try (ciString "each opponent's")
                <|> try (ciString "each opponent")
                <|> try (ciString "your opponents'")
@@ -619,6 +618,9 @@ textToAbilities t = case (parse paras "" t) of
                <|> try (ciString "their owner's")
                <|> try (ciString "their owner")
             >> return Owner)
+          <|> try (try (ciString "your")
+               <|> try (ciString "you")
+            >> return You)
           <|> try (ciString "each" >> return EachPlayer))
           <* optional (string " ")
 
@@ -643,6 +645,8 @@ textToAbilities t = case (parse paras "" t) of
                       d <- optionMaybe duration
                       return $ [(uncurry (ModifyPT ts)) pt d,
                                 AddAbilities (NoTarget Nothing [TMIt]) ks d])
+                      <* optional (numVariableConsume)
+                      <* optional (string ".") <* optional (string " ")
               <|> many1 effect
 
         modifyPTPartial = do
@@ -663,6 +667,9 @@ textToAbilities t = case (parse paras "" t) of
                   <|> quotedAbilities)
 
         quotedAbilities = string "\"" *> abilityPara <* string "\""
+
+        divided = try (string "divided as you choose among "
+                      >> return Divided)
 
         effect = (try (OptionalEffect <$> playerMatch
                          <*> (try $ ciString "may " *> effect))
@@ -694,7 +701,8 @@ textToAbilities t = case (parse paras "" t) of
               <|> try (DealDamage <$> targets
                          <*> (try $ (ciString "deal" >> optional (string "s")
                              >> string " ") *> numberParser
-                             <* (optional (string " ") >> string "damage to "))
+                             <* (optional (string " ") >> string "damage "))
+                         <*> (optionMaybe divided <* optional (string "to "))
                          <*> targets)
               <|> try (DrawCard <$> option (NoTarget Nothing [TMPlayer You]) targets
                          <*> (try $ (ciString "draw" >> optional (string "s")
