@@ -400,6 +400,10 @@ type CounterType = String
 data Duration = DurationUntil TriggerEvent | DurationForAsLongAs TriggerEvent
               deriving (Show, Eq)
 
+data Zone = Library PlayerMatch | Hand PlayerMatch | Graveyard PlayerMatch
+          | Battlefield | Stack | ExileZone | Command
+          deriving (Show, Eq)
+
 data TriggerEvent = TEAt PlayerMatch Step | TEThisETB | TEThisLTB
                   | TEThisETBOrDies | TEThisDies
                   | TEObjectETB PermanentMatch
@@ -408,7 +412,7 @@ data TriggerEvent = TEAt PlayerMatch Step | TEThisETB | TEThisLTB
                   deriving (Show, Eq)
 
 data PlayerMatch = EachPlayer | You | Player | Players | Opponent | Opponents
-                 | Controller | Owner
+                 | Controller | Owner | HisOrHer
                  deriving (Show, Eq)
 
 data Step = UntapStep | Upkeep | DrawStep | PreCombatMain
@@ -437,6 +441,7 @@ data Effect =
     -- One-shot effects
     Destroy Targets
     | Exile Targets (Maybe Duration)
+    | ZoneChange Targets Targets (Maybe Zone) Zone (Maybe OwnControl) (Maybe TriggerEvent)
     | Tap Targets
     | Untap Targets
     | LoseLife PlayerMatch NumValue
@@ -554,6 +559,10 @@ textToAbilities t = case (parse paras "" t) of
         -- (Battle-Rattle Shaman)
         -- TODO: first check "at the beginning of each of your main phases"
         -- (Carpet of Flowers)
+        -- TODO: Also have to deal with "the next" and "it's controller's
+        -- next" and "your next"
+        -- TEAt <$> optionMaybe PlayerMatch <*> (optional (string "the ")
+        --   *> optionMaybe next) <*> step
         turnEvent = try (ciString "the beginning of " >>
                       TEAt <$> playerMatch <*> step)
                     <|> try (optional (string "the ")
@@ -577,8 +586,6 @@ textToAbilities t = case (parse paras "" t) of
                       return TEThisLTB)
                     <|> TEOther <$> many (noneOf ",\n")
 
-        -- TODO: Also have to deal with "the next" and "it's controller's
-        -- next" and "your next"
         playerMatch =
           (try (   try (ciString "each player's")
                <|> try (ciString "each player")
@@ -625,6 +632,7 @@ textToAbilities t = case (parse paras "" t) of
           <|> try (try (ciString "your")
                <|> try (ciString "you")
             >> return You)
+          <|> try (ciString "his or her" >> return HisOrHer)
           <|> try (ciString "each" >> return EachPlayer))
           <* optional (string " ")
 
@@ -679,6 +687,17 @@ textToAbilities t = case (parse paras "" t) of
         divided = try (string "divided as you choose among "
                       >> return Divided)
 
+        zone =
+          try (ciString "the battlefield" >> return Battlefield)
+          <|> try (ciString "the stack" >> return ExileZone)
+          <|> try (ciString "the command zone" >> return Command)
+          <|> try (Library <$> playerMatch
+                  <* (ciString "library" <|> ciString "libraries"))
+          <|> try (Hand <$> playerMatch
+                  <* ciString "hand" <* optional (string "s"))
+          <|> try (Graveyard <$> playerMatch
+                  <* ciString "graveyard" <* optional (string "s"))
+
         effect = (try (OptionalEffect <$> playerMatch
                          <*> (try $ ciString "may " *> effect))
               <|> try (ciString "destroy" >> optional (string "s")
@@ -686,6 +705,13 @@ textToAbilities t = case (parse paras "" t) of
               <|> try (ciString "exile" >> optional (string "s")
                          >> string " " >> Exile <$> targets
                          <*> optionMaybe duration)
+              <|> try (ZoneChange <$> option (NoTarget Nothing [TMPlayer You]) targets
+                         <*> (try $ (ciString "return" >> optional (string "s")
+                             >> string " ") *> targets)
+                         <*> optionMaybe (string "from " >> zone)
+                         <*> (optional (string " ") >> optional (string "on") >> string "to " >> zone)
+                         <*> optionMaybe (string "under " >> ownControl)
+                         <*> optionMaybe trigEvent)
               <|> try (ciString "tap " >> Tap <$> targets)
               <|> try (ciString "untap " >> Untap <$> targets)
               <|> try (LoseLife <$> playerMatch
@@ -893,6 +919,7 @@ textToAbilities t = case (parse paras "" t) of
         they = (try (ciString "those cards")
           <|> try (ciString "those " <* permanentTypeParser)
           <|> try (ciString "they")
+          <|> try (ciString "them")
           >> return TMThey)
           <* optional (string " ")  -- to match permanentType's behavior
           -- of consuming trailing spaces
