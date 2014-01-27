@@ -640,18 +640,22 @@ textToAbilities t = case (parse paras "" t) of
           <|> try (ciString "end step" >> return End)
           <|> try (ciString "cleanup step" >> return Cleanup)
 
-        effects = try (do
-                      optional (ciString "each ")
-                      ts <- targets
-                      pt <- modifyPTPartial
-                      ciString " and "
-                      ks <- addAbilitiesPartial
-                      d <- optionMaybe duration
-                      return $ [(uncurry (ModifyPT ts)) pt d,
-                                AddAbilities (NoTarget Nothing [TMIt]) ks d])
-                      <* optional (numVariableConsume)
-                      <* optional (string ".") <* optional (string " ")
-              <|> many1 effect
+        effects =
+          -- Syntax that combines PT modifying and ability gaining
+          try (do
+                  optional (ciString "each ")
+                  ts <- targets
+                  pt <- modifyPTPartial
+                  ciString " and "
+                  ks <- addAbilitiesPartial
+                  d <- optionMaybe duration
+                  return $ [(uncurry (ModifyPT ts)) pt d,
+                            AddAbilities (NoTarget Nothing [TMIt]) ks d])
+                  <* optional (numVariableConsume)
+                  <* optional (string ".") <* optional (string " ")
+
+          -- Most common case -- several effects, one in each sentence
+          <|> many1 effect
 
         modifyPTPartial = do
           p <- try $ (optional (string " ") >>
@@ -697,6 +701,14 @@ textToAbilities t = case (parse paras "" t) of
               <|> try (AddAbilities <$> (optional (ciString "each ") *> targets)
                         <*> addAbilitiesPartial
                         <*> (optionMaybe duration))
+              -- Syntax that starts with duration, i.e.
+              -- "Until end of turn, up to two target creatures each gain"
+              <|> try (do
+                      d <- duration
+                      string ", "
+                      ts <- targets
+                      ks <- addAbilitiesPartial
+                      return $ AddAbilities ts ks (Just d))
               <|> try ((uncurry <$>
                          (ModifyPT <$>
                            (optional (ciString "each ") *> targets)))
