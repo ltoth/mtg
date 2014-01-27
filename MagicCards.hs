@@ -452,6 +452,7 @@ data Effect =
     | RemoveCounters CountRange (Maybe CounterType) Targets
     | PutCounters CountRange (Maybe CounterType) Targets
     | PutTokens Targets NumValue NumValue NumValue PermanentMatch
+    | Emblem [Ability]
       -- TODO: PermanentStatusMatch for "tapped"
       -- TODO: CombatStatus for "attacking" "blocking"
 
@@ -737,6 +738,7 @@ textToAbilities t = case (parse paras "" t) of
                          <*> (string "/" *> explicitNumber)
                          <*> (string " " *> permanentMatch)
                          <* (string " onto the battlefield"))
+              <|> try (ciString "You get an emblem with " >> Emblem <$> quotedAbilities)
               <|> (OtherEffect <$> many1 (noneOf ".\n\""))
               ) <* optional (numVariableConsume)
               <* optional (string ".") <* optional (string " ")
