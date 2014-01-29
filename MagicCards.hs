@@ -400,7 +400,9 @@ type CounterType = String
 data Duration = DurationUntil TriggerEvent | DurationForAsLongAs TriggerEvent
               deriving (Show, Eq)
 
-data Zone = Library PlayerMatch | Hand PlayerMatch | Graveyard PlayerMatch
+data Zone = Library PlayerMatch | TopOfLibrary PlayerMatch
+          | BottomOfLibrary PlayerMatch | Hand PlayerMatch
+          | Graveyard PlayerMatch
           | Battlefield | Stack | ExileZone | Command
           deriving (Show, Eq)
 
@@ -691,6 +693,12 @@ textToAbilities t = case (parse paras "" t) of
           try (ciString "the battlefield" >> return Battlefield)
           <|> try (ciString "the stack" >> return ExileZone)
           <|> try (ciString "the command zone" >> return Command)
+          <|> try (TopOfLibrary <$> (optional (try $ string "the ") >>
+                  string "top of " >> playerMatch)
+                  <* (ciString "library" <|> ciString "libraries"))
+          <|> try (BottomOfLibrary <$> (optional (try $ string "the ") >>
+                  string "bottom of " >> playerMatch)
+                  <* (ciString "library" <|> ciString "libraries"))
           <|> try (Library <$> playerMatch
                   <* (ciString "library" <|> ciString "libraries"))
           <|> try (Hand <$> playerMatch
@@ -706,10 +714,15 @@ textToAbilities t = case (parse paras "" t) of
                          >> string " " >> Exile <$> targets
                          <*> optionMaybe duration)
               <|> try (ZoneChange <$> option (NoTarget Nothing [TMPlayer You]) targets
-                         <*> (try $ (ciString "return" >> optional (string "s")
-                             >> string " ") *> targets)
+                         <*> (try $ ((ciString "return" <|> ciString "put")
+                             >> optional (string "s") >> string " ") *> targets)
                          <*> optionMaybe (string "from " >> zone)
-                         <*> (optional (string " ") >> optional (string "on") >> string "to " >> zone)
+                         <*> (optional (string " ") >>
+                             (try (string "on ") <|>
+                               (optional (string "on")
+                               >> optional (string "in")
+                               >> string "to "))
+                             >> zone)
                          <*> optionMaybe (string "under " >> ownControl)
                          <*> optionMaybe trigEvent)
               <|> try (ciString "tap " >> Tap <$> targets)
