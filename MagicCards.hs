@@ -931,12 +931,12 @@ textToAbilities t = case (parse paras "" t) of
                <|> try (string "and ")
                <|> try (string "or ")
 
-        targetMatch = try it
+        targetMatch = try (TMPlayer <$> playerMatch)
+                  <|> try it
                   <|> try they
                   <|> try enchanted
                   <|> try equipped
                   <|> try this
-                  <|> try (TMPlayer <$> playerMatch)
                   <|> try (TMPermanent <$> permanentMatch)
 
         -- FIXME: Make this more robust
