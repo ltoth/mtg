@@ -466,6 +466,9 @@ data Effect =
       -- TODO: PermanentStatusMatch for "tapped"
       -- TODO: CombatStatus for "attacking" "blocking"
 
+    -- Keyword actions
+    | Scry NumValue
+
     -- TODO: Parse "for each" multipliers, which can
     -- be at the beginning (Curse of the Swine) or end
     -- of the effect (Nemesis of Mortals)
@@ -712,7 +715,9 @@ textToAbilities t = case (parse paras "" t) of
           <|> try (Graveyard <$> playerMatch
                   <* ciString "graveyard" <* optional (string "s"))
 
-        effect = (try (OptionalEffect <$> playerMatch
+        effect =
+              (optional (try $ string "Then ")) *>
+              (try (OptionalEffect <$> playerMatch
                          <*> (try $ ciString "may " *> effect))
               <|> try (ciString "destroy" >> optional (string "s")
                          >> string " " >> Destroy <$> targets)
@@ -803,6 +808,7 @@ textToAbilities t = case (parse paras "" t) of
                          <*> ((ciString "shuffle" >> optional (string "s")
                              >> string " ") *> zone))
               <|> try (ciString "You get an emblem with " >> Emblem <$> quotedAbilities)
+              <|> try (Scry <$ ciString "Scry " <*> explicitNumber)
               <|> (OtherEffect <$> many1 (noneOf ".\n\""))
               ) <* optional (numVariableConsume)
               <* optional (string ".") <* optional (string " ")
