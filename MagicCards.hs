@@ -414,7 +414,8 @@ data TriggerEvent = TEAt PlayerMatch Step | TEThisETB | TEThisLTB
                   deriving (Show, Eq)
 
 data PlayerMatch = EachPlayer | You | Player | Players | Opponent | Opponents
-                 | Controller | Owner | HisOrHer
+                 | Controller | Owner | HisOrHer | Their
+                 | ThatPlayer | ThosePlayers
                  deriving (Show, Eq)
 
 data Step = UntapStep | Upkeep | DrawStep | PreCombatMain
@@ -459,6 +460,8 @@ data Effect =
     | RemoveCounters CountRange (Maybe CounterType) Targets
     | PutCounters CountRange (Maybe CounterType) Targets
     | PutTokens Targets NumValue NumValue NumValue PermanentMatch
+    | ShuffleInto Targets Targets Zone
+    | Shuffle Targets Zone
     | Emblem [Ability]
       -- TODO: PermanentStatusMatch for "tapped"
       -- TODO: CombatStatus for "attacking" "blocking"
@@ -635,6 +638,9 @@ textToAbilities t = case (parse paras "" t) of
                <|> try (ciString "you")
             >> return You)
           <|> try (ciString "his or her" >> return HisOrHer)
+          <|> try (ciString "their" >> return Their)
+          <|> try (ciString "that player" >> return ThatPlayer)
+          <|> try (ciString "those players" >> return ThosePlayers)
           <|> try (ciString "each" >> return EachPlayer))
           <* optional (string " ")
 
@@ -789,6 +795,13 @@ textToAbilities t = case (parse paras "" t) of
                          <*> (string "/" *> explicitNumber)
                          <*> (string " " *> permanentMatch)
                          <* (string " onto the battlefield"))
+              <|> try (ShuffleInto <$> option (NoTarget Nothing [TMPlayer You]) targets
+                         <*> ((ciString "shuffle" >> optional (string "s")
+                             >> string " ") *> targets)
+                         <*> (string "into " *> zone))
+              <|> try (Shuffle <$> option (NoTarget Nothing [TMPlayer You]) targets
+                         <*> ((ciString "shuffle" >> optional (string "s")
+                             >> string " ") *> zone))
               <|> try (ciString "You get an emblem with " >> Emblem <$> quotedAbilities)
               <|> (OtherEffect <$> many1 (noneOf ".\n\""))
               ) <* optional (numVariableConsume)
