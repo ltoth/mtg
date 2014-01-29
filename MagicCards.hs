@@ -716,7 +716,8 @@ textToAbilities t = case (parse paras "" t) of
                   <* ciString "graveyard" <* optional (string "s"))
 
         effect =
-              (optional (try $ string "Then ")) *>
+              (optional ((try $ string ", then ")
+                     <|> (try $ ciString "Then "))) *>
               (try (OptionalEffect <$> playerMatch
                          <*> (try $ ciString "may " *> effect))
               <|> try (ciString "destroy" >> optional (string "s")
@@ -862,8 +863,8 @@ textToAbilities t = case (parse paras "" t) of
                           optional $ try (string "a number of")
                           optional $ try (string "an amount of")
                           lookAhead $ try (do
-                            noneOf (".\n") `manyTill` try (string "equal to ")
-                            NumVariable <$> many1 (noneOf (".\n"))))
+                            noneOf (",.\n") `manyTill` try (string "equal to ")
+                            NumVariable <$> many1 (noneOf (",.\n"))))
                   <|> try explicitNumber
 
         explicitNumber = try (do
@@ -925,7 +926,7 @@ textToAbilities t = case (parse paras "" t) of
         andOrSep' = try (string ", and/or ")
                <|> try (string ", and ")
                <|> try (string ", or ")
-               <|> try (string ", ")
+               <|> try ((string ", ") <* notFollowedBy (string "then "))
                <|> try (string "and/or ")
                <|> try (string "and ")
                <|> try (string "or ")
