@@ -974,8 +974,8 @@ textToAbilities t = case (parse paras "" t) of
           <|> try (TMSacrificedCard <$ ciString "sacrificed card"))
           <* optional (string " ")  -- to match permanentType's behavior
 
-        equipped = try $ ciString "equipped creature"
-          >> return TMEquippedCreature
+        equipped = try (TMEquippedCreature <$ ciString "equipped creature")
+          <* optional (string " ")  -- to match permanentType's behavior
 
         this = (try (ciString "this card")
           <|> try (ciString "this " <* permanentTypeParser)
