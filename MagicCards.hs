@@ -648,7 +648,9 @@ textToAbilities t = case (parse paras "" t) of
             >> return You)
           <|> try (ciString "his or her" >> return HisOrHer)
           <|> try (ciString "their" >> return Their)
+          <|> try (ciString "that player's" >> return ThatPlayer)
           <|> try (ciString "that player" >> return ThatPlayer)
+          <|> try (ciString "those players'" >> return ThosePlayers)
           <|> try (ciString "those players" >> return ThosePlayers)
           <|> try (ciString "each" >> return EachPlayer))
           <* optional (string " ")
@@ -1002,8 +1004,9 @@ textToAbilities t = case (parse paras "" t) of
 
         cardMatch =
           try (TopCardsOfLibrary <$ ciString "the top "
-                 <*> explicitNumber <* string " cards of "
-                 <*> zone)
+                 <*> option (NumValue 1) explicitNumber
+                 <* optional (string " ") <* string "card"
+                 <* optional (string "s") <* string " of " <*> zone)
 
         permanentMatch = try (do
           -- These are necessary for "a creature, a land, and a Wall"
