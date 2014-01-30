@@ -809,9 +809,10 @@ textToAbilities t = case (parse paras "" t) of
               <|> try (Shuffle <$> option (NoTarget Nothing [TMPlayer You]) targets
                          <*> ((ciString "shuffle" >> optional (string "s")
                              >> string " ") *> zone))
-              <|> try (ciString "You get an emblem with " >> Emblem <$> quotedAbilities)
+              <|> try (Emblem <$ ciString "You get an emblem with "
+                         <*> quotedAbilities)
               <|> try (Monstrosity <$ ciString "Monstrosity "
-                        <*> explicitNumber)
+                         <*> explicitNumber)
               <|> try (Scry <$ ciString "Scry " <*> explicitNumber)
               <|> (OtherEffect <$> many1 (noneOf ".\n\""))
               ) <* optional (numVariableConsume)
