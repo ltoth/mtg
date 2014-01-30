@@ -485,6 +485,7 @@ data Effect =
     -- of the effect (Nemesis of Mortals)
 
     -- Other effects
+    | ModalEffects CountRange [Effect]
     | OptionalEffect PlayerMatch Effect
     | OtherEffect String
     deriving (Show, Eq)
@@ -743,6 +744,8 @@ textToAbilities t = case (parse paras "" t) of
                      <|> (try $ ciString "Then "))) *>
               (try (OptionalEffect <$> playerMatch
                          <*> (try $ ciString "may " *> effect))
+              <|> try (ModalEffects <$ ciString "Choose " <*> countRange
+                         <* string " — " <*> effect `sepBy2` string "; or ")
               <|> try (ciString "destroy" >> optional (string "s")
                          >> string " " >> Destroy <$> targets)
               <|> try (Exile <$> optionPlayerYou
