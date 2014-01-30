@@ -407,12 +407,15 @@ data Zone = Library PlayerMatch | TopOfLibrary PlayerMatch
           | Battlefield | Stack | ExileZone | Command
           deriving (Show, Eq)
 
-data TriggerEvent = TEAt PlayerMatch Step | TEThisETB | TEThisLTB
+data TriggerEvent = TEAt (Maybe PlayerMatch) (Maybe Next) Step
+                  | TEThisETB | TEThisLTB
                   | TEThisETBOrDies | TEThisDies
                   | TEObjectETB PermanentMatch
                   | TEObjectLTB PermanentMatch
                   | TEOther String -- FIXME: Make more value constr.
                   deriving (Show, Eq)
+
+data Next = Next deriving (Show, Eq)
 
 data PlayerMatch = EachPlayer | You | Player | Players | Opponent | Opponents
                  | Controller | Owner | HisOrHer | Their
@@ -570,17 +573,17 @@ textToAbilities t = case (parse paras "" t) of
         -- (Battle-Rattle Shaman)
         -- TODO: first check "at the beginning of each of your main phases"
         -- (Carpet of Flowers)
-        -- TODO: Also have to deal with "the next" and "it's controller's
-        -- next" and "your next"
-        -- TEAt <$> optionMaybe PlayerMatch <*> (optional (string "the ")
-        --   *> optionMaybe next) <*> step
-        turnEvent = try (ciString "the beginning of " >>
-                      TEAt <$> playerMatch <*> step)
-                    <|> try (optional (string "the ")
-                      >> ciString "end of combat" >>
-                      return (TEAt EachPlayer EndOfCombat))
-                    <|> try (ciString "end of turn" >>
-                      return (TEAt EachPlayer Cleanup))
+        turnEvent = try (TEAt <$ ciString "the beginning of "
+                      <*> optionMaybe playerMatch
+                      <*> optionMaybe next
+                      <*> step)
+                    <|> try (TEAt (Just EachPlayer) Nothing EndOfCombat
+                      <$ optional (string "the ")
+                      <* ciString "end of combat")
+                    <|> try (TEAt (Just EachPlayer) Nothing Cleanup
+                      <$ ciString "end of turn")
+
+        next = try (Next <$ optional (string "the ") <* string "next ")
 
         -- TODO: Should really return OrList [TrigEvent]
         -- for cards like Ashen Rider, Absolver Thrull
