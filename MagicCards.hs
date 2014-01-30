@@ -727,6 +727,8 @@ textToAbilities t = case (parse paras "" t) of
               try (FaceUp <$ string "face up")
           <|> try (FaceDown <$ string "face down")
 
+        optionPlayerYou = option (NoTarget Nothing [TMPlayer You]) targets
+
         effect =
               (optional ((try $ string ", then ")
                      <|> (try $ ciString "Then "))) *>
@@ -734,12 +736,12 @@ textToAbilities t = case (parse paras "" t) of
                          <*> (try $ ciString "may " *> effect))
               <|> try (ciString "destroy" >> optional (string "s")
                          >> string " " >> Destroy <$> targets)
-              <|> try (Exile <$> option (NoTarget Nothing [TMPlayer You]) targets
+              <|> try (Exile <$> optionPlayerYou
                          <* try (ciString "exile") <* optional (string "s")
                          <* string " " <*> targets
                          <*> optionMaybe faceStatus
                          <*> optionMaybe duration)
-              <|> try (ZoneChange <$> option (NoTarget Nothing [TMPlayer You]) targets
+              <|> try (ZoneChange <$> optionPlayerYou
                          <*> (try $ ((ciString "return" <|> ciString "put")
                              >> optional (string "s") >> string " ") *> targets)
                          <*> optionMaybe (string "from " >> zone)
@@ -785,19 +787,19 @@ textToAbilities t = case (parse paras "" t) of
                              <* (optional (string " ") >> string "damage "))
                          <*> (optionMaybe divided <* optional (string "to "))
                          <*> targets)
-              <|> try (DrawCard <$> option (NoTarget Nothing [TMPlayer You]) targets
+              <|> try (DrawCard <$> optionPlayerYou
                          <*> (try $ (ciString "draw" >> optional (string "s")
                              >> string " ") *> numberParser
                              <* (optional (string " ") >> string "card"
                              >> optional (string "s"))))
-              <|> try (Sacrifice <$> option (NoTarget Nothing [TMPlayer You]) targets
+              <|> try (Sacrifice <$> optionPlayerYou
                          <*> (try $ (ciString "sacrifice" >> optional (string "s")
                              >> string " ") *> targets))
-              <|> try (Discard <$> option (NoTarget Nothing [TMPlayer You]) targets
+              <|> try (Discard <$> optionPlayerYou
                          <*> (try $ (ciString "discard" >> optional (string "s")
                              >> string " ") *> targets))
               <|> try (Regenerate <$ ciString "regenerate " <*> targets)
-              <|> try (GainControl <$> option (NoTarget Nothing [TMPlayer You]) targets
+              <|> try (GainControl <$> optionPlayerYou
                          <*> (try $ (ciString "gain" >> optional (string "s")
                              >> string " control of ") *> targets)
                          <*> optionMaybe duration)
@@ -809,18 +811,18 @@ textToAbilities t = case (parse paras "" t) of
                          <*> (try $ (optional (string " ") *>
                          optionMaybe (many1 (noneOf " \n")) <* optional (string " "))
                          <* ciString "counter on ") <*> targets)
-              <|> try (PutTokens <$> option (NoTarget Nothing [TMPlayer You]) targets
+              <|> try (PutTokens <$> optionPlayerYou
                          <*> ((ciString "put" >> optional (string "s")
                              >> string " ") *> numberParser)
                          <*> (string " " *> explicitNumber)
                          <*> (string "/" *> explicitNumber)
                          <*> (string " " *> permanentMatch)
                          <* (string " onto the battlefield"))
-              <|> try (ShuffleInto <$> option (NoTarget Nothing [TMPlayer You]) targets
+              <|> try (ShuffleInto <$> optionPlayerYou
                          <*> ((ciString "shuffle" >> optional (string "s")
                              >> string " ") *> targets)
                          <*> (string "into " *> zone))
-              <|> try (Shuffle <$> option (NoTarget Nothing [TMPlayer You]) targets
+              <|> try (Shuffle <$> optionPlayerYou
                          <*> ((ciString "shuffle" >> optional (string "s")
                              >> string " ") *> zone))
               <|> try (Emblem <$ ciString "You get an emblem with "
