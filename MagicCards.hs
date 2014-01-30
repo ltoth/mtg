@@ -969,7 +969,7 @@ textToAbilities t = case (parse paras "" t) of
               return $ NoTarget n tms)
 
         -- FIXME: Remove this and deal with consuming trailing spaces
-        -- in permanentTypeParser better
+        -- in permanentTypeMatch better
         andOrSep' = try (string ", and/or ")
                <|> try (string ", and ")
                <|> try (string ", or ")
@@ -990,7 +990,7 @@ textToAbilities t = case (parse paras "" t) of
 
         -- FIXME: Make this more robust
         it = (try (ciString "that card")
-          <|> try (ciString "that " <* permanentTypeParser)
+          <|> try (ciString "that " <* permanentTypeMatch)
           <|> try (ciString "it")
           >> return TMIt)
           <* optional (string " ")  -- to match permanentType's behavior
@@ -999,19 +999,19 @@ textToAbilities t = case (parse paras "" t) of
         -- FIXME: Make this more robust
         -- FIXME: Should this be the same as TMIt?
         they = (try (ciString "those cards")
-          <|> try (ciString "those " <* permanentTypeParser)
+          <|> try (ciString "those " <* permanentTypeMatch)
           <|> try (ciString "they")
           <|> try (ciString "them")
           >> return TMThey)
           <* optional (string " ")  -- to match permanentType's behavior
           -- of consuming trailing spaces
 
-        enchanted = try (ciString "enchanted " <* permanentTypeParser)
+        enchanted = try (ciString "enchanted " <* permanentTypeMatch)
           >> return TMEnchantedPermanent
 
         sacrificed =
           optional (try (string "the ")) *>
-          (try (TMSacrificed <$ ciString "sacrificed " <*> permanentTypeParser)
+          (try (TMSacrificed <$ ciString "sacrificed " <*> permanentTypeMatch)
           <|> try (TMSacrificedCard <$ ciString "sacrificed card"))
           <* optional (string " ")  -- to match permanentType's behavior
 
@@ -1019,7 +1019,7 @@ textToAbilities t = case (parse paras "" t) of
           <* optional (string " ")  -- to match permanentType's behavior
 
         this = (try (ciString "this card")
-          <|> try (ciString "this " <* permanentTypeParser)
+          <|> try (ciString "this " <* permanentTypeMatch)
           <|> try (ciString "{This}")
           >> return TMThis)
           <* optional (string " ")  -- to match permanentType's behavior
@@ -1029,6 +1029,7 @@ textToAbilities t = case (parse paras "" t) of
                  <*> option (NumValue 1) explicitNumber
                  <* optional (string " ") <* string "card"
                  <* optional (string "s") <* string " of " <*> zone)
+
           <|> try (AnyCard <$ string "card" <* optional (string "s")))
           -- FIXME: "enchantment or creature card from among them"
           <* optional (string " ")  -- to match permanentType's behavior
@@ -1042,7 +1043,7 @@ textToAbilities t = case (parse paras "" t) of
           combat <- combatStatuses
           cs <- colorMatch
           nt <- nonToken
-          t <- permanentTypeParser
+          t <- permanentTypeMatch
           as <- withAbilities
           -- TODO: support "with [other quality]", e.g.
           -- "power 4 or greater", "CMC 3 or less"
@@ -1121,7 +1122,7 @@ textToAbilities t = case (parse paras "" t) of
           -- possible card names, not just as strings, since
           -- this doesn't know when to stop properly, i.e. Kher Keep
 
-        permanentTypeParser =
+        permanentTypeMatch =
               try (string "permanent" >> optional (string "s") >>
                 (return $ Permanent))
           <|> try (string "token" >> optional (string "s") >>
