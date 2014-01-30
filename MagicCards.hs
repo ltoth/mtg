@@ -452,8 +452,8 @@ data Effect =
     -- One-shot effects
     Destroy Targets
     | Exile Targets Targets (Maybe FaceStatus) (Maybe Duration)
-    | ZoneChange Targets Targets (Maybe Zone) Zone (Maybe OwnControl)
-        (Maybe CardOrder) (Maybe TriggerEvent)
+    | ZoneChange Targets Targets (Maybe Zone) Zone (Maybe Targets)
+        (Maybe OwnControl) (Maybe CardOrder) (Maybe TriggerEvent)
     | Tap Targets
     | Untap Targets
     | LoseLife PlayerMatch NumValue
@@ -763,9 +763,10 @@ textToAbilities t = case (parse paras "" t) of
                                >> optional (string "in")
                                >> string "to "))
                              >> zone)
+                         <*> optionMaybe (try $ string " attached to " *> targets)
                          <*> optionMaybe (try $ string " under " *> ownControl)
                          <*> optionMaybe (try $ string " " *> cardOrder)
-                         <*> optionMaybe (try $ string " " *> trigEvent))
+                         <*> optionMaybe (try $ optional (string " ") *> trigEvent))
               <|> try (ciString "tap " >> Tap <$> targets)
               <|> try (ciString "untap " >> Untap <$> targets)
               <|> try (LoseLife <$> playerMatch
