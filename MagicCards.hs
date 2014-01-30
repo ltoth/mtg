@@ -324,6 +324,7 @@ data TargetMatch = TMPermanent PermanentMatch | TMSpell SpellMatch
 type SpellMatch = String
 
 data CardMatch = TopCardsOfLibrary NumValue Zone
+               | AnyCard
                deriving (Show, Eq)
 
 -- FIXME: This is for the protection keyword
@@ -1014,7 +1015,8 @@ textToAbilities t = case (parse paras "" t) of
           (try (TopCardsOfLibrary <$ ciString "the top "
                  <*> option (NumValue 1) explicitNumber
                  <* optional (string " ") <* string "card"
-                 <* optional (string "s") <* string " of " <*> zone))
+                 <* optional (string "s") <* string " of " <*> zone)
+          <|> try (AnyCard <$ string "card" <* optional (string "s")))
           -- FIXME: "enchantment or creature card from among them"
           <* optional (string " ")  -- to match permanentType's behavior
 
