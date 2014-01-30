@@ -447,7 +447,7 @@ data Ability = AdditionalCost ([Cost])
 data Effect =
     -- One-shot effects
     Destroy Targets
-    | Exile Targets (Maybe Duration)
+    | Exile Targets Targets (Maybe FaceStatus) (Maybe Duration)
     | ZoneChange Targets Targets (Maybe Zone) Zone (Maybe OwnControl) (Maybe TriggerEvent)
     | Tap Targets
     | Untap Targets
@@ -723,6 +723,10 @@ textToAbilities t = case (parse paras "" t) of
           <|> try (Graveyard <$> targets
                   <* ciString "graveyard" <* optional (string "s"))
 
+        faceStatus =
+              try (FaceUp <$ string "face up")
+          <|> try (FaceDown <$ string "face down")
+
         effect =
               (optional ((try $ string ", then ")
                      <|> (try $ ciString "Then "))) *>
@@ -730,8 +734,10 @@ textToAbilities t = case (parse paras "" t) of
                          <*> (try $ ciString "may " *> effect))
               <|> try (ciString "destroy" >> optional (string "s")
                          >> string " " >> Destroy <$> targets)
-              <|> try (ciString "exile" >> optional (string "s")
-                         >> string " " >> Exile <$> targets
+              <|> try (Exile <$> option (NoTarget Nothing [TMPlayer You]) targets
+                         <* try (ciString "exile") <* optional (string "s")
+                         <* string " " <*> targets
+                         <*> optionMaybe faceStatus
                          <*> optionMaybe duration)
               <|> try (ZoneChange <$> option (NoTarget Nothing [TMPlayer You]) targets
                          <*> (try $ ((ciString "return" <|> ciString "put")
@@ -1003,10 +1009,11 @@ textToAbilities t = case (parse paras "" t) of
           <* optional (string " ")  -- to match permanentType's behavior
 
         cardMatch =
-          try (TopCardsOfLibrary <$ ciString "the top "
+          (try (TopCardsOfLibrary <$ ciString "the top "
                  <*> option (NumValue 1) explicitNumber
                  <* optional (string " ") <* string "card"
-                 <* optional (string "s") <* string " of " <*> zone)
+                 <* optional (string "s") <* string " of " <*> zone))
+          <* optional (string " ")  -- to match permanentType's behavior
 
         permanentMatch = try (do
           -- These are necessary for "a creature, a land, and a Wall"
