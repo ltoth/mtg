@@ -431,6 +431,9 @@ data Step = UntapStep | Upkeep | DrawStep | PreCombatMain
 
 data Divided = Divided deriving (Show, Eq)
 
+data CardOrder = AnyOrder | RandomOrder
+               deriving (Show, Eq)
+
 type TriggerCondition = String -- TODO: should this be the same as AltCostCondition?
 type ContinuousEffect = String
 type ActivationInst = String
@@ -449,7 +452,8 @@ data Effect =
     -- One-shot effects
     Destroy Targets
     | Exile Targets Targets (Maybe FaceStatus) (Maybe Duration)
-    | ZoneChange Targets Targets (Maybe Zone) Zone (Maybe OwnControl) (Maybe TriggerEvent)
+    | ZoneChange Targets Targets (Maybe Zone) Zone (Maybe OwnControl)
+        (Maybe CardOrder) (Maybe TriggerEvent)
     | Tap Targets
     | Untap Targets
     | LoseLife PlayerMatch NumValue
@@ -728,6 +732,10 @@ textToAbilities t = case (parse paras "" t) of
               try (FaceUp <$ string "face up")
           <|> try (FaceDown <$ string "face down")
 
+        cardOrder =
+              try (AnyOrder <$ string "in any order")
+          <|> try (RandomOrder <$ string "in a random order")
+
         optionPlayerYou = option (NoTarget Nothing [TMPlayer You]) targets
 
         effect =
@@ -752,8 +760,9 @@ textToAbilities t = case (parse paras "" t) of
                                >> optional (string "in")
                                >> string "to "))
                              >> zone)
-                         <*> optionMaybe (string " under " >> ownControl)
-                         <*> optionMaybe (string " " *> trigEvent))
+                         <*> optionMaybe (try $ string " under " *> ownControl)
+                         <*> optionMaybe (try $ string " " *> cardOrder)
+                         <*> optionMaybe (try $ string " " *> trigEvent))
               <|> try (ciString "tap " >> Tap <$> targets)
               <|> try (ciString "untap " >> Untap <$> targets)
               <|> try (LoseLife <$> playerMatch
