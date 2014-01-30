@@ -323,8 +323,8 @@ data TargetMatch = TMPermanent PermanentMatch | TMSpell SpellMatch
 -- TODO: for targeting spells (i.e. counterspells)
 type SpellMatch = String
 
--- TODO: for targeting/choosing cards (in graveyards, hands, libraries?)
-type CardMatch = String
+data CardMatch = TopCardsOfLibrary NumValue Zone
+               deriving (Show, Eq)
 
 -- FIXME: This is for the protection keyword
 type Quality = String
@@ -401,9 +401,9 @@ type CounterType = String
 data Duration = DurationUntil TriggerEvent | DurationForAsLongAs TriggerEvent
               deriving (Show, Eq)
 
-data Zone = Library PlayerMatch | TopOfLibrary PlayerMatch
-          | BottomOfLibrary PlayerMatch | Hand PlayerMatch
-          | Graveyard PlayerMatch
+data Zone = Library Targets | TopOfLibrary Targets
+          | BottomOfLibrary Targets | Hand Targets
+          | Graveyard Targets
           | Battlefield | Stack | ExileZone | Command
           deriving (Show, Eq)
 
@@ -709,16 +709,16 @@ textToAbilities t = case (parse paras "" t) of
           <|> try (ciString "the stack" >> return ExileZone)
           <|> try (ciString "the command zone" >> return Command)
           <|> try (TopOfLibrary <$> (optional (try $ string "the ") >>
-                  string "top of " >> playerMatch)
+                  string "top of " >> targets)
                   <* (ciString "library" <|> ciString "libraries"))
           <|> try (BottomOfLibrary <$> (optional (try $ string "the ") >>
-                  string "bottom of " >> playerMatch)
+                  string "bottom of " >> targets)
                   <* (ciString "library" <|> ciString "libraries"))
-          <|> try (Library <$> playerMatch
+          <|> try (Library <$> targets
                   <* (ciString "library" <|> ciString "libraries"))
-          <|> try (Hand <$> playerMatch
+          <|> try (Hand <$> targets
                   <* ciString "hand" <* optional (string "s"))
-          <|> try (Graveyard <$> playerMatch
+          <|> try (Graveyard <$> targets
                   <* ciString "graveyard" <* optional (string "s"))
 
         effect =
@@ -961,6 +961,7 @@ textToAbilities t = case (parse paras "" t) of
                   <|> try equipped
                   <|> try sacrificed
                   <|> try this
+                  <|> try (TMCard <$> cardMatch)
                   <|> try (TMPermanent <$> permanentMatch)
 
         -- FIXME: Make this more robust
@@ -998,6 +999,11 @@ textToAbilities t = case (parse paras "" t) of
           <|> try (ciString "{This}")
           >> return TMThis)
           <* optional (string " ")  -- to match permanentType's behavior
+
+        cardMatch =
+          try (TopCardsOfLibrary <$ ciString "the top "
+                 <*> explicitNumber <* string " cards of "
+                 <*> zone)
 
         permanentMatch = try (do
           -- These are necessary for "a creature, a land, and a Wall"
