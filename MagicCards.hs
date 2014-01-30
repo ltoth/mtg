@@ -467,6 +467,7 @@ data Effect =
       -- TODO: CombatStatus for "attacking" "blocking"
 
     -- Keyword actions
+    | Monstrosity NumValue
     | Scry NumValue
 
     -- TODO: Parse "for each" multipliers, which can
@@ -809,6 +810,8 @@ textToAbilities t = case (parse paras "" t) of
                          <*> ((ciString "shuffle" >> optional (string "s")
                              >> string " ") *> zone))
               <|> try (ciString "You get an emblem with " >> Emblem <$> quotedAbilities)
+              <|> try (Monstrosity <$ ciString "Monstrosity "
+                        <*> explicitNumber)
               <|> try (Scry <$ ciString "Scry " <*> explicitNumber)
               <|> (OtherEffect <$> many1 (noneOf ".\n\""))
               ) <* optional (numVariableConsume)
