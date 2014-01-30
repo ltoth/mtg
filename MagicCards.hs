@@ -316,6 +316,7 @@ data Targets = Target CountRange [TargetMatch]
 data TargetMatch = TMPermanent PermanentMatch | TMSpell SpellMatch
                  | TMCard CardMatch | TMPlayer PlayerMatch
                  | TMThis | TMEnchantedPermanent | TMEquippedCreature
+                 | TMSacrificed PermanentTypeMatch | TMSacrificedCard
                  | TMIt | TMThey
                  deriving (Show, Eq)
 
@@ -456,6 +457,7 @@ data Effect =
     | DrawCard Targets NumValue
     | Sacrifice Targets Targets
     | Discard Targets Targets
+    | Regenerate Targets
     | GainControl Targets Targets (Maybe Duration)
     | RemoveCounters CountRange (Maybe CounterType) Targets
     | PutCounters CountRange (Maybe CounterType) Targets
@@ -736,8 +738,8 @@ textToAbilities t = case (parse paras "" t) of
                                >> optional (string "in")
                                >> string "to "))
                              >> zone)
-                         <*> optionMaybe (string "under " >> ownControl)
-                         <*> optionMaybe trigEvent)
+                         <*> optionMaybe (string " under " >> ownControl)
+                         <*> optionMaybe (string " " *> trigEvent))
               <|> try (ciString "tap " >> Tap <$> targets)
               <|> try (ciString "untap " >> Untap <$> targets)
               <|> try (LoseLife <$> playerMatch
@@ -783,6 +785,7 @@ textToAbilities t = case (parse paras "" t) of
               <|> try (Discard <$> option (NoTarget Nothing [TMPlayer You]) targets
                          <*> (try $ (ciString "discard" >> optional (string "s")
                              >> string " ") *> targets))
+              <|> try (Regenerate <$ ciString "regenerate " <*> targets)
               <|> try (GainControl <$> option (NoTarget Nothing [TMPlayer You]) targets
                          <*> (try $ (ciString "gain" >> optional (string "s")
                              >> string " control of ") *> targets)
@@ -940,6 +943,7 @@ textToAbilities t = case (parse paras "" t) of
                   <|> try they
                   <|> try enchanted
                   <|> try equipped
+                  <|> try sacrificed
                   <|> try this
                   <|> try (TMPermanent <$> permanentMatch)
 
@@ -963,6 +967,12 @@ textToAbilities t = case (parse paras "" t) of
 
         enchanted = try (ciString "enchanted " <* permanentTypeParser)
           >> return TMEnchantedPermanent
+
+        sacrificed =
+          optional (try (string "the ")) *>
+          (try (TMSacrificed <$ ciString "sacrificed " <*> permanentTypeParser)
+          <|> try (TMSacrificedCard <$ ciString "sacrificed card"))
+          <* optional (string " ")  -- to match permanentType's behavior
 
         equipped = try $ ciString "equipped creature"
           >> return TMEquippedCreature
