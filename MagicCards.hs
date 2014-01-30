@@ -919,6 +919,19 @@ textToAbilities t = case (parse paras "" t) of
         -- FIXME: We should distinguish between "or" and "and" here
         -- Artisan's Sorrow, Swan Song, Corrupted Roots etc., Hero's
         -- Downfall
+        -- FIXME: Provide more specific target parsers, which will
+        -- restrict the types, i.e. exclude players. This could be done
+        -- by passing the parser as an parameter to the targets function,
+        -- i.e. replacing targetMatch with permanentOrCardTargetMatch
+        -- or targetPlayerMatch or cardTargetMatch or permanentTargetMatch
+        -- or permanentOrPlayerMatch (damage)
+        --
+        -- This will allow us to parse the triggered ability of Underworld
+        -- Cerberus to distinguish between
+        --   (exile it and each player) (returns all creature cards...)
+        -- and
+        --   (exile it) and (each player returns all creature cards...)
+        -- by specifying that exile can only target permanentsOrCards
         targets =
           try (do
               n <- option (Exactly (AnyCount (NumValue 1)))
