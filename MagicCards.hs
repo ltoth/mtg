@@ -817,7 +817,7 @@ textToAbilities t = case (parse paras "" t) of
                          <*> (string " " *> explicitNumber)
                          <*> (string "/" *> explicitNumber)
                          <*> (string " " *> permanentMatch)
-                         <* (string " onto the battlefield"))
+                         <* (string "onto the battlefield"))
               <|> try (ShuffleInto <$> optionPlayerYou
                          <*> ((ciString "shuffle" >> optional (string "s")
                              >> string " ") *> targets)
@@ -1015,6 +1015,7 @@ textToAbilities t = case (parse paras "" t) of
                  <*> option (NumValue 1) explicitNumber
                  <* optional (string " ") <* string "card"
                  <* optional (string "s") <* string " of " <*> zone))
+          -- FIXME: "enchantment or creature card from among them"
           <* optional (string " ")  -- to match permanentType's behavior
 
         permanentMatch = try (do
