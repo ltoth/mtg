@@ -846,7 +846,7 @@ textToAbilities t = case (parse paras "" t) of
                          <*> (string " " *> explicitNumber)
                          <*> (string "/" *> explicitNumber)
                          <*> (string " " *> permanentMatch)
-                         <* (string "onto the battlefield"))
+                         <* optional (string " ") <* string "onto the battlefield")
               <|> try (ShuffleInto <$> optionPlayerYou
                          <*> ((ciString "shuffle" >> optional (string "s")
                              >> string " ") *> targets)
