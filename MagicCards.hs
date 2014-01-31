@@ -320,12 +320,13 @@ data TargetMatch = TMPermanent PermanentMatch | TMSpell SpellMatch
                  | TMIt | TMThey | TMTheRest
                  deriving (Show, Eq)
 
--- TODO: for targeting spells (i.e. counterspells)
-type SpellMatch = String
+-- TODO: SpellMatch should probably also match colors at least
+data SpellMatch = SpellMatch [PermanentTypeMatch]
+                deriving (Show, Eq)
 
+-- TODO: CardMatch should probably also match colors at least
 data CardMatch = TopCardsOfLibrary NumValue Zone
                | CardMatch [PermanentTypeMatch]
-               | AnyCard
                deriving (Show, Eq)
 
 -- FIXME: This is for the protection keyword
@@ -454,6 +455,7 @@ data Ability = AdditionalCost ([Cost])
 data Effect =
     -- One-shot effects
     Destroy Targets
+    | Counter Targets
     | Exile Targets Targets (Maybe FaceStatus) (Maybe Duration)
     | ZoneChange Targets Targets (Maybe Zone) (Maybe FromAmong) Zone
       (Maybe Targets) (Maybe OwnControl) (Maybe CardOrder) (Maybe TriggerEvent)
@@ -755,6 +757,8 @@ textToAbilities t = case (parse paras "" t) of
                          <* string " — " <*> effect `sepBy2` string "; or ")
               <|> try (ciString "destroy" >> optional (string "s")
                          >> string " " >> Destroy <$> targets)
+              <|> try (Counter <$ ciString "counter" <* optional (string "s")
+                         <* string " " <*> targets)
               <|> try (Exile <$> optionPlayerYou
                          <* try (ciString "exile") <* optional (string "s")
                          <* string " " <*> targets
@@ -1002,6 +1006,7 @@ textToAbilities t = case (parse paras "" t) of
                   <|> try this
                   <|> try theRest
                   <|> try (TMCard <$> cardMatch)
+                  <|> try (TMSpell <$> spellMatch)
                   <|> try (TMPermanent <$> permanentMatch)
 
         -- FIXME: Make this more robust
@@ -1048,10 +1053,13 @@ textToAbilities t = case (parse paras "" t) of
                  <*> option (NumValue 1) explicitNumber
                  <* optional (string " ") <* string "card"
                  <* optional (string "s") <* string " of " <*> zone)
-          <|> try (CardMatch <$> (permanentTypeMatch `sepBy1` orSep')
-                 <* string "card" <* optional (string "s"))
-          <|> try (AnyCard <$ string "card" <* optional (string "s")))
-          -- FIXME: "enchantment or creature card from among them"
+          <|> try (CardMatch <$> (permanentTypeMatch `sepBy` orSep')
+                 <* string "card" <* optional (string "s")))
+          <* optional (string " ")  -- to match permanentType's behavior
+
+        spellMatch =
+          (try (SpellMatch <$> (permanentTypeMatch `sepBy` orSep')
+                 <* string "spell" <* optional (string "s")))
           <* optional (string " ")  -- to match permanentType's behavior
 
         -- FIXME: Remove this and deal with consuming trailing spaces
@@ -1160,10 +1168,9 @@ textToAbilities t = case (parse paras "" t) of
                       `sepEndBy` (string " "))
                 t <- ((try (Non <$> nonParser <*> typeParser))
                     `sepEndBy` (string " "))
-                optional (string " ")
-                optional (try (string "permanent"))
-                optional (try (string "token"))
-                optional (string "s") -- FIXME: deal with plural better
+                optional (try (string " permanent"))
+                optional (try (string " token"))
+                optional (try (string "s ")) -- FIXME: deal with plural better
                 optional (string " ")
                 when (super == [] && sub == [] && t == [])
                   (fail "Did not match any permanent type")
