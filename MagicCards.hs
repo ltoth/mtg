@@ -455,6 +455,8 @@ data Effect =
     | Exile Targets Targets (Maybe FaceStatus) (Maybe Duration)
     | ZoneChange Targets Targets (Maybe Zone) Zone (Maybe Targets)
         (Maybe OwnControl) (Maybe CardOrder) (Maybe TriggerEvent)
+    | RevealZone Targets Zone
+    | RevealCards Targets Targets (Maybe Zone)
     | Tap Targets
     | Untap Targets
     | LoseLife PlayerMatch NumValue
@@ -768,6 +770,13 @@ textToAbilities t = case (parse paras "" t) of
                          <*> optionMaybe (try $ string " under " *> ownControl)
                          <*> optionMaybe (try $ string " " *> cardOrder)
                          <*> optionMaybe (try $ optional (string " ") *> trigEvent))
+              <|> try (RevealZone <$> optionPlayerYou
+                         <* try (ciString "reveal") <* optional (string "s")
+                         <* string " " <*> zone)
+              <|> try (RevealCards <$> optionPlayerYou
+                         <* try (ciString "reveal") <* optional (string "s")
+                         <* string " " <*> targets
+                         <*> optionMaybe (string "from " *> zone))
               <|> try (ciString "tap " >> Tap <$> targets)
               <|> try (ciString "untap " >> Untap <$> targets)
               <|> try (LoseLife <$> playerMatch
