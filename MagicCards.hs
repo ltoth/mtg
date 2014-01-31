@@ -749,13 +749,16 @@ textToAbilities t = case (parse paras "" t) of
 
         optionPlayerYou = option (NoTarget Nothing [TMPlayer You]) targets
 
+        modalSep = try (string "; or ")
+               <|> try (string "; and/or ")
+
         effect =
               (optional ((try $ string ", then ")
                      <|> (try $ ciString "Then "))) *>
               (try (OptionalEffect <$> playerMatch
                          <*> (try $ ciString "may " *> effect))
               <|> try (ModalEffects <$ ciString "Choose " <*> countRange
-                         <* string " — " <*> effect `sepBy2` string "; or ")
+                         <* string " — " <*> effect `sepBy2` modalSep)
               <|> try (ciString "destroy" >> optional (string "s")
                          >> string " " >> Destroy <$> targets)
               <|> try (Counter <$ ciString "counter" <* optional (string "s")
