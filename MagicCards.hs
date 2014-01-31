@@ -463,8 +463,8 @@ data Effect =
     | RevealCards Targets Targets (Maybe Zone)
     | Tap Targets
     | Untap Targets
-    | LoseLife PlayerMatch NumValue
-    | GainLife PlayerMatch NumValue
+    | LoseLife Targets NumValue
+    | GainLife Targets NumValue
     | PayLife NumValue
     | AddAbilities Targets [Ability] (Maybe Duration)
     | ModifyPT Targets NumChange NumChange (Maybe Duration)
@@ -789,11 +789,11 @@ textToAbilities t = case (parse paras "" t) of
                          <*> optionMaybe (string "from " *> zone))
               <|> try (ciString "tap " >> Tap <$> targets)
               <|> try (ciString "untap " >> Untap <$> targets)
-              <|> try (LoseLife <$> playerMatch
+              <|> try (LoseLife <$> targets
                          <*> (try $ (ciString "lose" >> optional (string "s")
                              >> string " ") *> numberParser
                              <* (optional (string " ") >> string "life")))
-              <|> try (GainLife <$> playerMatch
+              <|> try (GainLife <$> targets
                          <*> (try $ (ciString "gain" >> optional (string "s")
                              >> string " ") *> numberParser
                              <* (optional (string " ") >> string "life")))
