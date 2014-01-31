@@ -1164,15 +1164,14 @@ textToAbilities t = case (parse paras "" t) of
           <|> try (string "token" >> optional (string "s") >>
                 (return $ Token))
           <|> try (do
-                super <- ((try (Non <$> nonParser <*> supertypeParser))
+                super <- ((try (Non <$> nonParser <*> supertypeParser <* optional (string "s")))
                         `sepEndBy` (string " "))
-                sub <- ((try (Non <$> nonParser <*> subtypeParser))
+                sub <- ((try (Non <$> nonParser <*> subtypeParser <* optional (string "s")))
                       `sepEndBy` (string " "))
-                t <- ((try (Non <$> nonParser <*> typeParser))
+                t <- ((try (Non <$> nonParser <*> typeParser <* optional (string "s")))
                     `sepEndBy` (string " "))
-                optional (try (string " permanent"))
-                optional (try (string " token"))
-                optional (try (string "s ")) -- FIXME: deal with plural better
+                optional (try (string " permanent" <* optional (string "s")))
+                optional (try (string " token" <* optional (string "s")))
                 optional (string " ")
                 when (super == [] && sub == [] && t == [])
                   (fail "Did not match any permanent type")
