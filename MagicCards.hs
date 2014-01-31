@@ -432,6 +432,8 @@ data Step = UntapStep | Upkeep | DrawStep | PreCombatMain
 
 data Divided = Divided deriving (Show, Eq)
 
+data FromAmong = FromAmong deriving (Show, Eq)
+
 data CardOrder = AnyOrder | RandomOrder
                deriving (Show, Eq)
 
@@ -453,8 +455,8 @@ data Effect =
     -- One-shot effects
     Destroy Targets
     | Exile Targets Targets (Maybe FaceStatus) (Maybe Duration)
-    | ZoneChange Targets Targets (Maybe Zone) Zone (Maybe Targets)
-        (Maybe OwnControl) (Maybe CardOrder) (Maybe TriggerEvent)
+    | ZoneChange Targets Targets (Maybe Zone) (Maybe FromAmong) Zone
+      (Maybe Targets) (Maybe OwnControl) (Maybe CardOrder) (Maybe TriggerEvent)
     | RevealZone Targets Zone
     | RevealCards Targets Targets (Maybe Zone)
     | Tap Targets
@@ -736,6 +738,8 @@ textToAbilities t = case (parse paras "" t) of
               try (FaceUp <$ string "face up")
           <|> try (FaceDown <$ string "face down")
 
+        fromAmong = try (FromAmong <$ string "from among them")
+
         cardOrder =
               try (AnyOrder <$ string "in any order")
           <|> try (RandomOrder <$ string "in a random order")
@@ -759,7 +763,8 @@ textToAbilities t = case (parse paras "" t) of
               <|> try (ZoneChange <$> optionPlayerYou
                          <*> (try $ ((ciString "return" <|> ciString "put")
                              >> optional (string "s") >> string " ") *> targets)
-                         <*> optionMaybe (string "from " >> zone)
+                         <*> optionMaybe (try $ string "from " >> zone)
+                         <*> optionMaybe (try $ fromAmong)
                          <*> (optional (string " ") >>
                              (try (string "on ") <|>
                                (optional (string "on")
