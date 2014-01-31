@@ -321,7 +321,7 @@ data TargetMatch = TMPermanent PermanentMatch | TMSpell SpellMatch
                  deriving (Show, Eq)
 
 -- TODO: SpellMatch should probably also match colors at least
-data SpellMatch = SpellMatch [PermanentTypeMatch]
+data SpellMatch = SpellMatch ColorMatch [PermanentTypeMatch]
                 deriving (Show, Eq)
 
 -- TODO: CardMatch should probably also match colors at least
@@ -1058,8 +1058,9 @@ textToAbilities t = case (parse paras "" t) of
           <* optional (string " ")  -- to match permanentType's behavior
 
         spellMatch =
-          (try (SpellMatch <$> (permanentTypeMatch `sepBy` orSep')
-                 <* string "spell" <* optional (string "s")))
+          (try (SpellMatch <$> colorMatch
+                  <*> (permanentTypeMatch `sepBy` orSep')
+                  <* string "spell" <* optional (string "s")))
           <* optional (string " ")  -- to match permanentType's behavior
 
         -- FIXME: Remove this and deal with consuming trailing spaces
