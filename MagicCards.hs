@@ -324,6 +324,7 @@ data TargetMatch = TMPermanent PermanentMatch | TMSpell SpellMatch
 type SpellMatch = String
 
 data CardMatch = TopCardsOfLibrary NumValue Zone
+               | CardMatch [PermanentTypeMatch]
                | AnyCard
                deriving (Show, Eq)
 
@@ -1029,10 +1030,17 @@ textToAbilities t = case (parse paras "" t) of
                  <*> option (NumValue 1) explicitNumber
                  <* optional (string " ") <* string "card"
                  <* optional (string "s") <* string " of " <*> zone)
-
+          <|> try (CardMatch <$> (permanentTypeMatch `sepBy1` orSep')
+                 <* string "card" <* optional (string "s"))
           <|> try (AnyCard <$ string "card" <* optional (string "s")))
           -- FIXME: "enchantment or creature card from among them"
           <* optional (string " ")  -- to match permanentType's behavior
+
+        -- FIXME: Remove this and deal with consuming trailing spaces
+        -- in permanentTypeMatch better
+        orSep' = try (string ", or ")
+            <|> try (string ", ")
+            <|> try (string "or ")
 
         permanentMatch = try (do
           -- These are necessary for "a creature, a land, and a Wall"
