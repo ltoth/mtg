@@ -915,7 +915,7 @@ textToAbilities t = case (parse paras "" t) of
             <|> try (string ", ")
             <|> try (string " or ")
 
-        numberParser = try (string "all" >> (return All))
+        numberParser = try (ciString "all" >> (return All))
                   <|> try (do
                           optional $ try (string "a number of")
                           optional $ try (string "an amount of")
