@@ -534,6 +534,7 @@ textToAbilities t = case (parse paras "" t) of
                  <|> try (string "Hellbent")
                  <|> try (string "Heroic")
                  <|> try (string "Imprint")
+                 <|> try (string "Inspired")
                  <|> try (string "Join forces")
                  <|> try (string "Kinship")
                  <|> try (string "Landfall")
