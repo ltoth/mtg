@@ -317,7 +317,7 @@ data TargetMatch = TMPermanent PermanentMatch | TMSpell SpellMatch
                  | TMCard CardMatch | TMPlayer PlayerMatch
                  | TMThis | TMEnchantedPermanent | TMEquippedCreature
                  | TMSacrificed PermanentTypeMatch | TMSacrificedCard
-                 | TMIt | TMThey
+                 | TMIt | TMThey | TMTheRest
                  deriving (Show, Eq)
 
 -- TODO: for targeting spells (i.e. counterspells)
@@ -1000,6 +1000,7 @@ textToAbilities t = case (parse paras "" t) of
                   <|> try equipped
                   <|> try sacrificed
                   <|> try this
+                  <|> try theRest
                   <|> try (TMCard <$> cardMatch)
                   <|> try (TMPermanent <$> permanentMatch)
 
@@ -1037,6 +1038,9 @@ textToAbilities t = case (parse paras "" t) of
           <|> try (ciString "this " <* permanentTypeMatch)
           <|> try (ciString "{This}")
           >> return TMThis)
+          <* optional (string " ")  -- to match permanentType's behavior
+
+        theRest = (try (TMTheRest <$ ciString "the rest"))
           <* optional (string " ")  -- to match permanentType's behavior
 
         cardMatch =
