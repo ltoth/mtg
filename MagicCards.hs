@@ -439,11 +439,6 @@ data FromAmong = FromAmong deriving (Show, Eq)
 data CardOrder = AnyOrder | RandomOrder
                deriving (Show, Eq)
 
--- > map name <$> filterCards (\c -> case (cardText c) of; Just t -> isInfixOf "Add " t; _ -> False)
--- ["Karametra's Acolyte","Nykthos, Shrine to Nyx","Opaline Unicorn","Satyr Hedonis
--- ","Sylvan Caryatid","Temple of Abandon","Temple of Deceit","Temple of Mystery","
--- emple of Silence","Temple of Triumph","Unknown Shores","Xenagos, the Reveler"]
-
 type TriggerCondition = String -- TODO: should this be the same as AltCostCondition?
 type ContinuousEffect = String
 type ActivationInst = String
