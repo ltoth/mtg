@@ -8,8 +8,10 @@ module Main
 ) where
 
 import Control.Applicative
+import Control.Monad ((>=>))
 import Data.Aeson
 import qualified Data.ByteString.Lazy.Char8 as L
+import Data.List (isInfixOf, isPrefixOf)
 import Data.Maybe (fromMaybe)
 
 import MagicCards
@@ -25,6 +27,10 @@ getSet fp =  decode <$> L.readFile fp
 
 filterCards :: (Card -> Bool) -> IO [Card]
 filterCards p = getCards setFile >>= return . (filter p) . (fromMaybe [])
+
+cardTextIncludes s = fromMaybe False . (cardText >=> pure . isInfixOf s)
+
+nameStartsWith s = isPrefixOf s . name
 
 p1 = (\c -> rarity c == MythicRare && cmc c == Just 5)
 p2 = (\c -> R `elem` fromMaybe [] (manaCost c))
