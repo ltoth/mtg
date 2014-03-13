@@ -24,6 +24,7 @@ module MagicCards
 , Border(..)
 , Card(..)
 , Ability(..)
+, Effect(..) -- FIXME: Should this be exported?
 , abilities -- FIXME: Move elsewhere?
 , textToAbilities -- FIXME: This should probably not be exported
 , manaCostParser -- FIXME: This should probably not be exported

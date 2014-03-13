@@ -32,6 +32,15 @@ cardTextIncludes s = fromMaybe False . (cardText >=> pure . isInfixOf s)
 
 nameStartsWith s = isPrefixOf s . name
 
+effects (ActivatedAbility _ es _) = es
+effects (TriggeredAbility _ es _) = es
+effects (SpellAbility es) = es
+effects _ = []
+
+hasOtherEffect as = any isOtherEffect (concatMap effects as)
+  where isOtherEffect (OtherEffect _) = True
+        isOtherEffect _ = False
+
 p1 = (\c -> rarity c == MythicRare && cmc c == Just 5)
 p2 = (\c -> R `elem` fromMaybe [] (manaCost c))
 p3 = (\c -> Legendary `elem` fromMaybe [] (supertypes c))
