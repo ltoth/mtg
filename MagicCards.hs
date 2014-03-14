@@ -480,6 +480,10 @@ data Effect =
     | PutTokens Targets NumValue NumValue NumValue PermanentMatch
     | ShuffleInto Targets Targets Zone
     | Shuffle Targets Zone
+
+    -- what, by, except by, duration
+    | CantBeBlocked Targets (Maybe Targets) (Maybe Targets) (Maybe Duration)
+
     | Emblem [Ability]
       -- TODO: PermanentStatusMatch for "tapped"
       -- TODO: CombatStatus for "attacking" "blocking"
@@ -583,6 +587,8 @@ textToAbilities t = case (parse paras "" t) of
                      ciString "until " >> turnEvent <|> effectEvent))
                <|> try (DurationForAsLongAs <$> (optional (string " ") >>
                      ciString "for as long as " >> effectEvent))
+               <|> try (DurationUntil (TEAt (Just EachPlayer) Nothing Cleanup)
+                     <$ ciString "this turn")
 
         -- TODO: first check "at the beginning of combat on your turn"
         -- (Battle-Rattle Shaman)
@@ -863,6 +869,10 @@ textToAbilities t = case (parse paras "" t) of
               <|> try (Shuffle <$> optionPlayerYou
                          <*> ((ciString "shuffle" >> optional (string "s")
                              >> string " ") *> zone))
+              <|> try (CantBeBlocked <$> (targets <* ciString "can't be blocked")
+                         <*> optionMaybe (ciString " by " *> targets)
+                         <*> optionMaybe (ciString " except by " *> targets)
+                         <*> optionMaybe (optional (string " ") *> duration))
               <|> try (Emblem <$ ciString "You get an emblem with "
                          <*> quotedAbilities)
               <|> try (Monstrosity <$ ciString "Monstrosity "
@@ -1137,7 +1147,7 @@ textToAbilities t = case (parse paras "" t) of
           string "with "
           keyword `sepBy1` andSep))
 
-        ownControl = try (do
+        ownControl = (try (do
                          optional (string " ")
                          p <- playerMatch
                          string "own"
@@ -1149,6 +1159,7 @@ textToAbilities t = case (parse paras "" t) of
                          string "control"
                          optional (string "s")
                          return $ Control $ p)
+                 ) <* optional (string " ")
 
         nonParser = option True (try (do
                                 string "non"
