@@ -426,7 +426,7 @@ data TriggerEvent = TEAt (Maybe PlayerMatch) (Maybe Next) Step
 data Next = Next deriving (Show, Eq)
 
 data PlayerMatch = EachPlayer | You | Player | Players | Opponent | Opponents
-                 | Controller | Owner | HisOrHer | Their
+                 | Controller TargetMatch | Owner TargetMatch | HisOrHer | Their
                  | ThatPlayer | ThosePlayers
                  deriving (Show, Eq)
 
@@ -672,21 +672,12 @@ textToAbilities t = case (parse paras "" t) of
                -- a separate value constructor, i.e. AnyPlayer
                <|> try (ciString "any player")
             >> return Player)
-          <|> try (try (ciString "its controller's")
-               <|> try (ciString "its controller")
-               <|> try (ciString "their controllers'") -- FIXME: Perhaps separate?
-               <|> try (ciString "their controllers")
-               <|> try (ciString "their controller's")
-               <|> try (ciString "their controller")
-            >> return Controller) -- FIXME: Should this be recursive for
-            -- Destructive Revelry and the like?
-          <|> try (try (ciString "its owner's")
-               <|> try (ciString "its owner")
-               <|> try (ciString "their owners'") -- FIXME: Perhaps separate?
-               <|> try (ciString "their owners")
-               <|> try (ciString "their owner's")
-               <|> try (ciString "their owner")
-            >> return Owner)
+          <|> try (Controller <$> (it <|> they) <* optional possessive
+                <* optional (string " ") <* string "controller" <* optional (string "s")
+                <* optional possessive)
+          <|> try (Owner <$> (it <|> they) <* optional possessive
+                <* optional (string " ") <* string "owner" <* optional (string "s")
+                <* optional possessive)
           <|> try (try (ciString "your")
                <|> try (ciString "you")
             >> return You)
@@ -700,6 +691,8 @@ textToAbilities t = case (parse paras "" t) of
                      notFollowedBy (ciString " " *> permanentMatch) >>
                      return EachPlayer))
           <* optional (string " ")
+
+        possessive = try (string "'s") <|> try (string "'")
 
         step =
           try (ciString "untap step" >> return UntapStep)
@@ -1069,6 +1062,7 @@ textToAbilities t = case (parse paras "" t) of
         -- FIXME: Make this more robust
         it = (try (ciString "that card")
           <|> try (ciString "that " <* permanentTypeMatch)
+          <|> try (ciString "its")
           <|> try (ciString "it")
           >> return TMIt)
           <* optional (string " ")  -- to match permanentType's behavior
@@ -1079,6 +1073,7 @@ textToAbilities t = case (parse paras "" t) of
         they = (try (ciString "those cards")
           <|> try (ciString "those " <* permanentTypeMatch)
           <|> try (ciString "they")
+          <|> try (ciString "their")
           <|> try (ciString "them")
           >> return TMThey)
           <* optional (string " ")  -- to match permanentType's behavior
