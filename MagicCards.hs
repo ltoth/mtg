@@ -772,8 +772,7 @@ textToAbilities t = case (parse paras "" t) of
                <|> try (string "; and/or ")
 
         effect =
-              (optional ((try $ string ", then ")
-                     <|> (try $ ciString "Then "))) *>
+              (optional (try $ ciString "Then ")) *>
               (try (OptionalEffect <$> playerMatch
                          <*> (try $ ciString "may " *> effect))
               <|> try (ModalEffects <$ ciString "Choose " <*> countRange
@@ -900,7 +899,7 @@ textToAbilities t = case (parse paras "" t) of
               <|> try (Scry <$ ciString "Scry " <*> explicitNumber)
               <|> (OtherEffect <$> many1 (noneOf ".\n\""))
               ) <* optional (numVariableConsume)
-              <* optional (string ".") <* optional (string " ")
+              <* optional (oneOf ".,") <* optional (string " ")
 
         activated = ActivatedAbility <$> totalCost
           <*> (string ": " *> effects)
