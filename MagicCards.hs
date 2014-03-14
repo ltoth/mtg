@@ -461,8 +461,12 @@ data Effect =
     Destroy Targets
     | Counter Targets
     | Exile Targets Targets (Maybe FaceStatus) (Maybe Duration)
+
+    -- who, what, from, from among, to, tap status, attached to, under control,
+    -- order, trigger event (for delayed zone change)
     | ZoneChange Targets Targets (Maybe Zone) (Maybe FromAmong) Zone
-      (Maybe Targets) (Maybe OwnControl) (Maybe CardOrder) (Maybe TriggerEvent)
+      (Maybe TapStatus) (Maybe Targets) (Maybe OwnControl) (Maybe CardOrder)
+      (Maybe TriggerEvent)
     | RevealZone Targets Zone
     | RevealCards Targets Targets (Maybe Zone)
     | Tap Targets
@@ -481,6 +485,10 @@ data Effect =
     | RemoveCounters CountRange (Maybe CounterType) Targets
     | PutCounters CountRange (Maybe CounterType) Targets
     | PutTokens Targets NumValue NumValue NumValue PermanentMatch
+
+    -- who, which zone, for what
+    | SearchZone Targets Zone Targets
+
     | ShuffleInto Targets Targets Zone
     | Shuffle Targets Zone
 
@@ -797,6 +805,7 @@ textToAbilities t = case (parse paras "" t) of
                                >> optional (string "in")
                                >> string "to "))
                              >> zone)
+                         <*> optionMaybe (try $ string " " *> tapStatus)
                          <*> optionMaybe (try $ string " attached to " *> targets)
                          <*> optionMaybe (try $ string " under " *> ownControl)
                          <*> optionMaybe (try $ string " " *> cardOrder)
@@ -873,6 +882,10 @@ textToAbilities t = case (parse paras "" t) of
                          <*> (string "/" *> explicitNumber)
                          <*> (string " " *> permanentMatch)
                          <* optional (string " ") <* string "onto the battlefield")
+              <|> try (SearchZone <$> optionPlayerYou
+                         <*> ((ciString "search" >> optional (string "es")
+                             >> string " ") *> zone)
+                         <*> (string " for " *> targets))
               <|> try (ShuffleInto <$> optionPlayerYou
                          <*> ((ciString "shuffle" >> optional (string "s")
                              >> string " ") *> targets)
@@ -1026,7 +1039,7 @@ textToAbilities t = case (parse paras "" t) of
         andOrSep' = try (string ", and/or ")
                <|> try (string ", and ")
                <|> try (string ", or ")
-               <|> try ((string ", ") <* notFollowedBy (string "then "))
+               <|> try ((string ", ") <* notFollowedBy effect)
                <|> try (string "and/or ")
                <|> try (string "and ")
                <|> try (string "or ")
@@ -1127,6 +1140,9 @@ textToAbilities t = case (parse paras "" t) of
 
         blocked = try (ciString "blocked " >> return Blocked)
               <|> try (ciString "unblocked " >> return Unblocked)
+
+        tapStatus = try (Tapped <$ ciString "tapped")
+                <|> try (Untapped <$ ciString "untapped")
 
         combatStatuses = combatStatus `sepBy` orSep
                          <* optional (string " ")
