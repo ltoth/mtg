@@ -674,7 +674,9 @@ textToAbilities t = case (parse paras "" t) of
           <|> try (ciString "that player" >> return ThatPlayer)
           <|> try (ciString "those players'" >> return ThosePlayers)
           <|> try (ciString "those players" >> return ThosePlayers)
-          <|> try (ciString "each" >> return EachPlayer))
+          <|> try (ciString "each" >>
+                     notFollowedBy (ciString " " *> permanentMatch) >>
+                     return EachPlayer))
           <* optional (string " ")
 
         step =
@@ -927,7 +929,7 @@ textToAbilities t = case (parse paras "" t) of
             <|> try (string ", ")
             <|> try (string " or ")
 
-        numberParser = try (ciString "all" >> (return All))
+        numberParser = try (All <$ (ciString "all" <|> ciString "each"))
                   <|> try (do
                           optional $ try (string "a number of")
                           optional $ try (string "an amount of")
