@@ -327,17 +327,18 @@ data SpellMatch = SpellMatch ColorMatch [PermanentTypeMatch]
 
 -- TODO: CardMatch should probably also match colors at least
 data CardMatch = TopCardsOfLibrary NumValue Zone
-               | CardMatch [PermanentTypeMatch]
+               | CardMatch [PermanentTypeMatch] (Maybe Quality)
                deriving (Show, Eq)
 
--- FIXME: This is for the protection keyword
-type Quality = String
+data Quality = QPower CountRange | QToughness CountRange
+             | QCMC CountRange
+             deriving (Show, Eq)
 
 -- TODO: Ability should be Non Ability ("with" vs. "without")
 data PermanentMatch = PermanentMatch (Maybe BlockedStatus)
                         [CombatStatus] ColorMatch
-                        NonToken PermanentTypeMatch [Ability] (Maybe Name)
-                        (Maybe OwnControl)
+                        NonToken PermanentTypeMatch [Ability] (Maybe Quality)
+                        (Maybe Name) (Maybe OwnControl)
                     deriving (Show, Eq)
 
 data ColorMatch = CMColors [Non Color] | CMMonocolored | CMMulticolored
@@ -1069,7 +1070,8 @@ textToAbilities t = case (parse paras "" t) of
                  <* optional (string " ") <* string "card"
                  <* optional (string "s") <* string " of " <*> zone)
           <|> try (CardMatch <$> (permanentTypeMatch `sepBy` orSep')
-                 <* string "card" <* optional (string "s")))
+                 <* string "card" <* optional (string "s")
+                 <*> optionMaybe withQuality))
           <* optional (string " ")  -- to match permanentType's behavior
 
         spellMatch =
@@ -1095,17 +1097,15 @@ textToAbilities t = case (parse paras "" t) of
           nt <- nonToken
           t <- permanentTypeMatch
           as <- withAbilities
-          -- TODO: support "with [other quality]", e.g.
-          -- "power 4 or greater", "CMC 3 or less"
-          -- Elspeth, Abrupt Decay
-          -- as well as "with(out) a fate counter on it"
+          q <- optionMaybe withQuality
+          -- TODO: support "with(out) a fate counter on it"
           -- Oblivion Stone
-          cardName <- optionMaybe $ try cardNamed
-          oc <- optionMaybe $ try ownControl
+          cardName <- optionMaybe cardNamed
+          oc <- optionMaybe ownControl
           -- TODO: support other conditions like
           -- "that dealt damage to you this turn"
           -- Spear of Heliod
-          return $ PermanentMatch b combat cs nt t as cardName oc)
+          return $ PermanentMatch b combat cs nt t as q cardName oc)
 
         blocked = try (ciString "blocked " >> return Blocked)
               <|> try (ciString "unblocked " >> return Unblocked)
@@ -1147,6 +1147,11 @@ textToAbilities t = case (parse paras "" t) of
           string "with "
           keyword `sepBy1` andSep))
 
+        withQuality = optional (string " ") *> try (ciString "with ") *>
+              (QPower <$> (ciString "power " *> countRange))
+          <|> (QToughness <$> (ciString "toughness " *> countRange))
+          <|> (QCMC <$> (ciString "converted mana cost " *> countRange))
+
         ownControl = (try (do
                          optional (string " ")
                          p <- playerMatch
@@ -1166,10 +1171,10 @@ textToAbilities t = case (parse paras "" t) of
                                 optional (string "-")
                                 return False))
 
-        cardNamed = do
+        cardNamed = try (do
           optional (string " ")
           string "named "
-          many1 (noneOf ",:;.\n") -- FIXME: Actually match against
+          many1 (noneOf ",:;.\n")) -- FIXME: Actually match against
           -- possible card names, not just as strings, since
           -- this doesn't know when to stop properly, i.e. Kher Keep
 
@@ -1237,7 +1242,7 @@ data Keyword = Deathtouch
              | Intimidate
              | Landwalk PermanentTypeMatch
              | Lifelink
-             | Protection (Either Quality PlayerMatch)
+             | Protection (Either Quality PlayerMatch) -- FIXME: Color, etc.
              | Reach
              | Shroud
              | Trample
