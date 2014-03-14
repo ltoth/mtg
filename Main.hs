@@ -41,6 +41,10 @@ hasOtherEffect as = any isOtherEffect (concatMap effects as)
   where isOtherEffect (OtherEffect _) = True
         isOtherEffect _ = False
 
+hasTEOther = any isTEOther
+  where isTEOther (TriggeredAbility (TEOther _) _ _) = True
+        isTEOther _ = False
+
 p1 = (\c -> rarity c == MythicRare && cmc c == Just 5)
 p2 = (\c -> R `elem` fromMaybe [] (manaCost c))
 p3 = (\c -> Legendary `elem` fromMaybe [] (supertypes c))
