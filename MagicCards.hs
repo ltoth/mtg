@@ -393,6 +393,7 @@ data Count = AnyCount NumValue | OtherCount NumValue
            deriving (Show, Eq)
 
 data NumValue = NumValue Word8 | NumValueX | All | NumVariable Calculation
+              | ThatMuch
               deriving (Show, Eq)
 
 data NumChange = Plus NumValue | Minus NumValue
@@ -962,6 +963,8 @@ textToAbilities t = case (parse paras "" t) of
             <|> try (string " or ")
 
         numberParser = try (All <$ (ciString "all" <|> ciString "each"))
+                  <|> try (ThatMuch <$ ciString "that "
+                          <* (try (string "much") <|> try (string "many")))
                   <|> try (do
                           optional $ try (string "a number of")
                           optional $ try (string "an amount of")
