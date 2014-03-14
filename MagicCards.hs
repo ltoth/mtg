@@ -1150,10 +1150,10 @@ textToAbilities t = case (parse paras "" t) of
           string "with "
           keyword `sepBy1` andSep))
 
-        withQuality = optional (string " ") *> try (ciString "with ") *>
+        withQuality = try (optional (string " ") *> try (ciString "with ") *>
               (QPower <$> (ciString "power " *> countRange))
           <|> (QToughness <$> (ciString "toughness " *> countRange))
-          <|> (QCMC <$> (ciString "converted mana cost " *> countRange))
+          <|> (QCMC <$> (ciString "converted mana cost " *> countRange)))
 
         ownControl = (try (do
                          optional (string " ")
