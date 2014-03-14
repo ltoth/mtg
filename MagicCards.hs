@@ -490,6 +490,9 @@ data Effect =
     -- what, whom, duration
     | CantBlock Targets (Maybe Targets) (Maybe Duration)
 
+    -- what, whom, duration
+    | AttackIfAble Targets (Maybe Targets) (Maybe Duration)
+
     | Emblem [Ability]
       -- TODO: PermanentStatusMatch for "tapped"
       -- TODO: CombatStatus for "attacking" "blocking"
@@ -885,6 +888,11 @@ textToAbilities t = case (parse paras "" t) of
               <|> try (CantBlock <$> (targets <* ciString "can't block")
                          <*> optionMaybe (try $ string " " *> targets)
                          <*> optionMaybe (optional (string " ") *> duration))
+              <|> try (AttackIfAble <$> (targets <* ciString "attack"
+                             <* optional (string "s"))
+                         <*> optionMaybe (try $ string " " *> targets)
+                         <*> optionMaybe (optional (string " ") *> duration)
+                         <* ciString " if able")
               <|> try (Emblem <$ ciString "You get an emblem with "
                          <*> quotedAbilities)
               <|> try (Monstrosity <$ ciString "Monstrosity "
