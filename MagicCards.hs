@@ -1003,7 +1003,7 @@ textToAbilities t = case (parse paras "" t) of
 
         -- used to consume this input, normally seen using lookAhead
         numVariableConsume =
-              try (string " equal to " >> many1 (noneOf (".\n")))
+              try (optional (string " ") *> string "equal to " >> many1 (noneOf (".\n")))
           <|> try (string ", where X is " >> many1 (noneOf (".\n")))
 
         numChange = try (Plus <$> (string "+" *> explicitNumber))
