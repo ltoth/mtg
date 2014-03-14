@@ -870,11 +870,13 @@ textToAbilities t = case (parse paras "" t) of
               <|> try (ciString "Remove " >> RemoveCounters <$> countRange
                          <*> (try $ (optional (string " ") *>
                          optionMaybe (many1 (noneOf " \n")) <* optional (string " "))
-                         <* ciString "counter from ") <*> targets)
+                         <* ciString "counter" <* optional (string "s")
+                         <* ciString " from ") <*> targets)
               <|> try (ciString "Put " >> PutCounters <$> countRange
                          <*> (try $ (optional (string " ") *>
                          optionMaybe (many1 (noneOf " \n")) <* optional (string " "))
-                         <* ciString "counter on ") <*> targets)
+                         <* ciString "counter" <* optional (string "s")
+                         <* ciString " on ") <*> targets)
               <|> try (PutTokens <$> optionPlayerYou
                          <*> ((ciString "put" >> optional (string "s")
                              >> string " ") *> numberParser)
