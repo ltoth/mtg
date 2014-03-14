@@ -780,7 +780,7 @@ textToAbilities t = case (parse paras "" t) of
                <|> try (string "; and/or ")
 
         effect =
-              (optional (try $ ciString "Then ")) *>
+              (optional (try $ ciString "Then " <|> ciString "and ")) *>
               (try (OptionalEffect <$> playerMatch
                          <*> (try $ ciString "may " *> effect))
               <|> try (ModalEffects <$ ciString "Choose " <*> countRange
@@ -1037,7 +1037,7 @@ textToAbilities t = case (parse paras "" t) of
         -- FIXME: Remove this and deal with consuming trailing spaces
         -- in permanentTypeMatch better
         andOrSep' = try (string ", and/or ")
-               <|> try (string ", and ")
+               <|> try ((string ", and ") <* notFollowedBy effect)
                <|> try (string ", or ")
                <|> try ((string ", ") <* notFollowedBy effect)
                <|> try (string "and/or ")
