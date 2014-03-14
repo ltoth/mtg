@@ -406,6 +406,7 @@ type CounterType = String
 
 data Duration = DurationUntil TriggerEvent | DurationForAsLongAs TriggerEvent
               | DurationEachTurn  -- FIXME: Perhaps "each turn" shouldn't be a duration?
+              | DurationEachCombat -- FIXME: Perhaps "each combat" shouldn't either?
               deriving (Show, Eq)
 
 data Zone = Library Targets | TopOfLibrary Targets
@@ -497,6 +498,9 @@ data Effect =
 
     -- what, whom, duration
     | CantBlock Targets (Maybe Targets) (Maybe Duration)
+
+    -- what, whom, duration
+    | CanBlockAdditional Targets Targets (Maybe Duration)
 
     -- what, whom, duration
     | AttackIfAble Targets (Maybe Targets) (Maybe Duration)
@@ -607,6 +611,7 @@ textToAbilities t = case (parse paras "" t) of
                <|> try (DurationUntil (TEAt (Just EachPlayer) Nothing Cleanup)
                      <$ ciString "this turn")
                <|> try (DurationEachTurn <$ ciString "each turn")
+               <|> try (DurationEachCombat <$ ciString "each combat")
 
         -- TODO: first check "at the beginning of combat on your turn"
         -- (Battle-Rattle Shaman)
@@ -901,6 +906,9 @@ textToAbilities t = case (parse paras "" t) of
                          <*> optionMaybe (optional (string " ") *> duration))
               <|> try (CantBlock <$> (targets <* ciString "can't block")
                          <*> optionMaybe (try $ string " " *> targets)
+                         <*> optionMaybe (optional (string " ") *> duration))
+              <|> try (CanBlockAdditional <$> (targets <* ciString "can block an additional ")
+                         <*> targets
                          <*> optionMaybe (optional (string " ") *> duration))
               <|> try (AttackIfAble <$> (targets <* ciString "attack"
                              <* optional (string "s"))
