@@ -405,6 +405,7 @@ type Calculation = String
 type CounterType = String
 
 data Duration = DurationUntil TriggerEvent | DurationForAsLongAs TriggerEvent
+              | DurationEachTurn  -- FIXME: Perhaps "each turn" shouldn't be a duration?
               deriving (Show, Eq)
 
 data Zone = Library Targets | TopOfLibrary Targets
@@ -594,6 +595,7 @@ textToAbilities t = case (parse paras "" t) of
                      ciString "for as long as " >> effectEvent))
                <|> try (DurationUntil (TEAt (Just EachPlayer) Nothing Cleanup)
                      <$ ciString "this turn")
+               <|> try (DurationEachTurn <$ ciString "each turn")
 
         -- TODO: first check "at the beginning of combat on your turn"
         -- (Battle-Rattle Shaman)
