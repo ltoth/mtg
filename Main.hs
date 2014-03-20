@@ -3,6 +3,8 @@
 module Main
 ( main
 , filterCards
+, nameStartsWith
+, cardTextIncludes
 , getSet
 , getCards
 ) where

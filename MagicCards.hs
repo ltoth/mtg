@@ -55,7 +55,7 @@ import Data.Aeson (FromJSON, parseJSON, Value(..), (.:), (.:?))
 import Data.Char (isSpace)
 import Data.Functor.Identity (Identity)
 import Data.Int (Int8)
-import Data.List.Split (wordsBy, splitOn)
+import Data.List.Split (splitOn)
 import Data.List (intercalate)
 import Data.Maybe (fromMaybe)
 import qualified Data.Text as T
