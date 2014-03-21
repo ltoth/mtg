@@ -454,7 +454,6 @@ data CardOrder = AnyOrder | RandomOrder
                deriving (Show, Eq)
 
 type TriggerCondition = String -- TODO: should this be the same as AltCostCondition?
-type ContinuousEffect = String
 type ActivationInst = String
 type AltCostCondition = String
 
@@ -463,7 +462,7 @@ data Ability = AdditionalCost ([Cost])
              | KeywordAbility Keyword
              | ActivatedAbility ([Cost]) [Effect] (Maybe ActivationInst)
              | TriggeredAbility TriggerEvent [Effect] (Maybe [TriggerCondition])
-             | StaticAbility ContinuousEffect
+             | StaticAbility [Effect]
              | SpellAbility [Effect]
              deriving (Show, Eq)
 
