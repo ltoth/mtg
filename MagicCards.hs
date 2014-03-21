@@ -834,7 +834,7 @@ textToAbilities t = case (parse paras "" t) of
                              <* (optional (string " ") >> string "life")))
               <|> try (PayLife <$> (ciString "Pay " *> numberParser
                              <* (optional (string " ") >> string "life")))
-              <|> try (AddAbilities <$> (optional (ciString "each ") *> targets)
+              <|> try (AddAbilities <$> targets
                         <*> addAbilitiesPartial
                         <*> (optionMaybe duration))
               -- Syntax that starts with duration, i.e.
@@ -845,9 +845,7 @@ textToAbilities t = case (parse paras "" t) of
                       ts <- targets
                       ks <- addAbilitiesPartial
                       return $ AddAbilities ts ks (Just d))
-              <|> try ((uncurry <$>
-                         (ModifyPT <$>
-                           (optional (ciString "each ") *> targets)))
+              <|> try ((uncurry <$> (ModifyPT <$> targets))
                        <*> modifyPTPartial
                        <*> (optionMaybe duration))
               <|> try (DealDamage <$> targets
