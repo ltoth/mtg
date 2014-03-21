@@ -98,8 +98,10 @@ stringToManaCost s = case (parse manaCostParser "" s) of
                       Right xs -> xs
 
 manaCostParser :: ParsecT String u Identity ManaCost
-manaCostParser = many1 symbol
-  where symbol = try (string "{G/W}" >> return GW)
+manaCostParser = many1 manaSymbolParser
+
+manaSymbolParser :: ParsecT String u Identity ManaSymbol
+manaSymbolParser = try (string "{G/W}" >> return GW)
              <|> try (string "{W/U}" >> return WU)
              <|> try (string "{R/W}" >> return RW)
              <|> try (string "{W/B}" >> return WB)
@@ -140,6 +142,11 @@ data ManaSymbol = W | U | B | R | G | S | CL Word8 | X | Y | Z
                   | GW | WU | RW | WB | UB | GU | UR | BR | BG | RG
                   | W2 | U2 | B2 | R2 | G2 | WP | UP | BP | RP | GP | P
                   deriving (Show, Eq)
+
+data ManaType = ManaAnyOneColor | ManaAnyColor | ManaThatColor
+              | ManaAnyCombination | ManaAnyCombinationOf [ManaSymbol]
+              | ManaSymbols [[ManaSymbol]] -- OrList ([ManaSymbol])
+              deriving (Show, Eq)
 
 type CMC = Word8
 
@@ -489,6 +496,7 @@ data Effect =
     | RemoveCounters CountRange (Maybe CounterType) Targets
     | PutCounters CountRange (Maybe CounterType) Targets
     | PutTokens Targets NumValue NumValue NumValue PermanentMatch
+    | AddMana (Maybe CountRange) ManaType
 
     -- who, which zone, for what
     | SearchZone Targets Zone Targets
@@ -713,6 +721,20 @@ textToAbilities t = case (parse paras "" t) of
           <|> try (ciString "end step" >> return End)
           <|> try (ciString "cleanup step" >> return Cleanup)
 
+        manaType =
+          try (ManaAnyOneColor <$ ciString "mana of any one color")
+          <|> try (ManaAnyColor <$ ciString "mana of any color")
+          <|> try (ManaThatColor <$ ciString "mana of that color")
+          <|> try (ManaAnyCombination <$ ciString "mana in any combination of colors")
+          <|> try (ManaAnyCombinationOf <$>
+                    (ciString "mana in any combination of " *>
+                    manaSymbolParser `sepBy2` manaCombinationSep))
+          <|> try (ManaSymbols <$> manaCostParser `sepBy1` orSep)
+
+        manaCombinationSep = try (string ", and/or ")
+                         <|> try (string ", ")
+                         <|> try (string " and/or ")
+
         effects =
           -- Syntax that combines PT modifying and ability gaining
           try (do
@@ -887,6 +909,11 @@ textToAbilities t = case (parse paras "" t) of
                          <*> (string "/" *> explicitNumber)
                          <*> (string " " *> permanentMatch)
                          <* optional (string " ") <* string "onto the battlefield")
+              <|> try (AddMana <$> (ciString "Add to your mana pool " *> optionMaybe countRange)
+                         <*> (optional (string " ") *> manaType))
+              <|> try (AddMana <$> (ciString "Add " *> optionMaybe countRange)
+                         <*> (optional (string " ") *> manaType)
+                         <* string " to your mana pool")
               <|> try (SearchZone <$> optionPlayerYou
                          <*> ((ciString "search" >> optional (string "es")
                              >> string " ") *> zone)
