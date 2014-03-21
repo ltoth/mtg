@@ -5,6 +5,8 @@ module Main
 , filterCards
 , nameStartsWith
 , cardTextIncludes
+, hasOtherEffect
+, hasTEOther
 , getSet
 , getCards
 ) where

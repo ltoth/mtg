@@ -405,6 +405,8 @@ type Calculation = String
 -- FIXME: Should this be parsed into possible counter types?
 type CounterType = String
 
+type DurationOrTriggerEvent = Either Duration TriggerEvent
+
 data Duration = DurationUntil TriggerEvent | DurationForAsLongAs TriggerEvent
               | DurationEachTurn  -- FIXME: Perhaps "each turn" shouldn't be a duration?
               | DurationEachCombat -- FIXME: Perhaps "each combat" shouldn't either?
@@ -462,7 +464,7 @@ data Effect =
     -- One-shot effects
     Destroy Targets
     | Counter Targets
-    | Exile Targets Targets (Maybe FaceStatus) (Maybe Duration)
+    | Exile Targets Targets (Maybe FaceStatus) (Maybe DurationOrTriggerEvent)
 
     -- who, what, from, from among, to, tap status, attached to, under control,
     -- order, trigger event (for delayed zone change)
@@ -628,6 +630,10 @@ textToAbilities t = case (parse paras "" t) of
                     <|> try (TEAt (Just EachPlayer) Nothing Cleanup
                       <$ ciString "end of turn")
 
+        durationOrTrigEvent =
+              try (Left <$> duration)
+          <|> try (Right <$> trigEvent)
+
         next = try (Next <$ optional (string "the ") <* string "next ")
 
         -- TODO: Should really return OrList [TrigEvent]
@@ -792,7 +798,7 @@ textToAbilities t = case (parse paras "" t) of
                          <* try (ciString "exile") <* optional (string "s")
                          <* string " " <*> targets
                          <*> optionMaybe faceStatus
-                         <*> optionMaybe duration)
+                         <*> optionMaybe durationOrTrigEvent)
               <|> try (ZoneChange <$> optionPlayerYou
                          <*> (try $ ((ciString "return" <|> ciString "put")
                              >> optional (string "s") >> string " ") *> targets)
