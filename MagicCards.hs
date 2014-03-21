@@ -558,6 +558,7 @@ textToAbilities t = case (parse paras "" t) of
                              <|> try alternativeFree
                              <|> try activated
                              <|> try triggered
+                             <|> try basicLand
                              <|> spell))
         commas = (try (string ", ") <|> string ",")
         abilityWord = aw >> string " — "
@@ -948,6 +949,18 @@ textToAbilities t = case (parse paras "" t) of
               <|> (OtherEffect <$> many1 (noneOf ".\n\""))
               ) <* optional (numVariableConsume)
               <* optional (oneOf ".,") <* optional (string " ")
+
+        basicLand =
+          try (ActivatedAbility [CTap] [AddMana Nothing (ManaSymbols [[W]])] Nothing
+              <$ string "W" <* eof)
+          <|> try (ActivatedAbility [CTap] [AddMana Nothing (ManaSymbols [[U]])] Nothing
+              <$ string "U" <* eof)
+          <|> try (ActivatedAbility [CTap] [AddMana Nothing (ManaSymbols [[B]])] Nothing
+              <$ string "B" <* eof)
+          <|> try (ActivatedAbility [CTap] [AddMana Nothing (ManaSymbols [[R]])] Nothing
+              <$ string "R" <* eof)
+          <|> try (ActivatedAbility [CTap] [AddMana Nothing (ManaSymbols [[G]])] Nothing
+              <$ string "G" <* eof)
 
         activated = ActivatedAbility <$> totalCost
           <*> (string ": " *> effects)
