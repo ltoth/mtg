@@ -520,7 +520,7 @@ data Effect =
     | AttackIfAble Targets (Maybe Targets) (Maybe Duration)
 
     | CantBeRegenerated Targets (Maybe Duration)
-    | DoesntUntap Targets Duration
+    | DoesntUntap Targets Duration (Maybe Duration)
 
     | ETBTapStatus Targets TapStatus
     | ETBWithCounters Targets CountRange (Maybe CounterType)
@@ -960,8 +960,10 @@ textToAbilities t = case (parse paras "" t) of
                          <* ciString " if able")
               <|> try (CantBeRegenerated <$> (targets <* ciString "can't be regenerated")
                          <*> optionMaybe duration)
-              <|> try (DoesntUntap <$> targets <* ciString "doesn't untap"
-                         <*> duration)
+              <|> try (DoesntUntap <$> targets
+                         <* (ciString "doesn't" <|> ciString "don't")
+                         <* ciString " untap" <*> duration
+                         <*> optionMaybe (duration))
               <|> try (ETBTapStatus <$> (targets <* ciString "enters the battlefield ")
                          <*> tapStatus)
               <|> try (ETBWithCounters <$> (targets <* ciString "enters the battlefield with ")
