@@ -515,6 +515,9 @@ data Effect =
     -- what, whom, duration
     | AttackIfAble Targets (Maybe Targets) (Maybe Duration)
 
+    | ETBTapStatus Targets TapStatus
+    | ETBWithCounters Targets CountRange (Maybe CounterType)
+
     | Emblem [Ability]
       -- TODO: PermanentStatusMatch for "tapped"
       -- TODO: CombatStatus for "attacking" "blocking"
@@ -940,6 +943,14 @@ textToAbilities t = case (parse paras "" t) of
                          <*> optionMaybe (try $ string " " *> targets)
                          <*> optionMaybe (optional (string " ") *> duration)
                          <* ciString " if able")
+              <|> try (ETBTapStatus <$> (targets <* ciString "enters the battlefield ")
+                         <*> tapStatus)
+              <|> try (ETBWithCounters <$> (targets <* ciString "enters the battlefield with ")
+                         <*> countRange
+                         <*> (try $ (optional (string " ") *>
+                         optionMaybe (many1 (noneOf " \n")) <* optional (string " "))
+                         <* ciString "counter" <* optional (string "s")
+                         <* ciString " on it"))
               <|> try (Emblem <$ ciString "You get an emblem with "
                          <*> quotedAbilities)
               <|> try (Monstrosity <$ ciString "Monstrosity "
