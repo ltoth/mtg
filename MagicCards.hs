@@ -725,7 +725,7 @@ textToAbilities t = case (parse paras "" t) of
         possessive = try (string "'s") <|> try (string "'")
 
         step =
-          try (ciString "untap step" >> return UntapStep)
+          (try (ciString "untap step" >> return UntapStep)
           <|> try (ciString "upkeep" >> return Upkeep)
           <|> try (ciString "draw step" >> return DrawStep)
           <|> try (ciString "precombat main phase" >> return PreCombatMain)
@@ -734,7 +734,8 @@ textToAbilities t = case (parse paras "" t) of
           <|> try (ciString "declare blockers step" >> return DeclareBlockers)
           <|> try (ciString "postcombat main phase" >> return PostCombatMain)
           <|> try (ciString "end step" >> return End)
-          <|> try (ciString "cleanup step" >> return Cleanup)
+          <|> try (ciString "cleanup step" >> return Cleanup))
+          <* optional (string "s")
 
         manaType =
           try (ManaAnyOneColor <$ ciString "mana of any one color")
