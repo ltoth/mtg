@@ -469,7 +469,8 @@ data Ability = AdditionalCost ([Cost])
 
 data Effect =
     -- One-shot effects
-    Destroy Targets
+    Choose Targets Targets (Maybe Zone)
+    | Destroy Targets
     | Counter Targets
     | Exile Targets Targets (Maybe FaceStatus) (Maybe DurationOrTriggerEvent)
 
@@ -831,6 +832,10 @@ textToAbilities t = case (parse paras "" t) of
                          <*> (try $ ciString "may " *> effect))
               <|> try (ModalEffects <$ ciString "Choose " <*> countRange
                          <* string " — " <*> effect `sepBy2` modalSep)
+              <|> try (Choose <$> optionPlayerYou
+                         <* try (ciString "choose") <* optional (string "s")
+                         <* string " " <*> targets
+                         <*> optionMaybe (string "from " *> zone))
               <|> try (ciString "destroy" >> optional (string "s")
                          >> string " " >> Destroy <$> targets)
               <|> try (Counter <$ ciString "counter" <* optional (string "s")
@@ -1193,6 +1198,7 @@ textToAbilities t = case (parse paras "" t) of
           <|> try (CardMatch <$> (permanentTypeMatch `sepBy` orSep')
                  <* string "card" <* optional (string "s")
                  <*> optionMaybe withQuality))
+                 -- TODO: optionMaybe ("in" *> zone)
           <* optional (string " ")  -- to match permanentType's behavior
 
         spellMatch =
