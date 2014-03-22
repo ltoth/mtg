@@ -512,6 +512,9 @@ data Effect =
     -- what, whom, duration
     | CanBlockAdditional Targets Targets (Maybe Duration)
 
+    -- what, whom
+    | CanBlockOnly Targets Targets
+
     -- what, whom, duration
     | AttackIfAble Targets (Maybe Targets) (Maybe Duration)
 
@@ -940,6 +943,8 @@ textToAbilities t = case (parse paras "" t) of
               <|> try (CanBlockAdditional <$> (targets <* ciString "can block an additional ")
                          <*> targets
                          <*> optionMaybe (optional (string " ") *> duration))
+              <|> try (CanBlockOnly <$> (targets <* ciString "can block only ")
+                         <*> targets)
               <|> try (AttackIfAble <$> (targets <* ciString "attack"
                              <* optional (string "s"))
                          <*> optionMaybe (try $ string " " *> targets)
