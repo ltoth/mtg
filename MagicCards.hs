@@ -335,7 +335,7 @@ data SpellMatch = SpellMatch ColorMatch [PermanentTypeMatch]
 
 -- TODO: CardMatch should probably also match colors at least
 data CardMatch = TopCardsOfLibrary NumValue Zone
-               | CardMatch [PermanentTypeMatch] (Maybe Quality)
+               | CardMatch [PermanentTypeMatch] (Maybe Quality) (Maybe Zone)
                deriving (Show, Eq)
 
 data Quality = QPower CountRange | QToughness CountRange
@@ -1197,8 +1197,8 @@ textToAbilities t = case (parse paras "" t) of
                  <* optional (string "s") <* string " of " <*> zone)
           <|> try (CardMatch <$> (permanentTypeMatch `sepBy` orSep')
                  <* string "card" <* optional (string "s")
-                 <*> optionMaybe withQuality))
-                 -- TODO: optionMaybe ("in" *> zone)
+                 <*> optionMaybe withQuality
+                 <*> optionMaybe (string " in " *> zone)))
           <* optional (string " ")  -- to match permanentType's behavior
 
         spellMatch =
