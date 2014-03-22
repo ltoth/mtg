@@ -1124,7 +1124,8 @@ textToAbilities t = case (parse paras "" t) of
               tms <- targetMatch `sepBy1` andOrSep' --FIXME: deal with spaces better
               return $ Target n tms)
           <|> try (do
-              n <- optionMaybe (try $ countRange <* string " ")
+              n <- optionMaybe (try $ countRange <* string " "
+                                  <* optional (string "of "))
               tms <- targetMatch `sepBy1` andOrSep'
               return $ NoTarget n tms)
 
