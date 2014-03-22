@@ -423,7 +423,7 @@ data Duration = DurationUntil TriggerEvent | DurationForAsLongAs TriggerEvent
 data Zone = Library Targets | TopOfLibrary Targets
           | BottomOfLibrary Targets | Hand Targets
           | Graveyard Targets
-          | Battlefield | Stack | ExileZone | Command
+          | Battlefield | Stack | ExileZone | Command | ZoneIt
           deriving (Show, Eq)
 
 data TriggerEvent = TEAt (Maybe PlayerMatch) (Maybe Next) Step
@@ -810,6 +810,7 @@ textToAbilities t = case (parse paras "" t) of
                   <* ciString "hand" <* optional (string "s"))
           <|> try (Graveyard <$> targets
                   <* ciString "graveyard" <* optional (string "s"))
+          <|> try (ZoneIt <$ ciString "it")
 
         faceStatus =
               try (FaceUp <$ string "face up")
@@ -1198,7 +1199,7 @@ textToAbilities t = case (parse paras "" t) of
           <|> try (CardMatch <$> (permanentTypeMatch `sepBy` orSep')
                  <* string "card" <* optional (string "s")
                  <*> optionMaybe withQuality
-                 <*> optionMaybe (string " in " *> zone)))
+                 <*> optionMaybe (try (string " in " *> zone))))
           <* optional (string " ")  -- to match permanentType's behavior
 
         spellMatch =
