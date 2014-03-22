@@ -1,11 +1,12 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 
 module Main
-( main
-, filterCards
+( filterCards
 , nameStartsWith
 , cardTextIncludes
+, hasEffect
 , hasOtherEffect
+, isETB
 , hasTEOther
 , getSet
 , getCards
@@ -41,19 +42,17 @@ effects (TriggeredAbility _ es _) = es
 effects (SpellAbility es) = es
 effects _ = []
 
-hasOtherEffect as = any isOtherEffect (concatMap effects as)
-  where isOtherEffect (OtherEffect _) = True
-        isOtherEffect _ = False
+hasEffect p as = any p (concatMap effects as)
+hasOtherEffect = hasEffect isOtherEffect
+
+isOtherEffect (OtherEffect _) = True
+isOtherEffect _ = False
+
+isETB (OtherEffect e) = "{This} enters the battlefield" `isInfixOf` e
+isETB _ = False
 
 hasTEOther = any isTEOther
   where isTEOther (TriggeredAbility (TEOther _) _ _) = True
         isTEOther _ = False
 
-p1 = (\c -> rarity c == MythicRare && cmc c == Just 5)
-p2 = (\c -> R `elem` fromMaybe [] (manaCost c))
-p3 = (\c -> Legendary `elem` fromMaybe [] (supertypes c))
-foo = map name <$> filterCards p1
-
 setFile = "THS.json"
-
-main = foo
