@@ -415,6 +415,7 @@ type CounterType = String
 type DurationOrTriggerEvent = Either Duration TriggerEvent
 
 data Duration = DurationUntil TriggerEvent | DurationForAsLongAs TriggerEvent
+              | DurationDuring (Maybe PlayerMatch) (Maybe Next) Step
               | DurationEachTurn  -- FIXME: Perhaps "each turn" shouldn't be a duration?
               | DurationEachCombat -- FIXME: Perhaps "each combat" shouldn't either?
               deriving (Show, Eq)
@@ -519,6 +520,7 @@ data Effect =
     | AttackIfAble Targets (Maybe Targets) (Maybe Duration)
 
     | CantBeRegenerated Targets (Maybe Duration)
+    | DoesntUntap Targets Duration
 
     | ETBTapStatus Targets TapStatus
     | ETBWithCounters Targets CountRange (Maybe CounterType)
@@ -623,14 +625,19 @@ textToAbilities t = case (parse paras "" t) of
           <|> try (ciString "Whenever " >> TEOther <$> many (noneOf ",\n"))
           <|> try (ciString "When " >> effectEvent)
 
-        duration = try (DurationUntil <$> (optional (string " ") >>
-                     ciString "until " >> turnEvent <|> effectEvent))
-               <|> try (DurationForAsLongAs <$> (optional (string " ") >>
-                     ciString "for as long as " >> effectEvent))
+        duration = try (optional (string " ")) *>
+               (try (DurationUntil <$ ciString "until "
+                      <*> (turnEvent <|> effectEvent))
+               <|> try (DurationForAsLongAs <$ optional (ciString "for ")
+                      <* ciString "as long as " <*> effectEvent)
                <|> try (DurationUntil (TEAt (Just EachPlayer) Nothing Cleanup)
                      <$ ciString "this turn")
+               <|> try (DurationDuring <$ ciString "during "
+                     <*> optionMaybe playerMatch
+                     <*> optionMaybe next
+                     <*> step)
                <|> try (DurationEachTurn <$ ciString "each turn")
-               <|> try (DurationEachCombat <$ ciString "each combat")
+               <|> try (DurationEachCombat <$ ciString "each combat"))
 
         -- TODO: first check "at the beginning of combat on your turn"
         -- (Battle-Rattle Shaman)
@@ -951,7 +958,9 @@ textToAbilities t = case (parse paras "" t) of
                          <*> optionMaybe (optional (string " ") *> duration)
                          <* ciString " if able")
               <|> try (CantBeRegenerated <$> (targets <* ciString "can't be regenerated")
-                         <*> optionMaybe (optional (string " ") *> duration))
+                         <*> optionMaybe duration)
+              <|> try (DoesntUntap <$> targets <* ciString "doesn't untap"
+                         <*> duration)
               <|> try (ETBTapStatus <$> (targets <* ciString "enters the battlefield ")
                          <*> tapStatus)
               <|> try (ETBWithCounters <$> (targets <* ciString "enters the battlefield with ")
