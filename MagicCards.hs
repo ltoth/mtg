@@ -515,6 +515,8 @@ data Effect =
     -- what, whom, duration
     | AttackIfAble Targets (Maybe Targets) (Maybe Duration)
 
+    | CantBeRegenerated Targets (Maybe Duration)
+
     | ETBTapStatus Targets TapStatus
     | ETBWithCounters Targets CountRange (Maybe CounterType)
 
@@ -943,6 +945,8 @@ textToAbilities t = case (parse paras "" t) of
                          <*> optionMaybe (try $ string " " *> targets)
                          <*> optionMaybe (optional (string " ") *> duration)
                          <* ciString " if able")
+              <|> try (CantBeRegenerated <$> (targets <* ciString "can't be regenerated")
+                         <*> optionMaybe (optional (string " ") *> duration))
               <|> try (ETBTapStatus <$> (targets <* ciString "enters the battlefield ")
                          <*> tapStatus)
               <|> try (ETBWithCounters <$> (targets <* ciString "enters the battlefield with ")
