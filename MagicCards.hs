@@ -516,6 +516,9 @@ data Effect =
     -- what, whom
     | CanBlockOnly Targets Targets
 
+    -- what, by whom (exactly), duration
+    | MustBeBlockedIfAble Targets (Maybe Targets) (Maybe Duration)
+
     -- what, whom, duration
     | AttackIfAble Targets (Maybe Targets) (Maybe Duration)
 
@@ -953,6 +956,10 @@ textToAbilities t = case (parse paras "" t) of
                          <*> optionMaybe (optional (string " ") *> duration))
               <|> try (CanBlockOnly <$> (targets <* ciString "can block only ")
                          <*> targets)
+              <|> try (MustBeBlockedIfAble <$> targets <* ciString "must be blocked"
+                         <*> optionMaybe (try $ string " by exactly " *> targets)
+                         <*> optionMaybe duration
+                         <* ciString " if able")
               <|> try (AttackIfAble <$> (targets <* ciString "attack"
                              <* optional (string "s"))
                          <*> optionMaybe (try $ string " " *> targets)
@@ -963,7 +970,7 @@ textToAbilities t = case (parse paras "" t) of
               <|> try (DoesntUntap <$> targets
                          <* (ciString "doesn't" <|> ciString "don't")
                          <* ciString " untap" <*> duration
-                         <*> optionMaybe (duration))
+                         <*> optionMaybe duration)
               <|> try (ETBTapStatus <$> (targets <* ciString "enters the battlefield ")
                          <*> tapStatus)
               <|> try (ETBWithCounters <$> (targets <* ciString "enters the battlefield with ")
