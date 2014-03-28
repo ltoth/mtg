@@ -13,11 +13,10 @@ module MagicCards.Subtype
 ) where
 
 import Control.Applicative
-import Control.Monad
-import Data.Aeson (FromJSON, parseJSON, Value(..), (.:), (.:?))
+import Data.Aeson (FromJSON, parseJSON, Value(..))
 import Data.Functor.Identity (Identity)
 import qualified Data.Text as T
-import Text.Parsec.Char.Extra(ciChar, ciString)
+import Text.Parsec.Char.Extra(ciString)
 import Text.Parsec.Prim (ParsecT)
 import Text.ParserCombinators.Parsec hiding (many, optional, (<|>))
 

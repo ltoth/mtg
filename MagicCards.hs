@@ -52,9 +52,7 @@ module MagicCards
 import Control.Applicative
 import Control.Monad
 import Data.Aeson (FromJSON, parseJSON, Value(..), (.:), (.:?))
-import Data.Char (isSpace)
 import Data.Functor.Identity (Identity)
-import Data.Int (Int8)
 import Data.List.Split (splitOn)
 import Data.List (intercalate)
 import Data.Maybe (fromMaybe)
@@ -65,7 +63,7 @@ import Text.ParserCombinators.Parsec hiding (many, optional, (<|>))
 import Text.Regex
 
 import MagicCards.Subtype
-import Text.Parsec.Char.Extra(ciChar, ciString)
+import Text.Parsec.Char.Extra(ciString)
 import Text.ParserCombinators.Parsec.Extra (sepBy2)
 
 data Layout = Normal | Split | Flip | DoubleFaced | TokenLayout | Plane | Scheme
@@ -132,11 +130,7 @@ manaSymbolParser = try (string "{G/W}" >> return GW)
              -- so get rid of it?
              <|> try (string "{Z}" >> return Z) -- TODO: Only Unhinged
              <|> try (string "{P}" >> return P)
-             <|> (do
-                    char '{'
-                    cl <- many1 digit
-                    char '}'
-                    return $ CL $ read cl)
+             <|> CL <$> (char '{' *> (read <$> many1 digit) <* char '}')
 
 data ManaSymbol = W | U | B | R | G | S | CL Word8 | X | Y | Z
                   | GW | WU | RW | WB | UB | GU | UR | BR | BG | RG
