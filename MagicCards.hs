@@ -1,54 +1,55 @@
 {-# LANGUAGE FlexibleInstances, NoMonomorphismRestriction, OverloadedStrings,
-      TypeSynonymInstances #-}
+      TemplateHaskell, TypeSynonymInstances #-}
 
 module MagicCards
-( Layout(..)
-, Name
-, ManaCost
-, ManaSymbol(..)
-, CMC
-, Color(..)
-, TypeLine
-, Supertype(..)
-, Type(..)
-, Rarity(..)
-, CardText
-, Flavor
-, Artist
-, CardNumber
-, Power
-, Toughness
-, Loyalty
-, MultiverseID
-, ImageName
-, Watermark
-, Border(..)
-, Card(..)
-, Ability(..)
-, Effect(..) -- FIXME: Should this be exported?
-, TriggerEvent(..) -- FIXME: Should this be exported?
-, abilities -- FIXME: Move elsewhere?
-, textToAbilities -- FIXME: This should probably not be exported
-, manaCostParser -- FIXME: This should probably not be exported
-, removeReminder -- FIXME: This should not be exported
-, replaceThis -- FIXME: This should not be exported
-, SetName
-, SetCode
-, SetRelease
-, SetType
-, SetBlock
-, CardSet(..)
+-- ( Layout(..)
+-- , Name
+-- , ManaCost
+-- , ManaSymbol(..)
+-- , CMC
+-- , Color(..)
+-- , TypeLine
+-- , Supertype(..)
+-- , Type(..)
+-- , Rarity(..)
+-- , CardText
+-- , Flavor
+-- , Artist
+-- , CardNumber
+-- , Power
+-- , Toughness
+-- , Loyalty
+-- , MultiverseID
+-- , ImageName
+-- , Watermark
+-- , Border(..)
+-- , Card(..)
+-- , Ability(..)
+-- , Effect(..) -- FIXME: Should this be exported?
+-- , TriggerEvent(..) -- FIXME: Should this be exported?
+-- , abilities -- FIXME: Move elsewhere?
+-- , textToAbilities -- FIXME: This should probably not be exported
+-- , manaCostParser -- FIXME: This should probably not be exported
+-- , removeReminder -- FIXME: This should not be exported
+-- , replaceThis -- FIXME: This should not be exported
+-- , SetName
+-- , SetCode
+-- , SetRelease
+-- , SetType
+-- , SetBlock
+-- , CardSet(..)
 
--- re-export types from MagicCards.Subtype
-, Subtype(..)
-, ArtifactType(..)
-, EnchantmentType(..)
-, LandType(..)
-, BasicLandType(..)
-, PlaneswalkerType(..)
-, SpellType(..)
-, CreatureType(..)
-) where
+-- -- re-export types from MagicCards.Subtype
+-- , Subtype(..)
+-- , ArtifactType(..)
+-- , EnchantmentType(..)
+-- , LandType(..)
+-- , BasicLandType(..)
+-- , PlaneswalkerType(..)
+-- , SpellType(..)
+-- , CreatureType(..)
+-- )
+ where
 
 import Control.Applicative
 import Control.Lens hiding (noneOf)
@@ -254,28 +255,28 @@ instance FromJSON Border where
     parseJSON _ = fail "Could not parse border"
 
 data Card = Card
-          { layout :: Layout
-          , typeLine :: TypeLine
-          , types :: [Type]
-          , colors :: [Color]
-          , multiverseid :: MultiverseID
-          , name :: Name
-          , names :: Maybe [Name]
-          , supertypes :: Maybe [Supertype]
-          , subtypes :: Maybe [Subtype]
-          , cmc :: Maybe CMC
-          , rarity :: Rarity
-          , artist :: Artist
-          , power :: Maybe Power
-          , toughness :: Maybe Toughness
-          , loyalty :: Maybe Loyalty
-          , manaCost :: Maybe ManaCost
-          , cardText :: Maybe CardText
-          , cardNumber :: CardNumber
-          , variations :: Maybe [MultiverseID]
-          , imageName :: ImageName
-          , watermark :: Maybe Watermark
-          , cardBorder :: Maybe Border
+          { _layout :: Layout
+          , _typeLine :: TypeLine
+          , _types :: [Type]
+          , _colors :: [Color]
+          , _multiverseid :: MultiverseID
+          , _name :: Name
+          , _names :: Maybe [Name]
+          , _supertypes :: Maybe [Supertype]
+          , _subtypes :: Maybe [Subtype]
+          , _cmc :: Maybe CMC
+          , _rarity :: Rarity
+          , _artist :: Artist
+          , _power :: Maybe Power
+          , _toughness :: Maybe Toughness
+          , _loyalty :: Maybe Loyalty
+          , _manaCost :: Maybe ManaCost
+          , _cardText :: Maybe CardText
+          , _cardNumber :: CardNumber
+          , _variations :: Maybe [MultiverseID]
+          , _imageName :: ImageName
+          , _watermark :: Maybe Watermark
+          , _cardBorder :: Maybe Border
           } deriving (Show)
 instance FromJSON Card where
     parseJSON (Object v) = Card <$>
@@ -302,6 +303,8 @@ instance FromJSON Card where
                            v .:? "watermark" <*>
                            v .:? "border"
     parseJSON _ = fail "Could not parse card"
+
+makeLenses ''Card
 
 data Cost = CMana ManaCost | CTap | CUntap | CLoyalty NumChange
           | CEffect Effect
@@ -1384,9 +1387,9 @@ removeReminder t = subRegex (mkRegex " *\\([^)]+\\) *")
 replaceThis :: Card -> Maybe CardText
 replaceThis c =
     replace shortName "{This}"
-    . replace (name c) "{This}"
-    <$> cardText c
-    where shortName = subRegex (mkRegex ", .*$") (name c) ""
+    . replace (_name c) "{This}"
+    <$> _cardText c
+    where shortName = subRegex (mkRegex ", .*$") (_name c) ""
           -- This handles the THS Gods, Tymaret, Jarad, etc.
           -- since only their first names are used in ability text
 
