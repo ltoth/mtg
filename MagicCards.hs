@@ -254,58 +254,6 @@ instance FromJSON Border where
       | otherwise = fail "Invalid border specified"
     parseJSON _ = fail "Could not parse border"
 
-data Card = Card
-          { _layout :: Layout
-          , _typeLine :: TypeLine
-          , _types :: [Type]
-          , _colors :: [Color]
-          , _multiverseid :: MultiverseID
-          , _name :: Name
-          , _names :: Maybe [Name]
-          , _supertypes :: Maybe [Supertype]
-          , _subtypes :: Maybe [Subtype]
-          , _cmc :: Maybe CMC
-          , _rarity :: Rarity
-          , _artist :: Artist
-          , _power :: Maybe Power
-          , _toughness :: Maybe Toughness
-          , _loyalty :: Maybe Loyalty
-          , _manaCost :: Maybe ManaCost
-          , _cardText :: Maybe CardText
-          , _cardNumber :: CardNumber
-          , _variations :: Maybe [MultiverseID]
-          , _imageName :: ImageName
-          , _watermark :: Maybe Watermark
-          , _cardBorder :: Maybe Border
-          } deriving (Show)
-instance FromJSON Card where
-    parseJSON (Object v) = Card <$>
-                           v .: "layout" <*>
-                           v .: "type" <*>
-                           v .: "types" <*>
-                           v .: "colors" <*>
-                           v .: "multiverseid" <*>
-                           v .: "name" <*>
-                           v .:? "names" <*>
-                           v .:? "supertypes" <*>
-                           v .:? "subtypes" <*>
-                           v .:? "cmc" <*>
-                           v .: "rarity" <*>
-                           v .: "artist" <*>
-                           v .:? "power" <*>
-                           v .:? "toughness" <*>
-                           v .:? "loyalty" <*>
-                           v .:? "manaCost" <*>
-                           v .:? "text" <*>
-                           v .: "number" <*>
-                           v .:? "variations" <*>
-                           v .: "imageName" <*>
-                           v .:? "watermark" <*>
-                           v .:? "border"
-    parseJSON _ = fail "Could not parse card"
-
-makeLenses ''Card
-
 data Cost = CMana ManaCost | CTap | CUntap | CLoyalty NumChange
           | CEffect Effect
           deriving (Show, Eq)
@@ -544,14 +492,6 @@ data Effect =
     | OptionalEffect PlayerMatch Effect
     | OtherEffect String
     deriving (Show, Eq)
-
--- TODO: Use arrows? to keep the reference to the card throughout,
--- as we need to refer to types etc.
-abilities :: Card -> [Ability]
-abilities c = fromMaybe [] $
-              textToAbilities <$>
-              removeReminder <$>
-              replaceThis c
 
 textToAbilities :: CardText -> [Ability]
 textToAbilities ct = case parse paras "" ct of
@@ -1379,6 +1319,60 @@ data Keyword = Deathtouch
              | Bestow ([Cost])
              deriving (Show, Eq)
 
+data Card = Card
+          { _layout :: Layout
+          , _typeLine :: TypeLine
+          , _types :: [Type]
+          , _colors :: [Color]
+          , _multiverseid :: MultiverseID
+          , _name :: Name
+          , _names :: Maybe [Name]
+          , _supertypes :: Maybe [Supertype]
+          , _subtypes :: Maybe [Subtype]
+          , _cmc :: Maybe CMC
+          , _rarity :: Rarity
+          , _artist :: Artist
+          , _power :: Maybe Power
+          , _toughness :: Maybe Toughness
+          , _loyalty :: Maybe Loyalty
+          , _manaCost :: Maybe ManaCost
+          , _cardText :: Maybe CardText
+          , _abilities :: [Ability]
+          , _cardNumber :: CardNumber
+          , _variations :: Maybe [MultiverseID]
+          , _imageName :: ImageName
+          , _watermark :: Maybe Watermark
+          , _cardBorder :: Maybe Border
+          } deriving (Show)
+instance FromJSON Card where
+    parseJSON (Object v) = Card <$>
+                           v .: "layout" <*>
+                           v .: "type" <*>
+                           v .: "types" <*>
+                           v .: "colors" <*>
+                           v .: "multiverseid" <*>
+                           v .: "name" <*>
+                           v .:? "names" <*>
+                           v .:? "supertypes" <*>
+                           v .:? "subtypes" <*>
+                           v .:? "cmc" <*>
+                           v .: "rarity" <*>
+                           v .: "artist" <*>
+                           v .:? "power" <*>
+                           v .:? "toughness" <*>
+                           v .:? "loyalty" <*>
+                           v .:? "manaCost" <*>
+                           v .:? "text" <*>
+                           pure [] <*>
+                           v .: "number" <*>
+                           v .:? "variations" <*>
+                           v .: "imageName" <*>
+                           v .:? "watermark" <*>
+                           v .:? "border"
+    parseJSON _ = fail "Could not parse card"
+
+makeLenses ''Card
+
 removeReminder :: CardText -> CardText
 -- FIXME: Should not be greedy
 removeReminder t = subRegex (mkRegex " *\\([^)]+\\) *")
@@ -1395,6 +1389,13 @@ replaceThis c =
 
 replace :: Eq a => [a] -> [a] -> [a] -> [a]
 replace old new = intercalate new . splitOn old
+
+parseAndSetAbilities :: Card -> Card
+parseAndSetAbilities c = c & abilities .~ as
+  where as = fromMaybe [] $
+             textToAbilities <$>
+             removeReminder <$>
+             replaceThis c
 
 type SetName = String
 type SetCode = String

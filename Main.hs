@@ -23,13 +23,16 @@ import Data.Maybe (fromMaybe)
 import MagicCards
 
 getCards :: FilePath -> IO (Maybe [Card])
-getCards fp = liftM (cards <$>) (getSet fp)
+getCards fp = (cards <$>) <$> getSet fp
 
 getSet :: FilePath -> IO (Maybe CardSet)
-getSet fp =  decode <$> L.readFile fp
+getSet fp = decode <$> L.readFile fp
 
 filterCards :: (Card -> Bool) -> IO [Card]
-filterCards p = liftM (filter p . fromMaybe []) (getCards setFile)
+filterCards p = go <$> getCards setFile
+  where go = fmap parseAndSetAbilities .
+             filter p .
+             fromMaybe []
 
 cardTextIncludes :: String -> Card -> Bool
 cardTextIncludes s = fromMaybe False . (view cardText >=> pure . isInfixOf s)
