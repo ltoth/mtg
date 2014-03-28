@@ -1,4 +1,5 @@
-{-# LANGUAGE FlexibleInstances, NoMonomorphismRestriction, OverloadedStrings, TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances, NoMonomorphismRestriction, OverloadedStrings,
+      TemplateHaskell, TypeSynonymInstances #-}
 
 module MagicCards
 ( Layout(..)

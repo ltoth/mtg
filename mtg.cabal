@@ -23,6 +23,7 @@ library
   other-extensions:    FlexibleInstances,
                        NoMonomorphismRestriction,
                        OverloadedStrings,
+                       TemplateHaskell,
                        TypeSynonymInstances
   build-depends:       base >=4.6 && <4.7,
                        aeson >=0.7 && <1.0,
@@ -31,6 +32,7 @@ library
                        filepath >=1.0 && <2.0,
                        ipprint >=0.5 && <0.6,
                        hscolour >=1.20 && <2.0,
+                       lens >=4.0 && <5.0,
                        parsec >=3.0 && <4.0,
                        regex-compat >=0.90 && <1.0,
                        split >=0.2 && <0.3,
