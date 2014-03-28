@@ -1387,9 +1387,9 @@ removeReminder t = subRegex (mkRegex " *\\([^)]+\\) *")
 replaceThis :: Card -> Maybe CardText
 replaceThis c =
     replace shortName "{This}"
-    . replace (_name c) "{This}"
-    <$> _cardText c
-    where shortName = subRegex (mkRegex ", .*$") (_name c) ""
+    . replace (c ^. name) "{This}"
+    <$> c ^. cardText
+    where shortName = subRegex (mkRegex ", .*$") (c ^. name) ""
           -- This handles the THS Gods, Tymaret, Jarad, etc.
           -- since only their first names are used in ability text
 

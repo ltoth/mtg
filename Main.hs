@@ -13,6 +13,7 @@ module Main
 ) where
 
 import Control.Applicative
+import Control.Lens
 import Control.Monad
 import Data.Aeson
 import qualified Data.ByteString.Lazy.Char8 as L
@@ -31,10 +32,10 @@ filterCards :: (Card -> Bool) -> IO [Card]
 filterCards p = liftM (filter p . fromMaybe []) (getCards setFile)
 
 cardTextIncludes :: String -> Card -> Bool
-cardTextIncludes s = fromMaybe False . (_cardText >=> pure . isInfixOf s)
+cardTextIncludes s = fromMaybe False . (view cardText >=> pure . isInfixOf s)
 
 nameStartsWith :: String -> Card -> Bool
-nameStartsWith s = isPrefixOf s . _name
+nameStartsWith s = isPrefixOf s . view name
 
 effects :: Ability -> [Effect]
 effects (ActivatedAbility _ es _) = es
