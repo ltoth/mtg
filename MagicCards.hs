@@ -1,5 +1,5 @@
 {-# LANGUAGE FlexibleInstances, NoMonomorphismRestriction, OverloadedStrings,
-      TemplateHaskell, TypeSynonymInstances #-}
+      TypeSynonymInstances #-}
 
 module MagicCards
 ( Layout(..)
@@ -51,9 +51,9 @@ module MagicCards
 ) where
 
 import Control.Applicative
+import Control.Lens hiding (noneOf)
 import Control.Monad
 import Data.Aeson (FromJSON, parseJSON, Value(..), (.:), (.:?))
-import Data.Functor.Identity (Identity)
 import Data.List.Split (splitOn)
 import Data.List (intercalate)
 import Data.Maybe (fromMaybe)
