@@ -92,7 +92,7 @@ instance FromJSON ManaCost where
 
 -- TODO: Should this be a custom instance of Read instead?
 stringToManaCost :: String -> ManaCost
-stringToManaCost s = case (parse manaCostParser "" s) of
+stringToManaCost s = case parse manaCostParser "" s of
                       Left e -> error (show e)
                       Right xs -> xs
 
@@ -154,7 +154,7 @@ instance FromJSON Color where
 -- TODO: Should this be a custom instance of Read instead?
 -- TODO: Generalize to take the parser fn as argument: parseString
 stringToColor :: String -> Color
-stringToColor s = case (parse colorParser "" s) of
+stringToColor s = case parse colorParser "" s of
                       Left e -> error (show e)
                       Right xs -> xs
 
@@ -176,7 +176,7 @@ instance FromJSON Supertype where
 -- TODO: Should this be a custom instance of Read instead?
 -- TODO: Generalize to take the parser fn as argument: parseString
 stringToSupertype :: String -> Supertype
-stringToSupertype s = case (parse supertypeParser "" s) of
+stringToSupertype s = case parse supertypeParser "" s of
                       Left e -> error (show e)
                       Right xs -> xs
 
@@ -197,7 +197,7 @@ instance FromJSON Type where
 -- TODO: Should this be a custom instance of Read instead?
 -- TODO: Generalize to take the parser fn as argument: parseString
 stringToType :: String -> Type
-stringToType s = case (parse typeParser "" s) of
+stringToType s = case parse typeParser "" s of
                       Left e -> error (show e)
                       Right xs -> xs
 
@@ -551,14 +551,14 @@ abilities c = fromMaybe [] $
               replaceThis c
 
 textToAbilities :: CardText -> [Ability]
-textToAbilities ct = case (parse paras "" ct) of
+textToAbilities ct = case parse paras "" ct of
                       Left e -> error (show e)
                       Right xs -> xs
                       -- FIXME: Perhaps we shouldn't flatten the list, so
                       -- that when Artisan's Sorrow has an illegal target,
                       -- we know not to resolve Scry 2. Those effects are
                       -- one ability.
-  where paras = concat <$> abilityPara `sepBy` (string "\n\n") <* eof
+  where paras = concat <$> abilityPara `sepBy` string "\n\n" <* eof
         abilityPara = try (keyword `sepBy1` commas)
                   <|> (optional abilityWord >>
                        many1 (try additional
@@ -568,7 +568,7 @@ textToAbilities ct = case (parse paras "" ct) of
                              <|> try triggered
                              <|> try basicLand
                              <|> spell))
-        commas = (try (string ", ") <|> string ",")
+        commas = try (string ", ") <|> string ","
         abilityWord = aw >> string " — "
           where aw = try (string "Battalion")
                  <|> try (string "Bloodrush")
@@ -593,7 +593,7 @@ textToAbilities ct = case (parse paras "" ct) of
 
         additional = ciString "As an additional cost to cast {This}, " >>
                             AdditionalCost <$> totalCost
-                            <* optional (many (oneOf (". ")))
+                            <* optional (many (oneOf ". "))
 
         alternative = do
           cond <- optionMaybe (string "If " *> conditions <* string ", ")
@@ -759,9 +759,9 @@ textToAbilities ct = case (parse paras "" ct) of
                   ciString " and "
                   ks <- addAbilitiesPartial
                   d <- optionMaybe duration
-                  return $ [(uncurry (ModifyPT ts)) pt d,
-                            AddAbilities (NoTarget Nothing [TMIt]) ks d])
-                  <* optional (numVariableConsume)
+                  return [uncurry (ModifyPT ts) pt d,
+                          AddAbilities (NoTarget Nothing [TMIt]) ks d])
+                  <* optional numVariableConsume
                   <* optional (string ".") <* optional (string " ")
 
           -- Most common case -- several effects, one in each sentence
@@ -779,7 +779,7 @@ textToAbilities ct = case (parse paras "" ct) of
           try $ (optional (string " ") >>
                 optional (string "each ") >>
                 try (ciString "gain" <* optional (string "s"))
-                  <|> try (ciString "have") <|> (ciString "has")
+                  <|> try (ciString "have") <|> ciString "has"
                 >> string " ") *>
                 (try (keyword `sepBy1` andSep)
                   <|> quotedAbilities)
@@ -823,9 +823,9 @@ textToAbilities ct = case (parse paras "" ct) of
                <|> try (string "; and/or ")
 
         effect =
-              (optional (try $ ciString "Then " <|> ciString "and ")) *>
+              optional (try $ ciString "Then " <|> ciString "and ") *>
               (try (OptionalEffect <$> playerMatch
-                         <*> (try $ ciString "may " *> effect))
+                         <*> try (ciString "may " *> effect))
               <|> try (ModalEffects <$ ciString "Choose " <*> countRange
                          <* string " — " <*> effect `sepBy2` modalSep)
               <|> try (Choose <$> optionPlayerYou
@@ -842,10 +842,10 @@ textToAbilities ct = case (parse paras "" ct) of
                          <*> optionMaybe faceStatus
                          <*> optionMaybe durationOrTrigEvent)
               <|> try (ZoneChange <$> optionPlayerYou
-                         <*> (try $ ((ciString "return" <|> ciString "put")
+                         <*> (try ((ciString "return" <|> ciString "put")
                              >> optional (string "s") >> string " ") *> targets)
                          <*> optionMaybe (try $ string "from " >> zone)
-                         <*> optionMaybe (try $ fromAmong)
+                         <*> optionMaybe (try fromAmong)
                          <*> (optional (string " ") >>
                              (try (string "on ") <|>
                                (optional (string "on")
@@ -867,18 +867,18 @@ textToAbilities ct = case (parse paras "" ct) of
               <|> try (ciString "tap " >> Tap <$> targets)
               <|> try (ciString "untap " >> Untap <$> targets)
               <|> try (LoseLife <$> targets
-                         <*> (try $ (ciString "lose" >> optional (string "s")
+                         <*> try ((ciString "lose" >> optional (string "s")
                              >> string " ") *> numberParser
                              <* (optional (string " ") >> string "life")))
               <|> try (GainLife <$> targets
-                         <*> (try $ (ciString "gain" >> optional (string "s")
+                         <*> try ((ciString "gain" >> optional (string "s")
                              >> string " ") *> numberParser
                              <* (optional (string " ") >> string "life")))
               <|> try (PayLife <$> (ciString "Pay " *> numberParser
                              <* (optional (string " ") >> string "life")))
               <|> try (AddAbilities <$> targets
                         <*> addAbilitiesPartial
-                        <*> (optionMaybe duration))
+                        <*> optionMaybe duration)
               -- Syntax that starts with duration, i.e.
               -- "Until end of turn, up to two target creatures each gain"
               <|> try (do
@@ -889,36 +889,36 @@ textToAbilities ct = case (parse paras "" ct) of
                       return $ AddAbilities ts ks (Just d))
               <|> try ((uncurry <$> (ModifyPT <$> targets))
                        <*> modifyPTPartial
-                       <*> (optionMaybe duration))
+                       <*> optionMaybe duration)
               <|> try (DealDamage <$> targets
-                         <*> (try $ (ciString "deal" >> optional (string "s")
+                         <*> try ((ciString "deal" >> optional (string "s")
                              >> string " ") *> numberParser
                              <* (optional (string " ") >> string "damage "))
                          <*> (optionMaybe divided <* optional (string "to "))
                          <*> targets)
               <|> try (DrawCard <$> optionPlayerYou
-                         <*> (try $ (ciString "draw" >> optional (string "s")
+                         <*> try ((ciString "draw" >> optional (string "s")
                              >> string " ") *> numberParser
                              <* (optional (string " ") >> string "card"
                              >> optional (string "s"))))
               <|> try (Sacrifice <$> optionPlayerYou
-                         <*> (try $ (ciString "sacrifice" >> optional (string "s")
+                         <*> try ((ciString "sacrifice" >> optional (string "s")
                              >> string " ") *> targets))
               <|> try (Discard <$> optionPlayerYou
-                         <*> (try $ (ciString "discard" >> optional (string "s")
+                         <*> try ((ciString "discard" >> optional (string "s")
                              >> string " ") *> targets))
               <|> try (Regenerate <$ ciString "regenerate " <*> targets)
               <|> try (GainControl <$> optionPlayerYou
-                         <*> (try $ (ciString "gain" >> optional (string "s")
+                         <*> try ((ciString "gain" >> optional (string "s")
                              >> string " control of ") *> targets)
                          <*> optionMaybe duration)
               <|> try (ciString "Remove " >> RemoveCounters <$> countRange
-                         <*> (try $ (optional (string " ") *>
+                         <*> try ((optional (string " ") *>
                          optionMaybe (many1 (noneOf " \n")) <* optional (string " "))
                          <* ciString "counter" <* optional (string "s")
                          <* ciString " from ") <*> targets)
               <|> try (ciString "Put " >> PutCounters <$> countRange
-                         <*> (try $ (optional (string " ") *>
+                         <*> try ((optional (string " ") *>
                          optionMaybe (many1 (noneOf " \n")) <* optional (string " "))
                          <* ciString "counter" <* optional (string "s")
                          <* ciString " on ") <*> targets)
@@ -976,7 +976,7 @@ textToAbilities ct = case (parse paras "" ct) of
                          <*> tapStatus)
               <|> try (ETBWithCounters <$> (targets <* ciString "enters the battlefield with ")
                          <*> countRange
-                         <*> (try $ (optional (string " ") *>
+                         <*> try ((optional (string " ") *>
                          optionMaybe (many1 (noneOf " \n")) <* optional (string " "))
                          <* ciString "counter" <* optional (string "s")
                          <* ciString " on it"))
@@ -986,7 +986,7 @@ textToAbilities ct = case (parse paras "" ct) of
                          <*> explicitNumber)
               <|> try (Scry <$ ciString "Scry " <*> explicitNumber)
               <|> (OtherEffect <$> many1 (noneOf ".\n\""))
-              ) <* optional (numVariableConsume)
+              ) <* optional numVariableConsume
               <* optional (oneOf ".,") <* optional (string " ")
 
         basicLand =
@@ -1008,7 +1008,7 @@ textToAbilities ct = case (parse paras "" ct) of
         -- FIXME: This will only work once all effects are accounted for
         -- and we take out OtherEffect
         activationInst = try $ string "Activate this ability only "
-                               *> many1 (noneOf ("\n"))
+                               *> many1 (noneOf "\n")
 
         totalCost = abilityCost `sepBy1` andSep
         andSep = try (string ", and ")
@@ -1017,10 +1017,10 @@ textToAbilities ct = case (parse paras "" ct) of
                      <|> string ","  -- FIXME: Is this necessary?
         abilityCost = try (string "{T}" >> return CTap)
                   <|> try (string "{Q}" >> return CUntap)
-                  <|> try ((optional (ciString "Pay ") >>
-                        CMana <$> manaCostParser))
+                  <|> try (optional (ciString "Pay ") >>
+                        CMana <$> manaCostParser)
                   <|> try (CLoyalty <$> numChange)
-                  <|> try (string "0" >> (return $ CLoyalty (Plus (NumValue 0))))
+                  <|> try (string "0" >> return (CLoyalty (Plus (NumValue 0))))
                   <|> try (CEffect <$> effect)
 
         countRange = try (ciString "any number of" >> return AnyNumber)
@@ -1034,7 +1034,7 @@ textToAbilities ct = case (parse paras "" ct) of
                  <|> try (Exactly <$> countParser)
 
         countParser = try (string "another" >>
-                          (return $ (OtherCount . NumValue) $ 1))
+                          return ((OtherCount . NumValue) 1))
                   <|> try (do
                           n <- numberParser
                           string " other"
@@ -1052,45 +1052,45 @@ textToAbilities ct = case (parse paras "" ct) of
                           optional $ try (string "a number of")
                           optional $ try (string "an amount of")
                           lookAhead $ try (do
-                            noneOf (",.\n") `manyTill` try (string "equal to ")
-                            NumVariable <$> many1 (noneOf (",.\n"))))
+                            noneOf ",.\n" `manyTill` try (string "equal to ")
+                            NumVariable <$> many1 (noneOf ",.\n")))
                   <|> try explicitNumber
 
         explicitNumber = try (do
                            try (string "X")
                            lookAhead $ try (do
-                             noneOf (".\n") `manyTill` try (string ", where X is ")
-                             NumVariable <$> many1 (noneOf (".\n"))))
-                  <|> try (string "X" >> (return NumValueX))
-                  <|> try (string "an" >> (return $ NumValue 1))
-                  <|> try (string "a" >> (return $ NumValue 1))
-                  <|> try (string "both" >> (return $ NumValue 2))
-                  <|> try (string "eleven" >> (return $ NumValue 11))
-                  <|> try (string "twelve" >> (return $ NumValue 12))
-                  <|> try (string "thirteen" >> (return $ NumValue 13))
-                  <|> try (string "fourteen" >> (return $ NumValue 14))
-                  <|> try (string "fifteen" >> (return $ NumValue 15))
-                  <|> try (string "sixteen" >> (return $ NumValue 16))
-                  <|> try (string "seventeen" >> (return $ NumValue 17))
-                  <|> try (string "eighteen" >> (return $ NumValue 18))
-                  <|> try (string "nineteen" >> (return $ NumValue 19))
-                  <|> try (string "twenty" >> (return $ NumValue 20))
-                  <|> try (string "one" >> (return $ NumValue 1))
-                  <|> try (string "two" >> (return $ NumValue 2))
-                  <|> try (string "three" >> (return $ NumValue 3))
-                  <|> try (string "four" >> (return $ NumValue 4))
-                  <|> try (string "five" >> (return $ NumValue 5))
-                  <|> try (string "six" >> (return $ NumValue 6))
-                  <|> try (string "seven" >> (return $ NumValue 7))
-                  <|> try (string "eight" >> (return $ NumValue 8))
-                  <|> try (string "nine" >> (return $ NumValue 9))
-                  <|> try (string "ten" >> (return $ NumValue 10))
-                  <|> try ((NumValue . read) <$> (many1 digit))
+                             noneOf ".\n" `manyTill` try (string ", where X is ")
+                             NumVariable <$> many1 (noneOf ".\n")))
+                  <|> try (NumValueX <$ string "X")
+                  <|> try (NumValue 1 <$ string "an")
+                  <|> try (NumValue 1 <$ string "a")
+                  <|> try (NumValue 2 <$ string "both")
+                  <|> try (NumValue 11 <$ string "eleven")
+                  <|> try (NumValue 12 <$ string "twelve")
+                  <|> try (NumValue 13 <$ string "thirteen")
+                  <|> try (NumValue 14 <$ string "fourteen")
+                  <|> try (NumValue 15 <$ string "fifteen")
+                  <|> try (NumValue 16 <$ string "sixteen")
+                  <|> try (NumValue 17 <$ string "seventeen")
+                  <|> try (NumValue 18 <$ string "eighteen")
+                  <|> try (NumValue 19 <$ string "nineteen")
+                  <|> try (NumValue 20 <$ string "twenty")
+                  <|> try (NumValue 1 <$ string "one")
+                  <|> try (NumValue 2 <$ string "two")
+                  <|> try (NumValue 3 <$ string "three")
+                  <|> try (NumValue 4 <$ string "four")
+                  <|> try (NumValue 5 <$ string "five")
+                  <|> try (NumValue 6 <$ string "six")
+                  <|> try (NumValue 7 <$ string "seven")
+                  <|> try (NumValue 8 <$ string "eight")
+                  <|> try (NumValue 9 <$ string "nine")
+                  <|> try (NumValue 10 <$ string "ten")
+                  <|> try ((NumValue . read) <$> many1 digit)
 
         -- used to consume this input, normally seen using lookAhead
         numVariableConsume =
-              try (optional (string " ") *> string "equal to " >> many1 (noneOf (".\n")))
-          <|> try (string ", where X is " >> many1 (noneOf (".\n")))
+              try (optional (string " ") *> string "equal to " >> many1 (noneOf ".\n"))
+          <|> try (string ", where X is " >> many1 (noneOf ".\n"))
 
         numChange = try (Plus <$> (string "+" *> explicitNumber))
                 <|> try (Minus <$> (string "-" *> explicitNumber))
@@ -1127,9 +1127,9 @@ textToAbilities ct = case (parse paras "" ct) of
         -- FIXME: Remove this and deal with consuming trailing spaces
         -- in permanentTypeMatch better
         andOrSep' = try (string ", and/or ")
-               <|> try ((string ", and ") <* notFollowedBy effect)
+               <|> try (string ", and " <* notFollowedBy effect)
                <|> try (string ", or ")
-               <|> try ((string ", ") <* notFollowedBy effect)
+               <|> try (string ", " <* notFollowedBy effect)
                <|> try (string "and/or ")
                <|> try (string "and ")
                <|> try (string "or ")
@@ -1184,7 +1184,7 @@ textToAbilities ct = case (parse paras "" ct) of
           >> return TMThis)
           <* optional (string " ")  -- to match permanentType's behavior
 
-        theRest = (try (TMTheRest <$ ciString "the rest"))
+        theRest = try (TMTheRest <$ ciString "the rest")
           <* optional (string " ")  -- to match permanentType's behavior
 
         cardMatch =
@@ -1199,9 +1199,9 @@ textToAbilities ct = case (parse paras "" ct) of
           <* optional (string " ")  -- to match permanentType's behavior
 
         spellMatch =
-          (try (SpellMatch <$> colorMatch
+          try (SpellMatch <$> colorMatch
                   <*> (permanentTypeMatch `sepBy` orSep')
-                  <* string "spell" <* optional (string "s")))
+                  <* string "spell" <* optional (string "s"))
           <* optional (string " ")  -- to match permanentType's behavior
 
         -- FIXME: Remove this and deal with consuming trailing spaces
@@ -1284,13 +1284,13 @@ textToAbilities ct = case (parse paras "" ct) of
                          p <- playerMatch
                          string "own"
                          optional (string "s")
-                         return $ Own $ p)
+                         return $ Own p)
                  <|> try (do
                          optional (string " ")
                          p <- playerMatch
                          string "control"
                          optional (string "s")
-                         return $ Control $ p)
+                         return $ Control p)
                  ) <* optional (string " ")
 
         nonParser = option True (try (do
@@ -1307,48 +1307,47 @@ textToAbilities ct = case (parse paras "" ct) of
 
         permanentTypeMatch =
               try (string "permanent" >> optional (string "s") >>
-                (return $ Permanent))
+                return Permanent)
           <|> try (string "token" >> optional (string "s") >>
-                (return $ Token))
+                return Token)
           <|> try (do
-                super <- ((try (Non <$> nonParser <*> supertypeParser <* optional (string "s")))
-                        `sepEndBy` (string " "))
-                sub <- ((try (Non <$> nonParser <*> subtypeParser <* optional (string "s")))
-                      `sepEndBy` (string " "))
-                t <- ((try (Non <$> nonParser <*> typeParser <* optional (string "s")))
-                    `sepEndBy` (string " "))
+                super <- try (Non <$> nonParser <*> supertypeParser <* optional (string "s"))
+                        `sepEndBy` string " "
+                sub <- try (Non <$> nonParser <*> subtypeParser <* optional (string "s"))
+                      `sepEndBy` string " "
+                t <- try (Non <$> nonParser <*> typeParser <* optional (string "s"))
+                    `sepEndBy` string " "
                 optional (try (optional (string " ") *> string "permanent" <* optional (string "s")))
                 optional (try (optional (string " ") *> string "token" <* optional (string "s")))
                 optional (string " ")
-                when (super == [] && sub == [] && t == [])
+                when (null super && null sub && null t)
                   (fail "Did not match any permanent type")
                 return $ PermanentTypeMatch super t sub)
 
         spell = SpellAbility <$> effects
 
-        keyword = (ciString "Deathtouch" >> (return $ KeywordAbility Deathtouch))
-              <|> (ciString "Defender" >> (return $ KeywordAbility Defender))
-              <|> (ciString "Double strike" >> (return $ KeywordAbility DoubleStrike))
-              <|> (ciString "Enchant " >>
-                    (KeywordAbility . Enchant .
-                      (Target (Exactly (AnyCount (NumValue 1)))))
-                    <$> (targetMatch `sepBy1` orSep))
-              <|> (ciString "Equip" >> keywordCostSep >>
-                    (KeywordAbility . Equip) <$> totalCost)
-              <|> (ciString "First strike" >> (return $ KeywordAbility FirstStrike))
-              <|> (ciString "Flash" >> (return $ KeywordAbility Flash))
-              <|> (ciString "Flying" >> (return $ KeywordAbility Flying))
-              <|> (ciString "Haste" >> (return $ KeywordAbility Haste))
-              <|> (ciString "Hexproof" >> (return $ KeywordAbility Hexproof))
-              <|> (ciString "Indestructible" >> (return $ KeywordAbility Indestructible))
-              <|> (ciString "Intimidate" >> (return $ KeywordAbility Intimidate))
+        keyword = (KeywordAbility Deathtouch <$ ciString "Deathtouch")
+              <|> (KeywordAbility Defender <$ ciString "Defender")
+              <|> (KeywordAbility DoubleStrike <$ ciString "Double strike")
+              <|> (KeywordAbility . Enchant . Target
+                    (Exactly (AnyCount (NumValue 1)))
+                    <$> (ciString "Enchant " *> targetMatch `sepBy1` orSep))
+              <|> (KeywordAbility . Equip <$>
+                    (ciString "Equip" *> keywordCostSep *> totalCost))
+              <|> (KeywordAbility FirstStrike <$ ciString "First strike")
+              <|> (KeywordAbility Flash <$ ciString "Flash")
+              <|> (KeywordAbility Flying <$ ciString "Flying")
+              <|> (KeywordAbility Haste <$ ciString "Haste")
+              <|> (KeywordAbility Hexproof <$ ciString "Hexproof")
+              <|> (KeywordAbility Indestructible <$ ciString "Indestructible")
+              <|> (KeywordAbility Intimidate <$ ciString "Intimidate")
               -- TODO: Parse Landwalk
-              <|> (ciString "Lifelink" >> (return $ KeywordAbility Lifelink))
+              <|> (KeywordAbility Lifelink <$ ciString "Lifelink")
               -- TODO: Parse Protection
-              <|> (ciString "Reach" >> (return $ KeywordAbility Reach))
-              <|> (ciString "Shroud" >> (return $ KeywordAbility Shroud))
-              <|> (ciString "Trample" >> (return $ KeywordAbility Trample))
-              <|> (ciString "Vigilance" >> (return $ KeywordAbility Vigilance))
+              <|> (KeywordAbility Reach <$ ciString "Reach")
+              <|> (KeywordAbility Shroud <$ ciString "Shroud")
+              <|> (KeywordAbility Trample <$ ciString "Trample")
+              <|> (KeywordAbility Vigilance <$ ciString "Vigilance")
               <|> (ciString "Bestow" >> keywordCostSep >>
                     (KeywordAbility . Bestow) <$> totalCost)
 
@@ -1384,9 +1383,9 @@ removeReminder t = subRegex (mkRegex " *\\([^)]+\\) *")
 
 replaceThis :: Card -> Maybe CardText
 replaceThis c =
-    (replace shortName "{This}")
-    . (replace (name c) "{This}")
-    <$> (cardText c)
+    replace shortName "{This}"
+    . replace (name c) "{This}"
+    <$> cardText c
     where shortName = subRegex (mkRegex ", .*$") (name c) ""
           -- This handles the THS Gods, Tymaret, Jarad, etc.
           -- since only their first names are used in ability text
