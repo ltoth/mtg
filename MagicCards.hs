@@ -551,7 +551,7 @@ abilities c = fromMaybe [] $
               replaceThis c
 
 textToAbilities :: CardText -> [Ability]
-textToAbilities t = case (parse paras "" t) of
+textToAbilities ct = case (parse paras "" ct) of
                       Left e -> error (show e)
                       Right xs -> xs
                       -- FIXME: Perhaps we shouldn't flatten the list, so
