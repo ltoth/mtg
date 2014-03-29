@@ -191,6 +191,7 @@ subtypeParser =
   <|> try (ciString "Gideon" >> return (PlaneswalkerType Gideon))
   <|> try (ciString "Jace" >> return (PlaneswalkerType Jace))
   <|> try (ciString "Karn" >> return (PlaneswalkerType Karn))
+  <|> try (ciString "Kiora" >> return (PlaneswalkerType Kiora))
   <|> try (ciString "Koth" >> return (PlaneswalkerType Koth))
   <|> try (ciString "Liliana" >> return (PlaneswalkerType Liliana))
   <|> try (ciString "Nissa" >> return (PlaneswalkerType Nissa))

@@ -61,7 +61,7 @@ data BasicLandType = Forest | Island | Mountain | Plains | Swamp
                    deriving (Show, Eq)
 
 data PlaneswalkerType = Ajani | Ashiok | Bolas | Chandra | Domri | Elspeth
-                      | Garruk | Gideon | Jace | Karn | Koth | Liliana
+                      | Garruk | Gideon | Jace | Karn | Kiora | Koth | Liliana
                       | Nissa | Ral | Sarkhan | Sorin | Tamiyo | Tezzeret
                       | Tibalt | Venser | Vraska | Xenagos
                       deriving (Show, Eq)
