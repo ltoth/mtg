@@ -444,11 +444,13 @@ data SetType = Core | Expansion | Reprint | Box | Un | FromTheVault
 type SetBlock = String
 
 data CardSet = CardSet
-             { setName :: SetName
-             , code :: SetCode
-             , release :: SetRelease
-             , border :: Border
-             , setType :: SetType
-             , block :: Maybe SetBlock
-             , cards :: [Card]
+             { _setName :: SetName
+             , _code :: SetCode
+             , _release :: SetRelease
+             , _border :: Border
+             , _setType :: SetType
+             , _block :: Maybe SetBlock
+             , _cards :: [Card]
              } deriving (Show)
+
+makeLenses ''CardSet
