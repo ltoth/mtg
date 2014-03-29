@@ -18,8 +18,12 @@ build-type:          Simple
 cabal-version:       >=1.10
 
 library
-  exposed-modules:     Main, MagicCards, MagicCards.Subtype
-  other-modules:       Text.Parsec.Char.Extra, Text.ParserCombinators.Parsec.Extra
+  exposed-modules:     Main,
+                       Game.MtG.Types
+  other-modules:       Game.MtG.CardTextParser,
+                       Game.MtG.JSONParser,
+                       Text.Parsec.Char.Extra,
+                       Text.ParserCombinators.Parsec.Extra
   other-extensions:    FlexibleInstances,
                        NoMonomorphismRestriction,
                        OverloadedStrings,

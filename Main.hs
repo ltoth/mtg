@@ -1,32 +1,22 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 
-module Main
-( filterCards
-, nameStartsWith
-, cardTextIncludes
-, hasEffect
-, hasOtherEffect
-, isETB
-, hasTEOther
-, getSet
-, getCards
-) where
+module Main where
 
 import Control.Applicative
 import Control.Lens
 import Control.Monad
-import Data.Aeson
-import qualified Data.ByteString.Lazy.Char8 as L
 import Data.List (isInfixOf, isPrefixOf)
 import Data.Maybe (fromMaybe)
 
-import MagicCards
+import Game.MtG.Types
+import Game.MtG.CardTextParser (parseAndSetAbilities)
+import Game.MtG.JSONParser (parseSet)
+
+setFile :: String
+setFile = "THS.json"
 
 getCards :: FilePath -> IO (Maybe [Card])
-getCards fp = (cards <$>) <$> getSet fp
-
-getSet :: FilePath -> IO (Maybe CardSet)
-getSet fp = decode <$> L.readFile fp
+getCards fp = (cards <$>) <$> parseSet fp
 
 filterCards :: (Card -> Bool) -> IO [Card]
 filterCards p = go <$> getCards setFile
@@ -35,7 +25,8 @@ filterCards p = go <$> getCards setFile
              fromMaybe []
 
 cardTextIncludes :: String -> Card -> Bool
-cardTextIncludes s = fromMaybe False . (view cardText >=> pure . isInfixOf s)
+cardTextIncludes s = fromMaybe False .
+                     (view cardText >=> return . isInfixOf s)
 
 nameStartsWith :: String -> Card -> Bool
 nameStartsWith s = isPrefixOf s . view name
@@ -65,5 +56,3 @@ hasTEOther = any isTEOther
   where isTEOther (TriggeredAbility (TEOther _) _ _) = True
         isTEOther _ = False
 
-setFile :: String
-setFile = "THS.json"
