@@ -18,6 +18,23 @@ setFile = "THS.json"
 getCards :: FilePath -> IO (Maybe [Card])
 getCards fp = (view cards' <$>) <$> parseSet fp
 
+getCardSet :: FilePath -> IO CardSet
+getCardSet fp = do
+    Just cs' <- parseSet fp
+    return $ persistableCardSet cs'
+
+persistableCardSet :: CardSet' -> CardSet
+persistableCardSet cs' =
+    CardSet
+      (cs'^.setName')
+      (cs'^.code')
+      (cs'^.release')
+      (cs'^.border')
+      (cs'^.setType')
+      (cs'^.block')
+      (cs'^..cards'.traversed.multiverseID)
+
+
 filterCards :: (Card -> Bool) -> IO [Card]
 filterCards p = go <$> getCards setFile
   where go = fmap parseAndSetAbilities .

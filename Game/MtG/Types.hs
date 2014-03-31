@@ -455,3 +455,16 @@ data CardSet' = CardSet'
               } deriving (Show)
 
 makeLenses ''CardSet'
+
+-- Type for card set as persisted
+data CardSet = CardSet
+             { _setName :: SetName
+             , _code :: SetCode
+             , _release :: SetRelease
+             , _border :: Border
+             , _setType :: SetType
+             , _block :: Maybe SetBlock
+             , _cardMultiverseIDs :: [MultiverseID]
+             } deriving (Show)
+
+makeLenses ''CardSet
