@@ -399,6 +399,8 @@ data Keyword = Deathtouch
              | Bestow ([Cost])
              deriving (Show, Eq)
 
+type SetCode = String
+
 data Card = Card
           { _layout :: Layout
           , _typeLine :: TypeLine
@@ -423,6 +425,7 @@ data Card = Card
           , _imageName :: ImageName
           , _watermark :: Maybe Watermark
           , _cardBorder :: Maybe Border
+          , _setCode :: SetCode
           } deriving (Show)
 
 makeLenses ''Card
@@ -431,7 +434,6 @@ makeLenses ''Card
 -- = Types for card sets
 
 type SetName = String
-type SetCode = String
 
 -- TODO: Should be UTCTime or something?
 type SetRelease = String

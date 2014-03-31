@@ -484,12 +484,13 @@ instance FromJSON Card where
                            v .:? "loyalty" <*>
                            v .:? "manaCost" <*>
                            v .:? "text" <*>
-                           pure [] <*>
+                           return [] <*>  -- [Abilities]
                            v .: "number" <*>
                            v .:? "variations" <*>
                            v .: "imageName" <*>
                            v .:? "watermark" <*>
-                           v .:? "border"
+                           v .:? "border" <*>
+                           return ""  -- SetCode
     parseJSON _ = fail "Could not parse card"
 
 -- |

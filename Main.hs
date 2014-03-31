@@ -15,13 +15,20 @@ import Game.MtG.JSONParser (parseSet)
 setFile :: String
 setFile = "THS.json"
 
-getCards :: FilePath -> IO (Maybe [Card])
-getCards fp = (view cards' <$>) <$> parseSet fp
-
-getCardSet :: FilePath -> IO CardSet
-getCardSet fp = do
+getPersistableCardSet :: FilePath -> IO CardSet
+getPersistableCardSet fp = do
     Just cs' <- parseSet fp
     return $ persistableCardSet cs'
+
+getPersistableCards :: FilePath -> IO [Card]
+getPersistableCards fp = do
+    Just cs' <- parseSet fp
+    return $ go (cs'^.code') <$> (cs'^.cards')
+    where go c = setCardSetCode c .
+                 parseAndSetAbilities
+
+setCardSetCode :: SetCode -> Card -> Card
+setCardSetCode sc = setCode .~ sc
 
 persistableCardSet :: CardSet' -> CardSet
 persistableCardSet cs' =
@@ -34,6 +41,8 @@ persistableCardSet cs' =
       (cs'^.block')
       (cs'^..cards'.traversed.multiverseID)
 
+getCards :: FilePath -> IO (Maybe [Card])
+getCards fp = (view cards' <$>) <$> parseSet fp
 
 filterCards :: (Card -> Bool) -> IO [Card]
 filterCards p = go <$> getCards setFile
