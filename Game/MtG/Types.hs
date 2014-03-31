@@ -404,7 +404,7 @@ data Card = Card
           , _typeLine :: TypeLine
           , _types :: [Type]
           , _colors :: [Color]
-          , _multiverseid :: MultiverseID
+          , _multiverseID :: MultiverseID
           , _name :: Name
           , _names :: Maybe [Name]
           , _supertypes :: Maybe [Supertype]
