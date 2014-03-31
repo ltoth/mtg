@@ -16,7 +16,7 @@ setFile :: String
 setFile = "THS.json"
 
 getCards :: FilePath -> IO (Maybe [Card])
-getCards fp = (view cards <$>) <$> parseSet fp
+getCards fp = (view cards' <$>) <$> parseSet fp
 
 filterCards :: (Card -> Bool) -> IO [Card]
 filterCards p = go <$> getCards setFile

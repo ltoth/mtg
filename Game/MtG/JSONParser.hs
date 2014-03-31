@@ -26,7 +26,7 @@ import Game.MtG.Types
 -- |
 -- = Functions that do I/O
 
-parseSet :: FilePath -> IO (Maybe CardSet)
+parseSet :: FilePath -> IO (Maybe CardSet')
 parseSet fp = decode <$> L.readFile fp
 
 -- |
@@ -513,8 +513,8 @@ instance FromJSON SetType where
       | otherwise = fail "Invalid set type specified"
     parseJSON _ = fail "Could not parse set type"
 
-instance FromJSON CardSet where
-    parseJSON (Object v) = CardSet <$>
+instance FromJSON CardSet' where
+    parseJSON (Object v) = CardSet' <$>
                            v .: "name" <*>
                            v .: "code" <*>
                            v .: "releaseDate" <*>

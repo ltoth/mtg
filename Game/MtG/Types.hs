@@ -443,14 +443,15 @@ data SetType = Core | Expansion | Reprint | Box | Un | FromTheVault
 
 type SetBlock = String
 
-data CardSet = CardSet
-             { _setName :: SetName
-             , _code :: SetCode
-             , _release :: SetRelease
-             , _border :: Border
-             , _setType :: SetType
-             , _block :: Maybe SetBlock
-             , _cards :: [Card]
-             } deriving (Show)
+-- Type for card set as parsed from JSON
+data CardSet' = CardSet'
+              { _setName' :: SetName
+              , _code' :: SetCode
+              , _release' :: SetRelease
+              , _border' :: Border
+              , _setType' :: SetType
+              , _block' :: Maybe SetBlock
+              , _cards' :: [Card]
+              } deriving (Show)
 
-makeLenses ''CardSet
+makeLenses ''CardSet'
