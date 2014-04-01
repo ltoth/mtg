@@ -7,7 +7,7 @@ import Control.Lens hiding (argument)
 import Control.Monad
 import Data.Acid
 import Data.Acid.Advanced
-import Data.List (isInfixOf, isPrefixOf)
+import Data.List
 import Data.Maybe (fromMaybe)
 import qualified IPPrint
 import qualified Language.Haskell.HsColour as HsColour
@@ -40,6 +40,8 @@ opts = subparser
   <> command "persist" (info (persistCmd <$>
                               argument str (metavar "FILE"))
                        (progDesc "Parse set and cards and persist them") )
+  <> command "debug"   (info (pure debugCmd)
+                       (progDesc "Get all non-parsed cards") )
    )
 
 main :: IO ()
@@ -110,6 +112,13 @@ myPrint = putStrLn . HsColour.hscolour
   False False "" False . IPPrint.pshow
 
 ----------------------------------------------------------
+
+debugCmd :: IO ()
+debugCmd = withState (\s -> do
+    cs <- query s GetCards
+    mapM_ myPrint . sort . map (view name) $
+      filter (\c -> hasOtherEffect (c^.abilities)) cs
+    )
 
 debugGetCards :: FilePath -> IO (Maybe [Card])
 debugGetCards fp = (view cards' <$>) <$> parseSet fp
