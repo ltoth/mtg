@@ -50,7 +50,8 @@ replace old new = intercalate new . splitOn old
 
 textToAbilities :: CardText -> [Ability]
 textToAbilities ct = case parse paras "" ct of
-                      Left e -> error (show e)
+                      Left e -> error ("Error parsing card text:\n\n" ++
+                                      ct ++ show e)
                       Right xs -> xs
                       -- FIXME: Perhaps we shouldn't flatten the list, so
                       -- that when Artisan's Sorrow has an illegal target,
