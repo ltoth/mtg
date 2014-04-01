@@ -7,7 +7,6 @@ import Control.Lens
 import Control.Monad
 import Data.Acid
 import Data.List (isInfixOf, isPrefixOf)
-import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 
 import Game.MtG.Acid
@@ -20,7 +19,7 @@ setFile = "THS.json"
 
 main :: IO ()
 main = do
-    state <- openLocalState (CardDB Map.empty)
+    state <- openLocalState initialCardDB
     cs <- getPersistableCardSet setFile
     update state (AddCardSet cs)
     css <- query state GetCardSets

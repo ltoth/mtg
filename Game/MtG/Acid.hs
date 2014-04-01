@@ -26,8 +26,8 @@ makeLenses ''CardDB
 
 $(deriveSafeCopy 0 'base ''CardDB)
 
-initialDB :: CardDB
-initialDB = CardDB Map.empty
+initialCardDB :: CardDB
+initialCardDB = CardDB Map.empty
 
 getCardSets :: Query CardDB [CardSet]
 getCardSets = Map.elems . view allCardSets <$> ask
