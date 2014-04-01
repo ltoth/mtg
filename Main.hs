@@ -20,38 +20,47 @@ setFile = "THS.json"
 
 opts :: Parser (IO ())
 opts = subparser
-   ( command "clear" (info (pure clearCmd)
-                     (progDesc "Clear the card database") )
-  <> command "card"  (info (cardCmd <$>
-                            argument auto (metavar "ID"))
-                     (progDesc "Get parsed card by multiverseID") )
+   ( command "clear"   (info (pure clearCmd)
+                       (progDesc "Clear the card database") )
+  <> command "card"    (info (cardCmd <$>
+                              argument auto (metavar "ID"))
+                       (progDesc "Get parsed card by multiverseID") )
+  <> command "sets"    (info (pure setsCmd)
+                       (progDesc "Get all parsed sets") )
+  <> command "persist" (info (persistCmd <$>
+                            argument auto (metavar "FILE"))
+                       (progDesc "Parse set and persist it") )
    )
 
 main :: IO ()
-main = join $ execParser (info opts
-                         (header "mtg - a parser for M:tG"))
+main = join $ execParser (info (helper <*> opts)
+                         (header "mtg - a parser for M:tG" <> fullDesc))
 
 clearCmd :: IO ()
-clearCmd = putStrLn "Not implemented."
+clearCmd = withState (`update` ClearCardDB)
 
 cardCmd :: MultiverseID -> IO ()
-cardCmd i = do
-    state <- openLocalState initialCardDB
-    -- update state ClearCardDB
-    -- persistCardSet state setFile
-    -- css <- query state GetCardSets
-    -- mapM_ print css
-    c <- query state (GetCard i)
-    print c
-    closeAcidState state
+cardCmd i = withState (\s -> query s (GetCard i) >>= print)
 
-persistCardSet :: AcidState CardDB -> FilePath -> IO CardSet
-persistCardSet st fp = do
+setsCmd :: IO ()
+setsCmd = withState (\s -> query s GetCardSets >>= mapM_ print)
+
+persistCmd :: FilePath -> IO ()
+persistCmd fp = withState (`persistCardSet` fp)
+
+withState :: (AcidState CardDB -> IO r) -> IO r
+withState f = do
+    state <- openLocalState initialCardDB
+    r <- f state
+    closeAcidState state
+    return r
+
+persistCardSet :: AcidState CardDB -> FilePath -> IO ()
+persistCardSet s fp = do
     Just cs' <- parseSet fp
     let cs = persistableCardSet cs'
-    update st (AddCardSet cs)
-    mapM_ (update st . AddCard) (persistableCards cs')
-    return cs
+    update s (AddCardSet cs)
+    mapM_ (update s . AddCard) (persistableCards cs')
 
 persistableCards :: CardSet' -> [Card]
 persistableCards cs' = fmap fill (cs'^.cards')
@@ -68,6 +77,8 @@ persistableCardSet cs' =
       (cs'^.setType')
       (cs'^.block')
       (cs'^..cards'.traversed.multiverseID)
+
+----------------------------------------------------------
 
 debugGetCards :: FilePath -> IO (Maybe [Card])
 debugGetCards fp = (view cards' <$>) <$> parseSet fp
