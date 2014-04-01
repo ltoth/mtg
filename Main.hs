@@ -32,7 +32,7 @@ opts = subparser
   <> command "sets"    (info (pure setsCmd)
                        (progDesc "Get all parsed sets") )
   <> command "persist" (info (persistCmd <$>
-                            argument auto (metavar "FILE"))
+                              argument str (metavar "FILE"))
                        (progDesc "Parse set and persist it") )
    )
 
