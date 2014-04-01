@@ -8,6 +8,10 @@ import Control.Monad
 import Data.Acid
 import Data.List (isInfixOf, isPrefixOf)
 import Data.Maybe (fromMaybe)
+import qualified IPPrint
+import qualified Language.Haskell.HsColour as HsColour
+import qualified Language.Haskell.HsColour.Colourise as HsColour
+import qualified Language.Haskell.HsColour.Output as HsColour
 import Options.Applicative
 
 import Game.MtG.Acid
@@ -40,10 +44,10 @@ clearCmd :: IO ()
 clearCmd = withState (`update` ClearCardDB)
 
 cardCmd :: MultiverseID -> IO ()
-cardCmd i = withState (\s -> query s (GetCard i) >>= print)
+cardCmd i = withState (\s -> query s (GetCard i) >>= myPrint)
 
 setsCmd :: IO ()
-setsCmd = withState (\s -> query s GetCardSets >>= mapM_ print)
+setsCmd = withState (\s -> query s GetCardSets >>= mapM_ myPrint)
 
 persistCmd :: FilePath -> IO ()
 persistCmd fp = withState (`persistCardSet` fp)
@@ -77,6 +81,22 @@ persistableCardSet cs' =
       (cs'^.setType')
       (cs'^.block')
       (cs'^..cards'.traversed.multiverseID)
+
+myColourPrefs :: HsColour.ColourPrefs
+myColourPrefs = HsColour.defaultColourPrefs
+  { HsColour.conid = [HsColour.Foreground HsColour.Magenta]
+  , HsColour.conop = [HsColour.Foreground HsColour.Yellow]
+  , HsColour.string = [HsColour.Foreground HsColour.Green]
+  , HsColour.char = [HsColour.Foreground HsColour.Red]
+  , HsColour.number = [HsColour.Foreground HsColour.Red]
+  , HsColour.layout = [HsColour.Foreground HsColour.White]
+  , HsColour.keyglyph = [HsColour.Foreground HsColour.White]
+  }
+
+myPrint :: Show a => a -> IO ()
+myPrint = putStrLn . HsColour.hscolour
+  (HsColour.TTYg HsColour.XTerm256Compatible) myColourPrefs
+  False False "" False . IPPrint.pshow
 
 ----------------------------------------------------------
 
