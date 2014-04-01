@@ -20,10 +20,12 @@ setFile = "THS.json"
 main :: IO ()
 main = do
     state <- openLocalState initialCardDB
+    update state ClearCardDB
     cs <- getPersistableCardSet setFile
     update state (AddCardSet cs)
     css <- query state GetCardSets
     mapM_ print css
+    closeAcidState state
 
 getPersistableCardSet :: FilePath -> IO CardSet
 getPersistableCardSet fp = do
