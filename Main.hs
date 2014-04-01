@@ -29,6 +29,9 @@ opts = subparser
   <> command "card"    (info (cardCmd <$>
                               argument auto (metavar "ID"))
                        (progDesc "Get parsed card by multiverseID") )
+  <> command "name"    (info (nameCmd <$>
+                              argument str (metavar "NAME"))
+                       (progDesc "Get parsed cards by exact name") )
   <> command "sets"    (info (pure setsCmd)
                        (progDesc "Get all parsed sets") )
   <> command "persist" (info (persistCmd <$>
@@ -45,6 +48,9 @@ clearCmd = withState (`update` ClearCardDB)
 
 cardCmd :: MultiverseID -> IO ()
 cardCmd i = withState (\s -> query s (GetCard i) >>= myPrint)
+
+nameCmd :: Name -> IO ()
+nameCmd n = withState (\s -> query s (GetCardsByName n) >>= mapM_ myPrint)
 
 setsCmd :: IO ()
 setsCmd = withState (\s -> query s GetCardSets >>= mapM_ myPrint)

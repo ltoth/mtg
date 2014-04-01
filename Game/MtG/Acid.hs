@@ -12,6 +12,9 @@ import Data.Acid
 import Data.Data
 import qualified Data.IntMap as IntMap
 import qualified Data.Map as Map
+import Data.Maybe (fromJust)
+import Data.Set (Set)
+import qualified Data.Set as Set
 import Data.SafeCopy
 
 import Game.MtG.Types
@@ -73,8 +76,9 @@ $(deriveSafeCopy 0 'base ''SetType)
 $(deriveSafeCopy 0 'base ''CardSet)
 
 data CardDB = CardDB
-            { _allCardSets :: Map.Map SetCode CardSet
-            , _allCards    :: IntMap.IntMap Card
+            { _allCardSets      :: Map.Map SetCode CardSet
+            , _allCards         :: IntMap.IntMap Card
+            , _allMultiverseIDs :: Map.Map Name (Set MultiverseID)
             } deriving (Show, Typeable)
 
 makeLenses ''CardDB
@@ -82,7 +86,7 @@ makeLenses ''CardDB
 $(deriveSafeCopy 0 'base ''CardDB)
 
 initialCardDB :: CardDB
-initialCardDB = CardDB Map.empty IntMap.empty
+initialCardDB = CardDB Map.empty IntMap.empty Map.empty
 
 clearCardDB :: Update CardDB ()
 clearCardDB = put initialCardDB
@@ -96,15 +100,28 @@ addCardSet cs = allCardSets %= Map.insert (cs^.code) cs
 getCard :: MultiverseID -> Query CardDB (Maybe Card)
 getCard i = IntMap.lookup i . view allCards <$> ask
 
+getCardsByName :: Name -> Query CardDB [Card]
+getCardsByName n = do
+    cs <- view allCards <$> ask
+    i <- Map.lookup n . view allMultiverseIDs <$> ask
+    case i of
+      Nothing -> return []
+      Just s  -> return $ map (fromJust . (`IntMap.lookup` cs))
+                              (Set.toList s)
+
 getCards :: Query CardDB [Card]
 getCards = IntMap.elems . view allCards <$> ask
 
 addCard :: Card -> Update CardDB ()
-addCard c = allCards %= IntMap.insert (c^.multiverseID) c
+addCard c = do
+    allCards %= IntMap.insert (c^.multiverseID) c
+    allMultiverseIDs %= Map.insertWith Set.union
+                        (c^.name) (Set.singleton (c^.multiverseID))
 
 makeAcidic ''CardDB [ 'clearCardDB
                     , 'getCardSets
                     , 'addCardSet
                     , 'getCard
+                    , 'getCardsByName
                     , 'getCards
                     , 'addCard ]
