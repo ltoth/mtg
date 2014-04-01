@@ -6,6 +6,7 @@ import Control.Applicative
 import Control.Lens hiding (argument)
 import Control.Monad
 import Data.Acid
+import Data.Acid.Advanced
 import Data.List (isInfixOf, isPrefixOf)
 import Data.Maybe (fromMaybe)
 import qualified IPPrint
@@ -70,7 +71,7 @@ persistCardSet s fp = do
     Just cs' <- parseSet fp
     let cs = persistableCardSet cs'
     update s (AddCardSet cs)
-    mapM_ (update s . AddCard) (persistableCards cs')
+    groupUpdates s $ map AddCard (persistableCards cs')
 
 persistableCards :: CardSet' -> [Card]
 persistableCards cs' = fmap fill (cs'^.cards')
