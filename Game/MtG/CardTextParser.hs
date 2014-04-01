@@ -41,7 +41,7 @@ replaceThis c =
     replace shortName "{This}"
     . replace (c ^. name) "{This}"
     <$> c ^. cardText
-    where shortName = subRegex (mkRegex ", .*$") (c ^. name) ""
+    where shortName = takeWhile (/= ',')  (c ^. name)
           -- This handles the THS Gods, Tymaret, Jarad, etc.
           -- since only their first names are used in ability text
 
