@@ -10,7 +10,9 @@ import Control.Monad.Reader
 import Control.Monad.State
 import Data.Acid
 import Data.Data
+import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
+import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe (fromJust)
 import Data.Set (Set)
@@ -76,9 +78,9 @@ $(deriveSafeCopy 0 'base ''SetType)
 $(deriveSafeCopy 0 'base ''CardSet)
 
 data CardDB = CardDB
-            { _allCardSets      :: Map.Map SetCode CardSet
-            , _allCards         :: IntMap.IntMap Card
-            , _allMultiverseIDs :: Map.Map Name (Set MultiverseID)
+            { _allCardSets      :: Map SetCode CardSet
+            , _allCards         :: IntMap Card
+            , _allMultiverseIDs :: Map Name (Set MultiverseID)
             } deriving (Show, Typeable)
 
 makeLenses ''CardDB
