@@ -1,7 +1,8 @@
-{-# LANGUAGE OverloadedStrings, TemplateHaskell #-}
+{-# LANGUAGE DeriveDataTypeable, OverloadedStrings, TemplateHaskell #-}
 
 module Game.MtG.Types where
 
+import Data.Data
 import Control.Lens hiding (noneOf)
 import Data.Word (Word8)
 
@@ -467,6 +468,6 @@ data CardSet = CardSet
              , _setType :: SetType
              , _block :: Maybe SetBlock
              , _cardMultiverseIDs :: [MultiverseID]
-             } deriving (Show)
+             } deriving (Show, Typeable)
 
 makeLenses ''CardSet
