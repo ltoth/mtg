@@ -104,4 +104,7 @@ addCard c = allCards %= IntMap.insert (c^.multiverseID) c
 
 makeAcidic ''CardDB [ 'clearCardDB
                     , 'getCardSets
-                    , 'addCardSet ]
+                    , 'addCardSet
+                    , 'getCard
+                    , 'getCards
+                    , 'addCard ]

@@ -20,7 +20,7 @@ setFile = "THS.json"
 main :: IO ()
 main = do
     state <- openLocalState initialCardDB
-    update state ClearCardDB
+    -- update state ClearCardDB
     persistCardSet state setFile
     css <- query state GetCardSets
     mapM_ print css
@@ -31,7 +31,7 @@ persistCardSet st fp = do
     Just cs' <- parseSet fp
     let cs = persistableCardSet cs'
     update st (AddCardSet cs)
-    -- forM_ persistableCards (\c -> update st (AddCard c))
+    -- mapM_ (update st . AddCard) (persistableCards cs')
     return cs
 
 persistableCards :: CardSet' -> [Card]
@@ -50,11 +50,11 @@ persistableCardSet cs' =
       (cs'^.block')
       (cs'^..cards'.traversed.multiverseID)
 
-getCards :: FilePath -> IO (Maybe [Card])
-getCards fp = (view cards' <$>) <$> parseSet fp
+debugGetCards :: FilePath -> IO (Maybe [Card])
+debugGetCards fp = (view cards' <$>) <$> parseSet fp
 
 filterCards :: (Card -> Bool) -> IO [Card]
-filterCards p = go <$> getCards setFile
+filterCards p = go <$> debugGetCards setFile
   where go = fmap parseAndSetAbilities .
              filter p .
              fromMaybe []

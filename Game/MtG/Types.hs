@@ -427,7 +427,7 @@ data Card = Card
           , _watermark :: Maybe Watermark
           , _cardBorder :: Maybe Border
           , _setCode :: SetCode
-          } deriving (Show)
+          } deriving (Show, Typeable)
 
 makeLenses ''Card
 
