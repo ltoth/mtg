@@ -21,16 +21,17 @@ main :: IO ()
 main = do
     state <- openLocalState initialCardDB
     update state ClearCardDB
-    cs <- getPersistableCardSet setFile
-    update state (AddCardSet cs)
+    persistCardSet state setFile
     css <- query state GetCardSets
     mapM_ print css
     closeAcidState state
 
-getPersistableCardSet :: FilePath -> IO CardSet
-getPersistableCardSet fp = do
+persistCardSet :: AcidState CardDB -> FilePath -> IO CardSet
+persistCardSet st fp = do
     Just cs' <- parseSet fp
-    return $ persistableCardSet cs'
+    let cs = persistableCardSet cs'
+    update st (AddCardSet cs)
+    return cs
 
 getPersistableCards :: FilePath -> IO [Card]
 getPersistableCards fp = do
