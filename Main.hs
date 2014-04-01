@@ -74,9 +74,8 @@ withState f = do
 persistCardSet :: AcidState CardDB -> FilePath -> IO ()
 persistCardSet s fp = do
     Just cs' <- parseSet fp
-    let cs = persistableCardSet cs'
-    update s (AddCardSet cs)
     groupUpdates s $ map AddCard (persistableCards cs')
+    update s (AddCardSet . persistableCardSet $ cs')
 
 persistableCards :: CardSet' -> [Card]
 persistableCards cs' = fmap fill (cs'^.cards')
