@@ -12,6 +12,7 @@ import Data.Acid
 import Data.Data
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
+import Data.List
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe (fromJust)
@@ -112,6 +113,9 @@ getCardsByName n = do
     -- the DB is in question, and we want to bail out
     return $ map (fromJust . (`IntMap.lookup` cs)) (Set.toList is)
 
+getNames :: Query CardDB [Name]
+getNames = sort . Map.keys . view allMultiverseIDs <$> ask
+
 getCards :: Query CardDB [Card]
 getCards = IntMap.elems . view allCards <$> ask
 
@@ -126,5 +130,6 @@ makeAcidic ''CardDB [ 'clearCardDB
                     , 'addCardSet
                     , 'getCard
                     , 'getCardsByName
+                    , 'getNames
                     , 'getCards
                     , 'addCard ]

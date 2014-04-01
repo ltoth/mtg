@@ -33,11 +33,13 @@ opts = subparser
   <> command "name"    (info (nameCmd <$>
                               argument str (metavar "NAME"))
                        (progDesc "Get parsed cards by exact name") )
+  <> command "names"   (info (pure namesCmd)
+                       (progDesc "Get all parsed card names") )
   <> command "sets"    (info (pure setsCmd)
                        (progDesc "Get all parsed sets") )
   <> command "persist" (info (persistCmd <$>
                               argument str (metavar "FILE"))
-                       (progDesc "Parse set and persist it") )
+                       (progDesc "Parse set and cards and persist them") )
    )
 
 main :: IO ()
@@ -52,6 +54,9 @@ cardCmd i = withState (\s -> query s (GetCard i) >>= myPrint)
 
 nameCmd :: Name -> IO ()
 nameCmd n = withState (\s -> query s (GetCardsByName n) >>= mapM_ myPrint)
+
+namesCmd :: IO ()
+namesCmd = withState (\s -> query s GetNames >>= mapM_ myPrint)
 
 setsCmd :: IO ()
 setsCmd = withState (\s -> query s GetCardSets >>= mapM_ myPrint)
