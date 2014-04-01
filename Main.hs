@@ -31,17 +31,13 @@ persistCardSet st fp = do
     Just cs' <- parseSet fp
     let cs = persistableCardSet cs'
     update st (AddCardSet cs)
+    -- forM_ persistableCards (\c -> update st (AddCard c))
     return cs
 
-getPersistableCards :: FilePath -> IO [Card]
-getPersistableCards fp = do
-    Just cs' <- parseSet fp
-    return $ go (cs'^.code') <$> (cs'^.cards')
-    where go c = setCardSetCode c .
-                 parseAndSetAbilities
-
-setCardSetCode :: SetCode -> Card -> Card
-setCardSetCode sc = setCode .~ sc
+persistableCards :: CardSet' -> [Card]
+persistableCards cs' = fmap fill (cs'^.cards')
+    where fill = parseAndSetAbilities .
+                 (setCode .~ (cs'^.code'))
 
 persistableCardSet :: CardSet' -> CardSet
 persistableCardSet cs' =
