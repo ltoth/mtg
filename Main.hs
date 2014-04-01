@@ -21,9 +21,11 @@ main :: IO ()
 main = do
     state <- openLocalState initialCardDB
     -- update state ClearCardDB
-    persistCardSet state setFile
+    -- persistCardSet state setFile
     css <- query state GetCardSets
     mapM_ print css
+    c <- query state (GetCard 373603)
+    print c
     closeAcidState state
 
 persistCardSet :: AcidState CardDB -> FilePath -> IO CardSet
@@ -31,7 +33,7 @@ persistCardSet st fp = do
     Just cs' <- parseSet fp
     let cs = persistableCardSet cs'
     update st (AddCardSet cs)
-    -- mapM_ (update st . AddCard) (persistableCards cs')
+    mapM_ (update st . AddCard) (persistableCards cs')
     return cs
 
 persistableCards :: CardSet' -> [Card]
