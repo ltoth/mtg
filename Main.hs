@@ -3,11 +3,12 @@
 module Main where
 
 import Control.Applicative
-import Control.Lens
+import Control.Lens hiding (argument)
 import Control.Monad
 import Data.Acid
 import Data.List (isInfixOf, isPrefixOf)
 import Data.Maybe (fromMaybe)
+import Options.Applicative
 
 import Game.MtG.Acid
 import Game.MtG.Types
@@ -17,14 +18,30 @@ import Game.MtG.JSONParser (parseSet)
 setFile :: String
 setFile = "THS.json"
 
+opts :: Parser (IO ())
+opts = subparser
+   ( command "clear" (info (pure clearCmd)
+                     (progDesc "Clear the card database") )
+  <> command "card"  (info (cardCmd <$>
+                            argument auto (metavar "ID"))
+                     (progDesc "Get parsed card by multiverseID") )
+   )
+
 main :: IO ()
-main = do
+main = join $ execParser (info opts
+                         (header "mtg - a parser for M:tG"))
+
+clearCmd :: IO ()
+clearCmd = putStrLn "Not implemented."
+
+cardCmd :: MultiverseID -> IO ()
+cardCmd i = do
     state <- openLocalState initialCardDB
     -- update state ClearCardDB
     -- persistCardSet state setFile
-    css <- query state GetCardSets
-    mapM_ print css
-    c <- query state (GetCard 373603)
+    -- css <- query state GetCardSets
+    -- mapM_ print css
+    c <- query state (GetCard i)
     print c
     closeAcidState state
 

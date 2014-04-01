@@ -18,12 +18,11 @@ build-type:          Simple
 cabal-version:       >=1.10
 
 library
-  exposed-modules:     Main,
-                       Game.MtG.Types
-  other-modules:       Game.MtG.Acid,
+  exposed-modules:     Game.MtG.Acid,
                        Game.MtG.CardTextParser,
                        Game.MtG.JSONParser,
-                       Text.Parsec.Char.Extra,
+                       Game.MtG.Types
+  other-modules:       Text.Parsec.Char.Extra,
                        Text.ParserCombinators.Parsec.Extra
   other-extensions:    DeriveDataTypeable,
                        FlexibleInstances,
@@ -50,4 +49,31 @@ library
                        text >=1.0 && <2.0,
                        transformers >=0.3 && <0.4
   -- hs-source-dirs:
+  default-language:    Haskell2010
+
+executable mtg
+  main-is:             Main.hs
+  other-modules:       Game.MtG.Acid,
+                       Game.MtG.CardTextParser,
+                       Game.MtG.JSONParser,
+                       Game.MtG.Types
+  other-extensions:    NoMonomorphismRestriction
+  build-depends:       base >=4.6 && <4.7,
+                       acid-state >=0.12 && <1.0,
+                       aeson >=0.7 && <1.0,
+                       bytestring >=0.10 && <0.11,
+                       containers >=0.5 && <1.0,
+                       directory >=1.0 && <2.0,
+                       filepath >=1.0 && <2.0,
+                       ipprint >=0.5 && <0.6,
+                       hscolour >=1.20 && <2.0,
+                       lens >=4.0 && <5.0,
+                       mtl >=2.1 && <3.0,
+                       optparse-applicative >=0.8 && <1.0,
+                       parsec >=3.0 && <4.0,
+                       regex-compat >=0.90 && <1.0,
+                       safecopy >=0.8 && <1.0,
+                       split >=0.2 && <0.3,
+                       text >=1.0 && <2.0,
+                       transformers >=0.3 && <0.4
   default-language:    Haskell2010
