@@ -128,7 +128,7 @@ type Toughness = String
 
 type Loyalty = Word8
 
-type MultiverseID = Integer
+type MultiverseID = Int
 
 type ImageName = String
 
