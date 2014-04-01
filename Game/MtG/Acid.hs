@@ -102,12 +102,13 @@ getCard i = IntMap.lookup i . view allCards <$> ask
 
 getCardsByName :: Name -> Query CardDB [Card]
 getCardsByName n = do
+    is <- Map.findWithDefault Set.empty n . view allMultiverseIDs <$> ask
     cs <- view allCards <$> ask
-    i <- Map.lookup n . view allMultiverseIDs <$> ask
-    case i of
-      Nothing -> return []
-      Just s  -> return $ map (fromJust . (`IntMap.lookup` cs))
-                              (Set.toList s)
+
+    -- We can use fromJust here, because if an ID looked up in
+    -- allMultiverseIDs isn't found in allCards, the integrity of
+    -- the DB is in question, and we want to bail out
+    return $ map (fromJust . (`IntMap.lookup` cs)) (Set.toList is)
 
 getCards :: Query CardDB [Card]
 getCards = IntMap.elems . view allCards <$> ask
