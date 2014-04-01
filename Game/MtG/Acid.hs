@@ -7,7 +7,6 @@ module Game.MtG.Acid where
 import Control.Applicative
 import Control.Lens
 import Control.Monad.Reader
-import Control.Monad.State
 import Data.Acid
 import Data.Data
 import qualified Data.Map as Map
@@ -20,22 +19,20 @@ $(deriveSafeCopy 0 'base ''SetType)
 $(deriveSafeCopy 0 'base ''CardSet)
 
 data CardDB = CardDB
-            { allCardSets :: Map.Map SetCode CardSet }
+            { _allCardSets :: Map.Map SetCode CardSet }
             deriving (Show, Typeable)
+
+makeLenses ''CardDB
 
 $(deriveSafeCopy 0 'base ''CardDB)
 
 initialDB :: CardDB
-initialDB = CardDB { allCardSets = Map.empty }
-
+initialDB = CardDB Map.empty
 
 getCardSets :: Query CardDB [CardSet]
-getCardSets = Map.elems . allCardSets <$> ask
+getCardSets = Map.elems . view allCardSets <$> ask
 
 addCardSet :: CardSet -> Update CardDB ()
-addCardSet cs = modify go
-    where
-      go (CardDB mcs) = CardDB $
-        Map.insert (cs^.code) cs mcs
+addCardSet cs = allCardSets %= Map.insert (cs^.code) cs
 
 makeAcidic ''CardDB ['getCardSets, 'addCardSet]
