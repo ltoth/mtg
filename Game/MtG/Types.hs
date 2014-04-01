@@ -328,6 +328,7 @@ data Effect =
     | RemoveCounters CountRange (Maybe CounterType) Targets
     | PutCounters CountRange (Maybe CounterType) Targets
     | PutTokens Targets NumValue NumValue NumValue PermanentMatch
+      (Maybe [Ability])
     | AddMana (Maybe CountRange) ManaType
 
     -- who, which zone, for what

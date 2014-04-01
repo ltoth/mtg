@@ -427,7 +427,8 @@ textToAbilities ct = case parse paras "" ct of
                          <*> (string " " *> explicitNumber)
                          <*> (string "/" *> explicitNumber)
                          <*> (string " " *> permanentMatch)
-                         <* optional (string " ") <* string "onto the battlefield")
+                         <* optional (string " ") <* string "onto the battlefield"
+                         <*> optionMaybe (string " with " *> quotedAbilities))
               <|> try (AddMana <$> (ciString "Add to your mana pool " *> optionMaybe countRange)
                          <*> (optional (string " ") *> manaType))
               <|> try (AddMana <$> (ciString "Add " *> optionMaybe countRange)
