@@ -7,9 +7,8 @@ module Game.MtG.CardTextParser
 import Control.Applicative
 import Control.Lens hiding (noneOf)
 import Control.Monad
-import Data.List.Split (splitOn)
-import Data.List (intercalate)
 import Data.Maybe (fromMaybe)
+import qualified Data.Text as T
 import Text.ParserCombinators.Parsec hiding (many, optional, (<|>))
 import Text.Regex
 
@@ -33,25 +32,22 @@ parseAndSetAbilities c = c & abilities .~ as
 
 removeReminder :: CardText -> CardText
 -- FIXME: Should not be greedy
-removeReminder t = subRegex (mkRegex " *\\([^)]+\\) *")
-                   (subRegex (mkRegex "^\\([^)]+\\)\n\n") t "") ""
+removeReminder t = T.pack $ subRegex (mkRegex " *\\([^)]+\\) *")
+                   (subRegex (mkRegex "^\\([^)]+\\)\n\n") (T.unpack t) "") ""
 
 replaceThis :: Card -> Maybe CardText
 replaceThis c =
-    replace shortName "{This}"
-    . replace (c ^. name) "{This}"
+    T.replace shortName "{This}"
+    . T.replace (c ^. name) "{This}"
     <$> c ^. cardText
-    where shortName = takeWhile (/= ',')  (c ^. name)
+    where shortName = T.takeWhile (/= ',')  (c ^. name)
           -- This handles the THS Gods, Tymaret, Jarad, etc.
           -- since only their first names are used in ability text
 
-replace :: Eq a => [a] -> [a] -> [a] -> [a]
-replace old new = intercalate new . splitOn old
-
 textToAbilities :: CardText -> [Ability]
-textToAbilities ct = case parse paras "" ct of
+textToAbilities ct = case parse paras "" (T.unpack ct) of
                       Left e -> error ("Error parsing card text:\n\n" ++
-                                      ct ++ show e)
+                                      T.unpack ct ++ show e)
                       Right xs -> xs
                       -- FIXME: Perhaps we shouldn't flatten the list, so
                       -- that when Artisan's Sorrow has an illegal target,
@@ -108,7 +104,7 @@ textToAbilities ct = case parse paras "" ct of
 
         conditions = condition `sepBy1` condSet
         condSet = string " and " -- FIXME: This separation doesn't work now
-        condition = many (noneOf ",\n")
+        condition = T.pack <$> many (noneOf ",\n")
 
         triggered =
           do
@@ -120,7 +116,7 @@ textToAbilities ct = case parse paras "" ct of
 
         trigEvent =
               try (ciString "At " >> turnEvent)
-          <|> try (ciString "Whenever " >> TEOther <$> many (noneOf ",\n"))
+          <|> try (ciString "Whenever " >> TEOther . T.pack <$> many (noneOf ",\n"))
           <|> try (ciString "When " >> effectEvent)
 
         duration = try (optional (string " ")) *>
@@ -170,7 +166,7 @@ textToAbilities ct = case parse paras "" ct of
                       return TEThisDies)
                     <|> try (ciString "{This} leaves the battlefield" >>
                       return TEThisLTB)
-                    <|> TEOther <$> many (noneOf ",\n")
+                    <|> TEOther . T.pack <$> many (noneOf ",\n")
 
         playerMatch =
           (try (   try (ciString "each player's")
@@ -413,12 +409,12 @@ textToAbilities ct = case parse paras "" ct of
                          <*> optionMaybe duration)
               <|> try (ciString "Remove " >> RemoveCounters <$> countRange
                          <*> try ((optional (string " ") *>
-                         optionMaybe (many1 (noneOf " \n")) <* optional (string " "))
+                         optionMaybe (T.pack <$> many1 (noneOf " \n")) <* optional (string " "))
                          <* ciString "counter" <* optional (string "s")
                          <* ciString " from ") <*> targets)
               <|> try (ciString "Put " >> PutCounters <$> countRange
                          <*> try ((optional (string " ") *>
-                         optionMaybe (many1 (noneOf " \n")) <* optional (string " "))
+                         optionMaybe (T.pack <$> many1 (noneOf " \n")) <* optional (string " "))
                          <* ciString "counter" <* optional (string "s")
                          <* ciString " on ") <*> targets)
               <|> try (PutTokens <$> optionPlayerYou
@@ -477,7 +473,7 @@ textToAbilities ct = case parse paras "" ct of
               <|> try (ETBWithCounters <$> (targets <* ciString "enters the battlefield with ")
                          <*> countRange
                          <*> try ((optional (string " ") *>
-                         optionMaybe (many1 (noneOf " \n")) <* optional (string " "))
+                         optionMaybe (T.pack <$> many1 (noneOf " \n")) <* optional (string " "))
                          <* ciString "counter" <* optional (string "s")
                          <* ciString " on it"))
               <|> try (Emblem <$ ciString "You get an emblem with "
@@ -485,7 +481,7 @@ textToAbilities ct = case parse paras "" ct of
               <|> try (Monstrosity <$ ciString "Monstrosity "
                          <*> explicitNumber)
               <|> try (Scry <$ ciString "Scry " <*> explicitNumber)
-              <|> (OtherEffect <$> many1 (noneOf ".\n\""))
+              <|> (OtherEffect . T.pack <$> many1 (noneOf ".\n\""))
               ) <* optional numVariableConsume
               <* optional (oneOf ".,") <* optional (string " ")
 
@@ -508,7 +504,7 @@ textToAbilities ct = case parse paras "" ct of
         -- FIXME: This will only work once all effects are accounted for
         -- and we take out OtherEffect
         activationInst = try $ string "Activate this ability only "
-                               *> many1 (noneOf "\n")
+                               *> (T.pack <$> many1 (noneOf "\n"))
 
         totalCost = abilityCost `sepBy1` andSep
         andSep = try (string ", and ")
@@ -553,14 +549,14 @@ textToAbilities ct = case parse paras "" ct of
                           optional $ try (string "an amount of")
                           lookAhead $ try (do
                             noneOf ",.\n" `manyTill` try (string "equal to ")
-                            NumVariable <$> many1 (noneOf ",.\n")))
+                            NumVariable . T.pack <$> many1 (noneOf ",.\n")))
                   <|> try explicitNumber
 
         explicitNumber = try (do
                            try (string "X")
                            lookAhead $ try (do
                              noneOf ".\n" `manyTill` try (string ", where X is ")
-                             NumVariable <$> many1 (noneOf ".\n")))
+                             NumVariable . T.pack <$> many1 (noneOf ".\n")))
                   <|> try (NumValueX <$ string "X")
                   <|> try (NumValue 1 <$ string "an")
                   <|> try (NumValue 1 <$ string "a")
@@ -801,7 +797,7 @@ textToAbilities ct = case parse paras "" ct of
         cardNamed = try (do
           optional (string " ")
           string "named "
-          many1 (noneOf ",:;.\n")) -- FIXME: Actually match against
+          T.pack <$> many1 (noneOf ",:;.\n")) -- FIXME: Actually match against
           -- possible card names, not just as strings, since
           -- this doesn't know when to stop properly, i.e. Kher Keep
 

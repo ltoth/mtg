@@ -4,6 +4,7 @@ module Game.MtG.Types where
 
 import Data.Data
 import Control.Lens hiding (noneOf)
+import Data.Text (Text)
 import Data.Word (Word8)
 
 -- |
@@ -12,7 +13,7 @@ import Data.Word (Word8)
 data Layout = Normal | Split | Flip | DoubleFaced | TokenLayout | Plane
             | Scheme | Phenomenon
               deriving (Show, Eq)
-type Name = String
+type Name = Text
 
 type ManaCost = [ManaSymbol]
 data ManaSymbol = W | U | B | R | G | S | CL Word8 | X | Y | Z
@@ -30,7 +31,7 @@ type CMC = Word8
 data Color = White | Blue | Black | Red | Green
              deriving (Show, Eq)
 
-type TypeLine = String
+type TypeLine = Text
 
 data Supertype = Basic | Legendary | Ongoing | Snow | World
                  deriving (Show, Eq)
@@ -114,25 +115,25 @@ data CreatureType = Advisor | Ally | Angel | Anteater | Antelope | Ape
 data Rarity = Common | Uncommon | Rare | MythicRare | BasicLandRarity
               deriving (Show, Eq)
 
-type CardText = String
+type CardText = Text
 
-type Flavor = String
+type Flavor = Text
 
-type Artist = String
+type Artist = Text
 
-type CardNumber = String
+type CardNumber = Text
 
-type Power = String
+type Power = Text
 
-type Toughness = String
+type Toughness = Text
 
 type Loyalty = Word8
 
 type MultiverseID = Int
 
-type ImageName = String
+type ImageName = Text
 
-type Watermark = String
+type Watermark = Text
 
 data Border = BlackBorder | WhiteBorder | SilverBorder
               deriving (Show, Eq)
@@ -238,10 +239,10 @@ data NumChange = Plus NumValue | Minus NumValue
                deriving (Show, Eq)
 
 -- FIXME: Actually parse calculations properly
-type Calculation = String
+type Calculation = Text
 
 -- FIXME: Should this be parsed into possible counter types?
-type CounterType = String
+type CounterType = Text
 
 type DurationOrTriggerEvent = Either Duration TriggerEvent
 
@@ -262,7 +263,7 @@ data TriggerEvent = TEAt (Maybe PlayerMatch) (Maybe Next) Step
                   | TEThisETBOrDies | TEThisDies
                   | TEObjectETB PermanentMatch
                   | TEObjectLTB PermanentMatch
-                  | TEOther String -- FIXME: Make more value constr.
+                  | TEOther Text -- FIXME: Make more value constr.
                   deriving (Show, Eq)
 
 data Next = Next deriving (Show, Eq)
@@ -285,9 +286,9 @@ data FromAmong = FromAmong deriving (Show, Eq)
 data CardOrder = AnyOrder | RandomOrder
                deriving (Show, Eq)
 
-type TriggerCondition = String -- TODO: should this be the same as AltCostCondition?
-type ActivationInst = String
-type AltCostCondition = String
+type TriggerCondition = Text -- TODO: should this be the same as AltCostCondition?
+type ActivationInst = Text
+type AltCostCondition = Text
 
 data Ability = AdditionalCost ([Cost])
              | AlternativeCost ([Cost]) (Maybe [AltCostCondition])
@@ -376,7 +377,7 @@ data Effect =
     -- Other effects
     | ModalEffects CountRange [Effect]
     | OptionalEffect PlayerMatch Effect
-    | OtherEffect String
+    | OtherEffect Text
     deriving (Show, Eq)
 
 data Keyword = Deathtouch
@@ -401,7 +402,7 @@ data Keyword = Deathtouch
              | Bestow ([Cost])
              deriving (Show, Eq)
 
-type SetCode = String
+type SetCode = Text
 
 data Card = Card
           { _layout :: Layout
@@ -435,17 +436,17 @@ makeLenses ''Card
 -- |
 -- = Types for card sets
 
-type SetName = String
+type SetName = Text
 
 -- TODO: Should be UTCTime or something?
-type SetRelease = String
+type SetRelease = Text
 
 data SetType = Core | Expansion | Reprint | Box | Un | FromTheVault
                | PremiumDeck | DuelDeck | Starter | Commander
                | Planechase | Archenemy | Promo
               deriving (Show, Eq)
 
-type SetBlock = String
+type SetBlock = Text
 
 -- Type for card set as parsed from JSON
 data CardSet' = CardSet'

@@ -1,4 +1,4 @@
-{-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE NoMonomorphismRestriction, OverloadedStrings #-}
 
 module Main where
 
@@ -9,6 +9,8 @@ import Data.Acid
 import Data.Acid.Advanced
 import Data.List
 import Data.Maybe (fromMaybe)
+import Data.Text (Text)
+import qualified Data.Text as T
 import qualified IPPrint
 import qualified Language.Haskell.HsColour as HsColour
 import qualified Language.Haskell.HsColour.Colourise as HsColour
@@ -31,7 +33,7 @@ opts = subparser
                               argument auto (metavar "ID"))
                        (progDesc "Get parsed card by multiverseID") )
   <> command "name"    (info (nameCmd <$>
-                              argument str (metavar "NAME"))
+                              argument ((fmap.fmap) T.pack str) (metavar "NAME"))
                        (progDesc "Get parsed cards by exact name") )
   <> command "names"   (info (pure namesCmd)
                        (progDesc "Get all parsed card names") )
@@ -129,12 +131,12 @@ filterCards p = go <$> debugGetCards setFile
              filter p .
              fromMaybe []
 
-cardTextIncludes :: String -> Card -> Bool
+cardTextIncludes :: Text -> Card -> Bool
 cardTextIncludes s = fromMaybe False .
-                     (view cardText >=> return . isInfixOf s)
+                     (view cardText >=> return . T.isInfixOf s)
 
-nameStartsWith :: String -> Card -> Bool
-nameStartsWith s = isPrefixOf s . view name
+nameStartsWith :: Text -> Card -> Bool
+nameStartsWith s = T.isPrefixOf s . view name
 
 effects :: Ability -> [Effect]
 effects (ActivatedAbility _ es _) = es
@@ -153,7 +155,7 @@ isOtherEffect (OtherEffect _) = True
 isOtherEffect _ = False
 
 isETB :: Effect -> Bool
-isETB (OtherEffect e) = "{This} enters the battlefield" `isInfixOf` e
+isETB (OtherEffect e) = "{This} enters the battlefield" `T.isInfixOf` e
 isETB _ = False
 
 hasTEOther :: [Ability] -> Bool
