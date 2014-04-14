@@ -2,10 +2,11 @@
 }:
 let
   inherit (haskellPackages)
-    cabal cabalInstall_1_18_0_2 haskellPlatform ghcMod
+    cabal cabalInstall_1_18_0_3 haskellPlatform ghcMod
     acidState
     aeson
     hscolour
+    ipprint
     lens
     optparseApplicative
     safecopy;
@@ -20,10 +21,11 @@ in cabal.mkDerivation (self: {
     acidState
     aeson
     hscolour
+    ipprint
     lens
     optparseApplicative
     safecopy
   ];
-  buildTools = [ cabalInstall_1_18_0_2 ];
+  buildTools = [ cabalInstall_1_18_0_3 ];
   enableSplitObjs = false;
 })

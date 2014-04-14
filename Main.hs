@@ -12,6 +12,7 @@ import Data.List
 import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import qualified Data.Text as T
+import qualified IPPrint
 import qualified Language.Haskell.HsColour as HsColour
 import qualified Language.Haskell.HsColour.Colourise as HsColour
 import qualified Language.Haskell.HsColour.Output as HsColour
@@ -116,7 +117,7 @@ myColourPrefs = HsColour.defaultColourPrefs
 myPrint :: Show a => a -> IO ()
 myPrint = putStrLn . HsColour.hscolour
   (HsColour.TTYg HsColour.XTerm256Compatible) myColourPrefs
-  False False "" False . show
+  False False "" False . IPPrint.pshow
 
 ----------------------------------------------------------
 
