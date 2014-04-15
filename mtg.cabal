@@ -25,10 +25,9 @@ library
                        Game.MtG.Types
   other-modules:       Text.Parsec.Char.Extra,
                        Text.ParserCombinators.Parsec.Extra
+  default-extensions:  OverloadedStrings
   other-extensions:    DeriveDataTypeable,
                        FlexibleInstances,
-                       NoMonomorphismRestriction,
-                       OverloadedStrings,
                        TemplateHaskell,
                        TypeFamilies,
                        TypeSynonymInstances
@@ -58,7 +57,7 @@ executable mtg
                        Game.MtG.CardTextParser,
                        Game.MtG.JSONParser,
                        Game.MtG.Types
-  other-extensions:    NoMonomorphismRestriction
+  default-extensions:  OverloadedStrings
   build-depends:       base >=4.6 && <4.7,
                        acid-state >=0.12 && <1.0,
                        aeson >=0.6 && <1.0,

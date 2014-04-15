@@ -1,5 +1,3 @@
-{-# LANGUAGE NoMonomorphismRestriction, OverloadedStrings #-}
-
 module Main where
 
 import Control.Applicative

@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 module Game.MtG.CardTextParser
 ( parseAndSetAbilities
 ) where
