@@ -7,6 +7,7 @@ import Control.Lens hiding (argument)
 import Control.Monad
 import Data.Acid
 import Data.Acid.Advanced
+import Data.Either
 import Data.List
 import Data.Maybe (fromMaybe)
 import Data.Text (Text)
@@ -80,10 +81,13 @@ persistCardSet s fp = parseSet fp >>= \pcs' ->
     case pcs' of
       Left  e   -> putStrLn e
       Right cs' -> do
-        groupUpdates s $ map AddCard (persistableCards cs')
         update s (AddCardSet . persistableCardSet $ cs')
 
-persistableCards :: CardSet' -> [Card]
+        let cards = persistableCards cs'
+        groupUpdates s $ map AddCard (rights cards)
+        mapM_ putStrLn (lefts cards)
+
+persistableCards :: CardSet' -> [Either String Card]
 persistableCards cs' = fmap fill (cs'^.cards')
     where fill = parseAndSetAbilities .
                  (setCode .~ (cs'^.code'))
@@ -127,11 +131,11 @@ debugCmd = withState (\s -> do
 debugGetCards :: FilePath -> IO (Either String [Card])
 debugGetCards fp = (view cards' <$>) <$> parseSet fp
 
-filterCards :: (Card -> Bool) -> IO [Card]
-filterCards p = go <$> debugGetCards setFile
-  where go = fmap parseAndSetAbilities .
-             filter p .
-             either (const []) id
+-- filterCards :: (Card -> Bool) -> IO [Card]
+-- filterCards p = go <$> debugGetCards setFile
+--   where go = fmap parseAndSetAbilities .
+--              filter p .
+--              either (const []) id
 
 cardTextIncludes :: Text -> Card -> Bool
 cardTextIncludes s = fromMaybe False .

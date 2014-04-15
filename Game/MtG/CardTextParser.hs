@@ -7,7 +7,6 @@ module Game.MtG.CardTextParser
 import Control.Applicative
 import Control.Lens hiding (noneOf)
 import Control.Monad
-import Data.Maybe (fromMaybe)
 import qualified Data.Text as T
 import Text.ParserCombinators.Parsec hiding (many, optional, (<|>))
 import Text.Regex
@@ -23,12 +22,14 @@ import Game.MtG.JSONParser ( manaCostParser
                            , typeParser
                            , subtypeParser )
 
-parseAndSetAbilities :: Card -> Card
-parseAndSetAbilities c = c & abilities .~ as
-  where as = fromMaybe [] $
-             textToAbilities <$>
-             removeReminder <$>
-             replaceThis c
+parseAndSetAbilities :: Card -> Either String Card
+parseAndSetAbilities c = case parsedAbilities of
+                           Just (Right as) -> Right $ c & abilities .~ as
+                           Just (Left  e)  -> Left e
+                           Nothing         -> Right c
+  where parsedAbilities = textToAbilities <$>
+                          removeReminder <$>
+                          replaceThis c
 
 removeReminder :: CardText -> CardText
 -- FIXME: Should not be greedy
@@ -44,11 +45,11 @@ replaceThis c =
           -- This handles the THS Gods, Tymaret, Jarad, etc.
           -- since only their first names are used in ability text
 
-textToAbilities :: CardText -> [Ability]
+textToAbilities :: CardText -> Either String [Ability]
 textToAbilities ct = case parse paras "" (T.unpack ct) of
-                      Left e -> error ("Error parsing card text:\n\n" ++
+                      Left e -> Left ("Error parsing card text:\n\n" ++
                                       T.unpack ct ++ show e)
-                      Right xs -> xs
+                      Right xs -> Right xs
                       -- FIXME: Perhaps we shouldn't flatten the list, so
                       -- that when Artisan's Sorrow has an illegal target,
                       -- we know not to resolve Scry 2. Those effects are
