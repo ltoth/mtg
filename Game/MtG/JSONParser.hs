@@ -34,7 +34,7 @@ parseSet fp = eitherDecode <$> L.readFile fp
 -- Parsing individual cards from JSON
 
 parseText :: Monad m => ParsecT String () Identity a -> Text -> m a
-parseText p t = either (fail . show) return (parse p s s)
+parseText p t = either (fail . show) return (parse (p <* eof) s s)
                   where s = T.unpack t
 
 instance FromJSON Layout where
