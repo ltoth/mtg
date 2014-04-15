@@ -46,15 +46,13 @@ replaceThis c =
           -- since only their first names are used in ability text
 
 textToAbilities :: CardText -> Either String [Ability]
-textToAbilities ct = case parse paras "" (T.unpack ct) of
-                      Left e -> Left ("Error parsing card text:\n\n" ++
-                                      T.unpack ct ++ show e)
-                      Right xs -> Right xs
-                      -- FIXME: Perhaps we shouldn't flatten the list, so
-                      -- that when Artisan's Sorrow has an illegal target,
-                      -- we know not to resolve Scry 2. Those effects are
-                      -- one ability.
-  where paras = concat <$> abilityPara `sepBy` string "\n\n" <* eof
+textToAbilities ct = parse paras s s & _Left %~ show
+  where s = T.unpack ct
+                -- FIXME: Perhaps we shouldn't flatten the list, so
+                -- that when Artisan's Sorrow has an illegal target,
+                -- we know not to resolve Scry 2. Those effects are
+                -- one ability.
+        paras = concat <$> abilityPara `sepBy` string "\n\n" <* eof
         abilityPara = try (keyword `sepBy1` commas)
                   <|> (optional abilityWord >>
                        many1 (try additional
