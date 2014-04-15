@@ -27,8 +27,8 @@ import Game.MtG.Types
 -- |
 -- = Functions that do I/O
 
-parseSet :: FilePath -> IO (Maybe CardSet')
-parseSet fp = decode <$> L.readFile fp
+parseSet :: FilePath -> IO (Either String CardSet')
+parseSet fp = eitherDecode <$> L.readFile fp
 
 -- |
 -- Parsing individual cards from JSON

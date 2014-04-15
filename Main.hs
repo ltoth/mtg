@@ -76,10 +76,12 @@ withState f = do
     return r
 
 persistCardSet :: AcidState CardDB -> FilePath -> IO ()
-persistCardSet s fp = do
-    Just cs' <- parseSet fp
-    groupUpdates s $ map AddCard (persistableCards cs')
-    update s (AddCardSet . persistableCardSet $ cs')
+persistCardSet s fp = parseSet fp >>= \pcs' ->
+    case pcs' of
+      Left  e   -> putStrLn e
+      Right cs' -> do
+        groupUpdates s $ map AddCard (persistableCards cs')
+        update s (AddCardSet . persistableCardSet $ cs')
 
 persistableCards :: CardSet' -> [Card]
 persistableCards cs' = fmap fill (cs'^.cards')
@@ -122,14 +124,14 @@ debugCmd = withState (\s -> do
       filter (\c -> hasOtherEffect (c^.abilities)) cs
     )
 
-debugGetCards :: FilePath -> IO (Maybe [Card])
+debugGetCards :: FilePath -> IO (Either String [Card])
 debugGetCards fp = (view cards' <$>) <$> parseSet fp
 
 filterCards :: (Card -> Bool) -> IO [Card]
 filterCards p = go <$> debugGetCards setFile
   where go = fmap parseAndSetAbilities .
              filter p .
-             fromMaybe []
+             either (const []) id
 
 cardTextIncludes :: Text -> Card -> Bool
 cardTextIncludes s = fromMaybe False .
