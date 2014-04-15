@@ -15,6 +15,7 @@ import Control.Applicative
 import Data.Aeson
 import qualified Data.ByteString.Lazy.Char8 as L
 import Data.Functor.Identity (Identity)
+import Data.Text (Text)
 import qualified Data.Text as T
 import Text.Parsec.Prim (ParsecT)
 import Text.ParserCombinators.Parsec hiding (many, optional, (<|>))
@@ -32,6 +33,10 @@ parseSet fp = decode <$> L.readFile fp
 -- |
 -- Parsing individual cards from JSON
 
+parseText :: Monad m => ParsecT String () Identity a -> Text -> m a
+parseText p t = either (fail . show) return (parse p s s)
+                  where s = T.unpack t
+
 instance FromJSON Layout where
     parseJSON (String s)
       | s == "normal" = return Normal
@@ -46,13 +51,8 @@ instance FromJSON Layout where
     parseJSON _ = fail "Could not parse layout"
 
 instance FromJSON ManaCost where
-    parseJSON (String s) = return . stringToManaCost $ T.unpack s
+    parseJSON (String s) = parseText manaCostParser s
     parseJSON _ = fail "Could not parse mana cost"
-
-stringToManaCost :: String -> ManaCost
-stringToManaCost s = case parse manaCostParser "" s of
-                      Left e -> error (show e)
-                      Right xs -> xs
 
 manaCostParser :: ParsecT String u Identity ManaCost
 manaCostParser = many1 manaSymbolParser
@@ -92,13 +92,8 @@ manaSymbolParser = try (string "{G/W}" >> return GW)
              <|> CL <$> (char '{' *> (read <$> many1 digit) <* char '}')
 
 instance FromJSON Color where
-    parseJSON (String s) = return . stringToColor $ T.unpack s
+    parseJSON (String s) = parseText colorParser s
     parseJSON _ = fail "Could not parse color"
-
-stringToColor :: String -> Color
-stringToColor s = case parse colorParser "" s of
-                      Left e -> error (show e)
-                      Right xs -> xs
 
 colorParser :: ParsecT String u Identity Color
 colorParser = try (ciString "White" >> return White)
@@ -108,13 +103,8 @@ colorParser = try (ciString "White" >> return White)
           <|> try (ciString "Green" >> return Green)
 
 instance FromJSON Supertype where
-    parseJSON (String s) = return . stringToSupertype $ T.unpack s
+    parseJSON (String s) = parseText supertypeParser s
     parseJSON _ = fail "Could not parse supertype"
-
-stringToSupertype :: String -> Supertype
-stringToSupertype s = case parse supertypeParser "" s of
-                      Left e -> error (show e)
-                      Right xs -> xs
 
 supertypeParser :: ParsecT String u Identity Supertype
 supertypeParser = try (ciString "Basic" >> return Basic)
@@ -124,13 +114,8 @@ supertypeParser = try (ciString "Basic" >> return Basic)
               <|> try (ciString "World" >> return World)
 
 instance FromJSON Type where
-    parseJSON (String s) = return . stringToType $ T.unpack s
+    parseJSON (String s) = parseText typeParser s
     parseJSON _ = fail "Could not parse type"
-
-stringToType :: String -> Type
-stringToType s = case parse typeParser "" s of
-                      Left e -> error (show e)
-                      Right xs -> xs
 
 typeParser :: ParsecT String u Identity Type
 typeParser = try (ciString "Instant" >> return Instant)
@@ -143,13 +128,8 @@ typeParser = try (ciString "Instant" >> return Instant)
          <|> try (ciString "Tribal" >> return Tribal)
 
 instance FromJSON Subtype where
-    parseJSON (String s) = return . stringToSubtype $ T.unpack s
+    parseJSON (String s) = parseText subtypeParser s
     parseJSON _ = fail "Could not parse subtype"
-
-stringToSubtype :: String -> Subtype
-stringToSubtype s = case parse subtypeParser "" s of
-                      Left e -> error (show e)
-                      Right xs -> xs
 
 subtypeParser :: ParsecT String u Identity Subtype
 subtypeParser =
