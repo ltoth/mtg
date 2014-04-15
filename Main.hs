@@ -9,8 +9,6 @@ import Data.Acid
 import Data.Acid.Advanced
 import Data.Either
 import Data.List
-import Data.Maybe (fromMaybe)
-import Data.Text (Text)
 import qualified Data.Text as T
 import qualified IPPrint
 import qualified Language.Haskell.HsColour as HsColour
@@ -22,9 +20,6 @@ import Game.MtG.Acid
 import Game.MtG.Types
 import Game.MtG.CardTextParser (parseAndSetAbilities)
 import Game.MtG.JSONParser (parseSet)
-
-setFile :: String
-setFile = "THS.json"
 
 opts :: Parser (IO ())
 opts = subparser
@@ -127,22 +122,6 @@ debugCmd = withState (\s -> do
     mapM_ myPrint . sort . map (view name) $
       filter (\c -> hasOtherEffect (c^.abilities)) cs
     )
-
-debugGetCards :: FilePath -> IO (Either String [Card])
-debugGetCards fp = (view cards' <$>) <$> parseSet fp
-
--- filterCards :: (Card -> Bool) -> IO [Card]
--- filterCards p = go <$> debugGetCards setFile
---   where go = fmap parseAndSetAbilities .
---              filter p .
---              either (const []) id
-
-cardTextIncludes :: Text -> Card -> Bool
-cardTextIncludes s = fromMaybe False .
-                     (view cardText >=> return . T.isInfixOf s)
-
-nameStartsWith :: Text -> Card -> Bool
-nameStartsWith s = T.isPrefixOf s . view name
 
 effects :: Ability -> [Effect]
 effects (ActivatedAbility _ es _) = es

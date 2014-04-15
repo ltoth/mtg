@@ -18,7 +18,8 @@ build-type:          Simple
 cabal-version:       >=1.10
 
 library
-  exposed-modules:     Game.MtG.Acid,
+  exposed-modules:     Debug,
+                       Game.MtG.Acid,
                        Game.MtG.CardTextParser,
                        Game.MtG.JSONParser,
                        Game.MtG.Types
