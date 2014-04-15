@@ -12,33 +12,33 @@ import Data.Word (Word8)
 
 data Layout = Normal | Split | Flip | DoubleFaced | TokenLayout | Plane
             | Scheme | Phenomenon
-              deriving (Show, Eq)
+              deriving (Show, Eq, Data, Typeable)
 type Name = Text
 
 type ManaCost = [ManaSymbol]
 data ManaSymbol = W | U | B | R | G | S | CL Word8 | X | Y | Z
                   | GW | WU | RW | WB | UB | GU | UR | BR | BG | RG
                   | W2 | U2 | B2 | R2 | G2 | WP | UP | BP | RP | GP | P
-                  deriving (Show, Eq)
+                  deriving (Show, Eq, Data, Typeable)
 
 data ManaType = ManaAnyOneColor | ManaAnyColor | ManaThatColor
               | ManaAnyCombination | ManaAnyCombinationOf [ManaSymbol]
               | ManaSymbols [[ManaSymbol]] -- OrList ([ManaSymbol])
-              deriving (Show, Eq)
+              deriving (Show, Eq, Data, Typeable)
 
 type CMC = Word8
 
 data Color = White | Blue | Black | Red | Green
-             deriving (Show, Eq)
+             deriving (Show, Eq, Data, Typeable)
 
 type TypeLine = Text
 
 data Supertype = Basic | Legendary | Ongoing | Snow | World
-                 deriving (Show, Eq)
+                 deriving (Show, Eq, Data, Typeable)
 
 data Type = Instant | Sorcery | Artifact | Creature | Enchantment
             | Land | Planeswalker | Tribal
-            deriving (Show, Eq)
+            deriving (Show, Eq, Data, Typeable)
 
 data Subtype = ArtifactType ArtifactType
              | EnchantmentType EnchantmentType
@@ -46,29 +46,30 @@ data Subtype = ArtifactType ArtifactType
              | PlaneswalkerType PlaneswalkerType
              | SpellType SpellType
              | CreatureType CreatureType
-            deriving (Show, Eq)
+            deriving (Show, Eq, Data, Typeable)
 
 data ArtifactType = Contraption | Equipment | Fortification
-                     deriving (Show, Eq)
+                     deriving (Show, Eq, Data, Typeable)
 
 data EnchantmentType = Aura | Curse | Shrine
-                     deriving (Show, Eq)
+                     deriving (Show, Eq, Data, Typeable)
 
 data LandType = BasicLand BasicLandType
               | Desert | Gate | Lair | Locus | Mine | PowerPlant
               | Tower | Urzas
-              deriving (Show, Eq)
+              deriving (Show, Eq, Data, Typeable)
 
 data BasicLandType = Forest | Island | Mountain | Plains | Swamp
-                   deriving (Show, Eq)
+                   deriving (Show, Eq, Data, Typeable)
 
 data PlaneswalkerType = Ajani | Ashiok | Bolas | Chandra | Domri | Elspeth
                       | Garruk | Gideon | Jace | Karn | Kiora | Koth | Liliana
                       | Nissa | Ral | Sarkhan | Sorin | Tamiyo | Tezzeret
                       | Tibalt | Venser | Vraska | Xenagos
-                      deriving (Show, Eq)
+                      deriving (Show, Eq, Data, Typeable)
+
 data SpellType = Arcane | Trap
-               deriving (Show, Eq)
+               deriving (Show, Eq, Data, Typeable)
 
 data CreatureType = Advisor | Ally | Angel | Anteater | Antelope | Ape
                   | Archer | Archon | Artificer | Assassin
@@ -110,10 +111,10 @@ data CreatureType = Advisor | Ally | Angel | Anteater | Antelope | Ape
                   | Volver | Wall | Warrior | Weird | Werewolf | Whale
                   | Wizard | Wolf | Wolverine | Wombat | Worm | Wraith
                   | Wurm | Yeti | Zombie | Zubera
-                  deriving (Show, Eq)
+                  deriving (Show, Eq, Data, Typeable)
 
 data Rarity = Common | Uncommon | Rare | MythicRare | BasicLandRarity
-              deriving (Show, Eq)
+              deriving (Show, Eq, Data, Typeable)
 
 type CardText = Text
 
@@ -136,18 +137,18 @@ type ImageName = Text
 type Watermark = Text
 
 data Border = BlackBorder | WhiteBorder | SilverBorder
-              deriving (Show, Eq)
+              deriving (Show, Eq, Data, Typeable)
 
 -- |
 -- = Types for parsed abilities
 
 data Cost = CMana ManaCost | CTap | CUntap | CLoyalty NumChange
           | CEffect Effect
-          deriving (Show, Eq)
+          deriving (Show, Eq, Data, Typeable)
 
 data Targets = Target CountRange [TargetMatch]
              | NoTarget (Maybe CountRange) [TargetMatch]
-             deriving (Show, Eq)
+             deriving (Show, Eq, Data, Typeable)
 
 -- FIXME: Support targeting zones ("target library" Circu, Dimir Lobotomist)
 -- § 114.1 "targets are object(s), player(s), and/or zone(s)"
@@ -160,83 +161,83 @@ data TargetMatch = TMPermanent PermanentMatch | TMSpell SpellMatch
                  | TMThis | TMEnchantedPermanent | TMEquippedCreature
                  | TMSacrificed PermanentTypeMatch | TMSacrificedCard
                  | TMIt | TMThey | TMTheRest
-                 deriving (Show, Eq)
+                 deriving (Show, Eq, Data, Typeable)
 
 data SpellMatch = SpellMatch ColorMatch [PermanentTypeMatch]
-                deriving (Show, Eq)
+                deriving (Show, Eq, Data, Typeable)
 
 -- TODO: CardMatch should probably also match colors at least
 data CardMatch = TopCardsOfLibrary NumValue Zone
                | CardMatch [PermanentTypeMatch] (Maybe Quality) (Maybe Zone)
-               deriving (Show, Eq)
+               deriving (Show, Eq, Data, Typeable)
 
 data Quality = QPower CountRange | QToughness CountRange
              | QCMC CountRange
-             deriving (Show, Eq)
+             deriving (Show, Eq, Data, Typeable)
 
 -- TODO: Ability should be Non Ability ("with" vs. "without")
 data PermanentMatch = PermanentMatch (Maybe BlockedStatus)
                         [CombatStatus] ColorMatch
                         NonToken PermanentTypeMatch [Ability] (Maybe Quality)
                         (Maybe Name) (Maybe OwnControl)
-                    deriving (Show, Eq)
+                    deriving (Show, Eq, Data, Typeable)
 
 data ColorMatch = CMColors [Non Color] | CMMonocolored | CMMulticolored
-                deriving (Show, Eq)
+                deriving (Show, Eq, Data, Typeable)
 
 data BlockedStatus = Blocked | Unblocked
-                   deriving (Show, Eq)
+                   deriving (Show, Eq, Data, Typeable)
 
 data CombatStatus = Attacking | Blocking
-                  deriving (Show, Eq)
+                  deriving (Show, Eq, Data, Typeable)
 
 data NonToken = NonToken | CardOrToken
-              deriving (Show, Eq)
+              deriving (Show, Eq, Data, Typeable)
 
 data OwnControl = Own PlayerMatch | Control PlayerMatch
-                deriving (Show, Eq)
+                deriving (Show, Eq, Data, Typeable)
 
 data PermanentTypeMatch = PermanentTypeMatch [Non Supertype] [Non Type]
                             [Non Subtype]
                         | Token | Permanent
-                        deriving (Show, Eq)
+                        deriving (Show, Eq, Data, Typeable)
 
 data Non a = Non Bool a
-           deriving (Show, Eq)
+           deriving (Show, Eq, Data, Typeable)
 
 data PermanentStatus =
     PermanentStatus TapStatus FlipStatus FaceStatus PhaseStatus
-    deriving (Show, Eq)
+    deriving (Show, Eq, Data, Typeable)
 
 data PermanentStatusMatch =
     PermanentStatusMatch (Maybe TapStatus) (Maybe FlipStatus) (Maybe FaceStatus) (Maybe PhaseStatus)
-    deriving (Show, Eq)
+    deriving (Show, Eq, Data, Typeable)
 
 data TapStatus = Tapped | Untapped
-               deriving (Show, Eq)
+               deriving (Show, Eq, Data, Typeable)
 
 data FlipStatus = Flipped | Unflipped
-                deriving (Show, Eq)
+                deriving (Show, Eq, Data, Typeable)
 
 data FaceStatus = FaceUp | FaceDown
-                deriving (Show, Eq)
+                deriving (Show, Eq, Data, Typeable)
 
 data PhaseStatus = PhasedIn | PhasedOut
-                 deriving (Show, Eq)
+                 deriving (Show, Eq, Data, Typeable)
 
 data CountRange = UpTo Count | Exactly Count | AtLeast Count
                 | OneOf [NumValue] | AnyNumber | Other
-                deriving (Show, Eq)
+                deriving (Show, Eq, Data, Typeable)
 
 data Count = AnyCount NumValue | OtherCount NumValue
-           deriving (Show, Eq)
+           deriving (Show, Eq, Data, Typeable)
 
 data NumValue = NumValue Word8 | NumValueX | All | NumVariable Calculation
               | ThatMuch
-              deriving (Show, Eq)
+              deriving (Show, Eq, Data, Typeable)
 
 data NumChange = Plus NumValue | Minus NumValue
-               deriving (Show, Eq)
+               deriving (Show, Eq, Data, Typeable)
 
 -- FIXME: Actually parse calculations properly
 type Calculation = Text
@@ -250,13 +251,13 @@ data Duration = DurationUntil TriggerEvent | DurationForAsLongAs TriggerEvent
               | DurationDuring (Maybe PlayerMatch) (Maybe Next) Step
               | DurationEachTurn  -- FIXME: Perhaps "each turn" shouldn't be a duration?
               | DurationEachCombat -- FIXME: Perhaps "each combat" shouldn't either?
-              deriving (Show, Eq)
+              deriving (Show, Eq, Data, Typeable)
 
 data Zone = Library Targets | TopOfLibrary Targets
           | BottomOfLibrary Targets | Hand Targets
           | Graveyard Targets
           | Battlefield | Stack | ExileZone | Command | ZoneIt
-          deriving (Show, Eq)
+          deriving (Show, Eq, Data, Typeable)
 
 data TriggerEvent = TEAt (Maybe PlayerMatch) (Maybe Next) Step
                   | TEThisETB | TEThisLTB
@@ -264,27 +265,27 @@ data TriggerEvent = TEAt (Maybe PlayerMatch) (Maybe Next) Step
                   | TEObjectETB PermanentMatch
                   | TEObjectLTB PermanentMatch
                   | TEOther Text -- FIXME: Make more value constr.
-                  deriving (Show, Eq)
+                  deriving (Show, Eq, Data, Typeable)
 
-data Next = Next deriving (Show, Eq)
+data Next = Next deriving (Show, Eq, Data, Typeable)
 
 data PlayerMatch = EachPlayer | You | Player | Players | Opponent | Opponents
                  | Controller TargetMatch | Owner TargetMatch | HisOrHer | Their
                  | ThatPlayer | ThosePlayers
-                 deriving (Show, Eq)
+                 deriving (Show, Eq, Data, Typeable)
 
 data Step = UntapStep | Upkeep | DrawStep | PreCombatMain
           | BeginningOfCombat | DeclareAttackers | DeclareBlockers
           | CombatDamage | EndOfCombat | PostCombatMain
           | End | Cleanup
-          deriving (Show, Eq)
+          deriving (Show, Eq, Data, Typeable)
 
-data Divided = Divided deriving (Show, Eq)
+data Divided = Divided deriving (Show, Eq, Data, Typeable)
 
-data FromAmong = FromAmong deriving (Show, Eq)
+data FromAmong = FromAmong deriving (Show, Eq, Data, Typeable)
 
 data CardOrder = AnyOrder | RandomOrder
-               deriving (Show, Eq)
+               deriving (Show, Eq, Data, Typeable)
 
 type TriggerCondition = Text -- TODO: should this be the same as AltCostCondition?
 type ActivationInst = Text
@@ -297,7 +298,7 @@ data Ability = AdditionalCost ([Cost])
              | TriggeredAbility TriggerEvent [Effect] (Maybe [TriggerCondition])
              | StaticAbility [Effect]
              | SpellAbility [Effect]
-             deriving (Show, Eq)
+             deriving (Show, Eq, Data, Typeable)
 
 data Effect =
     -- One-shot effects
@@ -378,7 +379,7 @@ data Effect =
     | ModalEffects CountRange [Effect]
     | OptionalEffect PlayerMatch Effect
     | OtherEffect Text
-    deriving (Show, Eq)
+    deriving (Show, Eq, Data, Typeable)
 
 data Keyword = Deathtouch
              | Defender
@@ -400,7 +401,7 @@ data Keyword = Deathtouch
              | Trample
              | Vigilance
              | Bestow ([Cost])
-             deriving (Show, Eq)
+             deriving (Show, Eq, Data, Typeable)
 
 type SetCode = Text
 
