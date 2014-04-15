@@ -45,7 +45,6 @@ library
                        parsec >=3.0 && <4.0,
                        regex-compat >=0.90 && <1.0,
                        safecopy >=0.8 && <1.0,
-                       split >=0.2 && <0.3,
                        text >=0.11 && <2.0,
                        transformers >=0.3 && <0.4
   -- hs-source-dirs:
@@ -53,10 +52,6 @@ library
 
 executable mtg
   main-is:             Main.hs
-  other-modules:       Game.MtG.Acid,
-                       Game.MtG.CardTextParser,
-                       Game.MtG.JSONParser,
-                       Game.MtG.Types
   default-extensions:  OverloadedStrings
   build-depends:       base >=4.6 && <4.7,
                        acid-state >=0.12 && <1.0,
@@ -73,7 +68,6 @@ executable mtg
                        parsec >=3.0 && <4.0,
                        regex-compat >=0.90 && <1.0,
                        safecopy >=0.8 && <1.0,
-                       split >=0.2 && <0.3,
                        text >=0.11 && <2.0,
                        transformers >=0.3 && <0.4
   default-language:    Haskell2010
