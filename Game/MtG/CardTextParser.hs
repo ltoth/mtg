@@ -423,7 +423,7 @@ textToAbilities ct = parse paras s s & _Left %~ show
                          <*> (string "/" *> explicitNumber)
                          <*> (string " " *> permanentMatch)
                          <* optional (string " ") <* string "onto the battlefield"
-                         <*> optionMaybe (string " with " *> quotedAbilities))
+                         <*> optionMaybe (try $ string " with " *> quotedAbilities))
               <|> try (AddMana <$> (ciString "Add to your mana pool " *> optionMaybe countRange)
                          <*> (optional (string " ") *> manaType))
               <|> try (AddMana <$> (ciString "Add " *> optionMaybe countRange)
