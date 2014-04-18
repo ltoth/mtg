@@ -522,7 +522,9 @@ type OSpell        = Object Spell
 type OStackAbility = Object StackAbility
 type OEmblem       = Object Emblem
 -- TODO: Implement Copy (perhaps only of spells, since permanents could be
--- done within the Permanent type?)
+-- done within the Permanent type?)  Or is there no reason to have a separate
+-- type for copies, even of spells?  Having no separate type would be useful
+-- for TargetMatch.
 -- type GCopy = Object Copy
 
 data StackObject = GSpell | GStackAbility -- | GCopy FIXME
@@ -569,6 +571,8 @@ data Emblem = Emblem
             { _emblemAbilities :: [Ability]
             , _emblemController :: PId
             } deriving (Show, Data, Typeable)
+
+--data Copy = Copy
 
 makeFields ''Permanent
 makeFields ''Spell
