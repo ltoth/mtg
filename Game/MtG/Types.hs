@@ -253,6 +253,7 @@ data Duration = DurationUntil TriggerEvent | DurationForAsLongAs TriggerEvent
               | DurationEachCombat -- FIXME: Perhaps "each combat" shouldn't either?
               deriving (Show, Eq, Data, Typeable)
 
+-- FIXME: Should be ZoneMatch, and have an enumeration type Zone w/o fields
 data Zone = Library Targets | TopOfLibrary Targets
           | BottomOfLibrary Targets | Hand Targets
           | Graveyard Targets
