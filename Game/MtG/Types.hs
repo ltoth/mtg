@@ -8,7 +8,7 @@
 module Game.MtG.Types where
 
 import Data.Data
-import Control.Lens hiding (noneOf)
+import Control.Lens
 import Data.Text (Text)
 import Data.Word (Word8)
 
