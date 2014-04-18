@@ -28,7 +28,7 @@ filterCards p = go <$> debugGetCards setFile
 
 cardTextIncludes :: Text -> Card -> Bool
 cardTextIncludes s = fromMaybe False .
-                     (view cardText >=> return . T.isInfixOf s)
+                     (view rulesText >=> return . T.isInfixOf s)
 
 nameStartsWith :: Text -> Card -> Bool
 nameStartsWith s = T.isPrefixOf s . view name

@@ -454,9 +454,9 @@ instance FromJSON Card where
                            v .: "colors" <*>
                            v .: "multiverseid" <*>
                            v .: "name" <*>
-                           v .:? "names" <*>
-                           v .:? "supertypes" <*>
-                           v .:? "subtypes" <*>
+                           v .:? "names" .!= [] <*>
+                           v .:? "supertypes" .!= [] <*>
+                           v .:? "subtypes" .!= [] <*>
                            v .:? "cmc" <*>
                            v .: "rarity" <*>
                            v .: "artist" <*>
@@ -467,7 +467,7 @@ instance FromJSON Card where
                            v .:? "text" <*>
                            return [] <*>  -- [Abilities]
                            v .: "number" <*>
-                           v .:? "variations" <*>
+                           v .:? "variations" .!= [] <*>
                            v .: "imageName" <*>
                            v .:? "watermark" <*>
                            v .:? "border" <*>

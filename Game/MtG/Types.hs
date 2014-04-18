@@ -121,7 +121,7 @@ data CreatureType = Advisor | Ally | Angel | Anteater | Antelope | Ape
 data Rarity = Common | Uncommon | Rare | MythicRare | BasicLandRarity
               deriving (Show, Eq, Data, Typeable)
 
-type CardText = Text
+type RulesText = Text
 
 type Flavor = Text
 
@@ -129,8 +129,10 @@ type Artist = Text
 
 type CardNumber = Text
 
+-- FIXME: Should parse this into our data type using Parsec
 type Power = Text
 
+-- FIXME: Should parse this into our data type using Parsec
 type Toughness = Text
 
 type Loyalty = Word8
@@ -419,9 +421,9 @@ data Card = Card
           , _cardColors :: [Color]
           , _cardMultiverseID :: MultiverseID
           , _cardName :: Name
-          , _cardNames :: Maybe [Name]
-          , _cardSupertypes :: Maybe [Supertype]
-          , _cardSubtypes :: Maybe [Subtype]
+          , _cardNames :: [Name]
+          , _cardSupertypes :: [Supertype]
+          , _cardSubtypes :: [Subtype]
           , _cardCmc :: Maybe CMC
           , _cardRarity :: Rarity
           , _cardArtist :: Artist
@@ -429,10 +431,10 @@ data Card = Card
           , _cardToughness :: Maybe Toughness
           , _cardLoyalty :: Maybe Loyalty
           , _cardManaCost :: Maybe ManaCost
-          , _cardCardText :: Maybe CardText -- FIXME: Rename to rulesText
+          , _cardRulesText :: Maybe RulesText
           , _cardAbilities :: [Ability]
           , _cardCardNumber :: CardNumber
-          , _cardVariations :: Maybe [MultiverseID]
+          , _cardVariations :: [MultiverseID]
           , _cardImageName :: ImageName
           , _cardWatermark :: Maybe Watermark
           , _cardCardBorder :: Maybe Border
@@ -491,10 +493,9 @@ data Characteristics = Characteristics
                      , _characteristicsManaCost :: Maybe ManaCost
                      , _characteristicsColors :: [Color]
                      , _characteristicsTypes :: [Type]
-                     , _characteristicsSubtypes :: Maybe [Subtype]
-                     , _characteristicsSupertypes :: Maybe [Supertype]
-                     -- FIXME: rename to rulesText
-                     , _characteristicsCardText :: Maybe CardText
+                     , _characteristicsSubtypes :: [Subtype]
+                     , _characteristicsSupertypes :: [Supertype]
+                     , _characteristicsRulesText :: Maybe RulesText
                      , _characteristicsAbilities :: [Ability]
                      , _characteristicsPower :: Maybe Power
                      , _characteristicsToughness :: Maybe Toughness

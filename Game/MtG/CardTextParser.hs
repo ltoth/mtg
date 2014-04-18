@@ -29,21 +29,21 @@ parseAndSetAbilities c = case parsedAbilities of
                           removeReminder <$>
                           replaceThis c
 
-removeReminder :: CardText -> CardText
+removeReminder :: RulesText -> RulesText
 -- FIXME: Should not be greedy
 removeReminder t = T.pack $ subRegex (mkRegex " *\\([^)]+\\) *")
                    (subRegex (mkRegex "^\\([^)]+\\)\n\n") (T.unpack t) "") ""
 
-replaceThis :: Card -> Maybe CardText
+replaceThis :: Card -> Maybe RulesText
 replaceThis c =
     T.replace shortName "{This}"
     . T.replace (c ^. name) "{This}"
-    <$> c ^. cardText
+    <$> c ^. rulesText
     where shortName = T.takeWhile (/= ',')  (c ^. name)
           -- This handles the THS Gods, Tymaret, Jarad, etc.
           -- since only their first names are used in ability text
 
-textToAbilities :: CardText -> Either String [Ability]
+textToAbilities :: RulesText -> Either String [Ability]
 textToAbilities ct = parse paras s s & _Left %~ show
   where s = T.unpack ct
                 -- FIXME: Perhaps we shouldn't flatten the list, so
