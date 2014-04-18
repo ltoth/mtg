@@ -12,7 +12,8 @@ module Game.MtG.JSONParser
 ) where
 
 import Control.Applicative
-import Data.Aeson
+import qualified Data.Aeson as AE
+import Data.Aeson hiding (Object)
 import qualified Data.ByteString.Lazy.Char8 as L
 import Data.Functor.Identity (Identity)
 import Data.Text (Text)
@@ -446,7 +447,7 @@ instance FromJSON Border where
     parseJSON _ = fail "Could not parse border"
 
 instance FromJSON Card where
-    parseJSON (Object v) = Card <$>
+    parseJSON (AE.Object v) = Card <$>
                            v .: "layout" <*>
                            v .: "type" <*>
                            v .: "types" <*>
@@ -495,7 +496,7 @@ instance FromJSON SetType where
     parseJSON _ = fail "Could not parse set type"
 
 instance FromJSON CardSet' where
-    parseJSON (Object v) = CardSet' <$>
+    parseJSON (AE.Object v) = CardSet' <$>
                            v .: "name" <*>
                            v .: "code" <*>
                            v .: "releaseDate" <*>

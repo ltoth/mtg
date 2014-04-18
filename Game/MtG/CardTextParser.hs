@@ -108,7 +108,7 @@ textToAbilities ct = parse paras s s & _Left %~ show
             event <- trigEvent
             string ", "
             cond <- optionMaybe $ try (string "if " *> conditions <* string ", ")
-            es <- effects
+            es <- fxs
             return $ TriggeredAbility event es cond
 
         trigEvent =
@@ -242,7 +242,7 @@ textToAbilities ct = parse paras s s & _Left %~ show
                          <|> try (string ", ")
                          <|> try (string " and/or ")
 
-        effects =
+        fxs =
           -- Syntax that combines PT modifying and ability gaining
           try (do
                   optional (ciString "each ")
@@ -473,7 +473,7 @@ textToAbilities ct = parse paras s s & _Left %~ show
                          optionMaybe (T.pack <$> many1 (noneOf " \n")) <* optional (string " "))
                          <* ciString "counter" <* optional (string "s")
                          <* ciString " on it"))
-              <|> try (Emblem <$ ciString "You get an emblem with "
+              <|> try (GetEmblem <$ ciString "You get an emblem with "
                          <*> quotedAbilities)
               <|> try (Monstrosity <$ ciString "Monstrosity "
                          <*> explicitNumber)
@@ -495,7 +495,7 @@ textToAbilities ct = parse paras s s & _Left %~ show
               <$ string "G" <* eof)
 
         activated = ActivatedAbility <$> totalCost
-          <*> (string ": " *> effects)
+          <*> (string ": " *> fxs)
           <*> optionMaybe activationInst
 
         -- FIXME: This will only work once all effects are accounted for
@@ -800,9 +800,9 @@ textToAbilities ct = parse paras s s & _Left %~ show
 
         permanentTypeMatch =
               try (string "permanent" >> optional (string "s") >>
-                return Permanent)
+                return PTMPermanent)
           <|> try (string "token" >> optional (string "s") >>
-                return Token)
+                return PTMToken)
           <|> try (do
                 super <- try (Non <$> nonParser <*> supertypeParser <* optional (string "s"))
                         `sepEndBy` string " "
@@ -817,7 +817,7 @@ textToAbilities ct = parse paras s s & _Left %~ show
                   (fail "Did not match any permanent type")
                 return $ PermanentTypeMatch super t sub)
 
-        spell = SpellAbility <$> effects
+        spell = SpellAbility <$> fxs
 
         keyword = (KeywordAbility Deathtouch <$ ciString "Deathtouch")
               <|> (KeywordAbility Defender <$ ciString "Defender")

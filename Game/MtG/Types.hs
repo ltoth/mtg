@@ -1,4 +1,9 @@
-{-# LANGUAGE DeriveDataTypeable, TemplateHaskell #-}
+{-# LANGUAGE DeriveDataTypeable     #-}
+{-# LANGUAGE FlexibleInstances      #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE MultiParamTypeClasses  #-}
+{-# LANGUAGE TemplateHaskell        #-}
+{-# LANGUAGE TypeSynonymInstances   #-}
 
 module Game.MtG.Types where
 
@@ -199,7 +204,7 @@ data OwnControl = Own PlayerMatch | Control PlayerMatch
 
 data PermanentTypeMatch = PermanentTypeMatch [Non Supertype] [Non Type]
                             [Non Subtype]
-                        | Token | Permanent
+                        | PTMToken | PTMPermanent
                         deriving (Show, Eq, Data, Typeable)
 
 data Non a = Non Bool a
@@ -364,7 +369,7 @@ data Effect =
     | ETBTapStatus Targets TapStatus
     | ETBWithCounters Targets CountRange (Maybe CounterType)
 
-    | Emblem [Ability]
+    | GetEmblem [Ability]
       -- TODO: PermanentStatusMatch for "tapped"
       -- TODO: CombatStatus for "attacking" "blocking"
 
@@ -406,34 +411,35 @@ data Keyword = Deathtouch
 
 type SetCode = Text
 
+-- FIXME: Prepend with card and use makeFields instead of makeLenses
 data Card = Card
-          { _layout :: Layout
-          , _typeLine :: TypeLine
-          , _types :: [Type]
-          , _colors :: [Color]
-          , _multiverseID :: MultiverseID
-          , _name :: Name
-          , _names :: Maybe [Name]
-          , _supertypes :: Maybe [Supertype]
-          , _subtypes :: Maybe [Subtype]
-          , _cmc :: Maybe CMC
-          , _rarity :: Rarity
-          , _artist :: Artist
-          , _power :: Maybe Power
-          , _toughness :: Maybe Toughness
-          , _loyalty :: Maybe Loyalty
-          , _manaCost :: Maybe ManaCost
-          , _cardText :: Maybe CardText
-          , _abilities :: [Ability]
-          , _cardNumber :: CardNumber
-          , _variations :: Maybe [MultiverseID]
-          , _imageName :: ImageName
-          , _watermark :: Maybe Watermark
-          , _cardBorder :: Maybe Border
-          , _setCode :: SetCode
-          } deriving (Show, Typeable)
+          { _cardLayout :: Layout
+          , _cardTypeLine :: TypeLine
+          , _cardTypes :: [Type]
+          , _cardColors :: [Color]
+          , _cardMultiverseID :: MultiverseID
+          , _cardName :: Name
+          , _cardNames :: Maybe [Name]
+          , _cardSupertypes :: Maybe [Supertype]
+          , _cardSubtypes :: Maybe [Subtype]
+          , _cardCmc :: Maybe CMC
+          , _cardRarity :: Rarity
+          , _cardArtist :: Artist
+          , _cardPower :: Maybe Power
+          , _cardToughness :: Maybe Toughness
+          , _cardLoyalty :: Maybe Loyalty
+          , _cardManaCost :: Maybe ManaCost
+          , _cardCardText :: Maybe CardText -- FIXME: Rename to rulesText
+          , _cardAbilities :: [Ability]
+          , _cardCardNumber :: CardNumber
+          , _cardVariations :: Maybe [MultiverseID]
+          , _cardImageName :: ImageName
+          , _cardWatermark :: Maybe Watermark
+          , _cardCardBorder :: Maybe Border
+          , _cardSetCode :: SetCode
+          } deriving (Show, Data, Typeable)
 
-makeLenses ''Card
+makeFields ''Card
 
 -- |
 -- = Types for card sets
@@ -451,6 +457,7 @@ data SetType = Core | Expansion | Reprint | Box | Un | FromTheVault
 type SetBlock = Text
 
 -- Type for card set as parsed from JSON
+-- FIXME: Rename to RawCardSet?
 data CardSet' = CardSet'
               { _setName' :: SetName
               , _code' :: SetCode
@@ -475,3 +482,95 @@ data CardSet = CardSet
              } deriving (Show, Typeable)
 
 makeLenses ''CardSet
+
+-- |
+-- = Types for the game engine
+
+data Characteristics = Characteristics
+                     { _characteristicsName :: Name
+                     , _characteristicsManaCost :: Maybe ManaCost
+                     , _characteristicsColors :: [Color]
+                     , _characteristicsTypes :: [Type]
+                     , _characteristicsSubtypes :: Maybe [Subtype]
+                     , _characteristicsSupertypes :: Maybe [Supertype]
+                     -- FIXME: rename to rulesText
+                     , _characteristicsCardText :: Maybe CardText
+                     , _characteristicsAbilities :: [Ability]
+                     , _characteristicsPower :: Maybe Power
+                     , _characteristicsToughness :: Maybe Toughness
+                     , _characteristicsLoyalty :: Maybe Loyalty
+                     } deriving (Show, Data, Typeable)
+
+makeFields ''Characteristics
+
+-- Object ID
+type OId = Integer
+
+-- Player ID
+type PId = Word8
+
+data Object a = Object
+              { _oid :: OId
+              , _owner :: PId
+              , _object :: a
+              } deriving (Show, Data, Typeable)
+
+type OCard         = Object Card
+type OPermanent    = Object Permanent
+type OSpell        = Object Spell
+type OStackAbility = Object StackAbility
+type OEmblem       = Object Emblem
+-- TODO: Implement Copy (perhaps only of spells, since permanents could be
+-- done within the Permanent type?)
+-- type GCopy = Object Copy
+
+data StackObject = GSpell | GStackAbility -- | GCopy FIXME
+                 deriving (Show, Data, Typeable)
+
+data Permanent = PCard
+               { _pcardCard :: Card
+               , _pcardCharacteristics :: Characteristics
+               , _pcardController :: PId
+               , _pcardPermanentStatus :: PermanentStatus
+               , _pcardSummoningSick :: Bool
+               , _pcardLoyaltyAlreadyActivated :: Bool
+               -- TODO: Add more fields: activatedAbilityAlreadyActivated
+               }
+               | PToken
+               { _ptokenCopyOfCard :: Maybe Card
+               , _ptokenCharacteristics :: Characteristics
+               , _ptokenController :: PId
+               , _ptokenPermanentStatus :: PermanentStatus
+               , _ptokenSummoningSick :: Bool
+               , _ptokenLoyaltyAlreadyActivated :: Bool
+               -- TODO: Add more fields
+               }
+               deriving (Show, Data, Typeable)
+
+data Spell = Spell
+           { _spellCard :: Card
+           , _spellCharacteristics :: Characteristics
+           , _spellController :: PId
+           -- TODO: Add more fields, i.e. modes, targets, value of X,
+           -- additional or alternative costs
+           } deriving (Show, Data, Typeable)
+
+data StackAbility = StackAbility
+                  { _stackabilityEffects :: [Effect]
+                  -- Should this be Maybe [Cost], or just empty list for triggered
+                  , _stackabilityActivationCost :: Maybe [Cost]
+                  , _stackabilityTriggerCondition :: Maybe [TriggerCondition]
+                  , _stackabilitySource :: OId
+                  -- TODO: Add more fields, i.e. modes, targets, value of X
+                  } deriving (Show, Data, Typeable)
+
+data Emblem = Emblem
+            { _emblemAbilities :: [Ability]
+            , _emblemController :: PId
+            } deriving (Show, Data, Typeable)
+
+makeFields ''Permanent
+makeFields ''Spell
+makeFields ''StackAbility
+makeFields ''Emblem
+-- makeFields ''Copy

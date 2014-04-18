@@ -121,14 +121,14 @@ debugCmd = withState (\s -> do
       filter (\c -> hasOtherEffect (c^.abilities)) cs
     )
 
-effects :: Ability -> [Effect]
-effects (ActivatedAbility _ es _) = es
-effects (TriggeredAbility _ es _) = es
-effects (SpellAbility es) = es
-effects _ = []
+abEffects :: Ability -> [Effect]
+abEffects (ActivatedAbility _ es _) = es
+abEffects (TriggeredAbility _ es _) = es
+abEffects (SpellAbility es) = es
+abEffects _ = []
 
 hasEffect :: (Effect -> Bool) -> [Ability] -> Bool
-hasEffect p as = any p (concatMap effects as)
+hasEffect p as = any p (concatMap abEffects as)
 
 hasOtherEffect :: [Ability] -> Bool
 hasOtherEffect = hasEffect isOtherEffect
