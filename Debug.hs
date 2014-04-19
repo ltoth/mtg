@@ -9,6 +9,7 @@ import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import qualified Data.Text as T
 
+import Game.MtG.GameEngine
 import Game.MtG.Types
 import Game.MtG.CardTextParser (parseAndSetAbilities)
 import Game.MtG.JSONParser (parseSet)

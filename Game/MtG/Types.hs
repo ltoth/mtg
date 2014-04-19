@@ -628,7 +628,7 @@ data Game = Game
           , _exile :: Set OCard
           , _commandZone :: Set OCard
           , _activePlayerId :: PId
-          , _playerWithPriorityId :: PId
+          , _playerWithPriorityId :: Maybe PId
           , _timestamp :: Timestamp
           , _turn :: TurnNumber
           , _landCount :: LandCount
