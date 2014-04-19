@@ -10,10 +10,6 @@ import qualified Data.Set as Set
 
 import Game.MtG.Types
 
--- TODO: This should also be passed in [PlayerInfo] and
--- potentially decks :: [Card]
-
-
 testInitialGame :: Game
 testInitialGame = initialGame
   [ ("Player 1", replicate 17 plains ++ replicate 23 yokedOx)
@@ -22,7 +18,10 @@ testInitialGame = initialGame
 
 initialGame :: [(PlayerInfo, [Card])] -> Game
 initialGame ps = execState createLibraries initGame
-  where createLibraries = return ()
+  where createLibraries = imapM_ createPlayerLib ps
+
+        createPlayerLib i p =
+          mapM (createObject i) (snd p) >>= assign (players.ix i.library)
 
         initGame = Game
           { _players = map (initPlayer . fst) ps

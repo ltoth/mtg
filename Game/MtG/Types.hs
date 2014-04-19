@@ -512,7 +512,7 @@ makeFields ''Characteristics
 type OId = Int
 
 -- Player ID
-type PId = Word8
+type PId = Int
 
 data Object a = Object
               { _oid :: OId
