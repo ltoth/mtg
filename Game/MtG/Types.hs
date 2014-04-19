@@ -9,6 +9,8 @@ module Game.MtG.Types where
 
 import Data.Data
 import Control.Lens
+import Data.IntMap (IntMap)
+import Data.Set (Set)
 import Data.Text (Text)
 import Data.Word (Word8)
 
@@ -277,7 +279,8 @@ data TriggerEvent = TEAt (Maybe PlayerMatch) (Maybe Next) Step
 
 data Next = Next deriving (Show, Eq, Data, Typeable)
 
-data PlayerMatch = EachPlayer | You | Player | Players | Opponent | Opponents
+-- TODO: Prefix all constructors with PM?
+data PlayerMatch = EachPlayer | You | PMPlayer | Players | Opponent | Opponents
                  | Controller TargetMatch | Owner TargetMatch | HisOrHer | Their
                  | ThatPlayer | ThosePlayers
                  deriving (Show, Eq, Data, Typeable)
@@ -505,7 +508,7 @@ data Characteristics = Characteristics
 makeFields ''Characteristics
 
 -- Object ID
-type OId = Integer
+type OId = Int
 
 -- Player ID
 type PId = Word8
@@ -514,7 +517,11 @@ data Object a = Object
               { _oid :: OId
               , _owner :: PId
               , _object :: a
-              } deriving (Show, Data, Typeable)
+              } deriving (Show, Eq, Ord, Data, Typeable)
+-- TODO: Are the derived Eq and Ord instances what we want?
+-- We could write them explicitly in terms of oid only
+
+makeLenses ''Object
 
 type OCard         = Object Card
 type OPermanent    = Object Permanent
@@ -579,3 +586,50 @@ makeFields ''Spell
 makeFields ''StackAbility
 makeFields ''Emblem
 -- makeFields ''Copy
+
+type LifeTotal = Int
+type PoisonTotal = Word8
+
+-- FIXME: This should be a product type with name, etc.
+type PlayerInfo = Text
+
+data Player = Player
+            { _library :: [OCard]
+            , _hand :: Set OCard
+            , _graveyard :: [OCard]
+            , _life :: LifeTotal
+            , _poison :: PoisonTotal
+            , _playerInfo :: PlayerInfo
+            } deriving (Show, Typeable)
+
+makeLenses ''Player
+
+type Timestamp = Integer
+type TurnNumber = Int
+type LandCount = Word8
+
+data Relationships = Relationships
+                   { _attachedTo :: IntMap OId
+                   , _exiledWith :: IntMap (Set OId)
+                   -- TODO: Define more relationships, i.e. soulbond, haunt
+                   } deriving (Show, Data, Typeable)
+
+makeLenses ''Relationships
+
+data Game = Game
+          { _players :: [Player] -- FIXME: Should this be Seq?
+          , _battlefield :: Set OPermanent
+          , _stack :: [StackObject] -- TODO: Should this be Seq or something else?
+          , _exile :: Set OCard
+          , _commandZone :: Set OCard
+          , _activePlayerId :: PId
+          , _playerWithPriorityId :: PId
+          , _timestamp :: Timestamp
+          , _turn :: TurnNumber
+          , _landCount :: LandCount
+          , _step :: Step
+          , _relationships :: Relationships
+          , _maxOId :: OId
+          } deriving (Show, Typeable)
+
+makeLenses ''Game

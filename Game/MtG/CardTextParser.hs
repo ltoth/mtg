@@ -192,7 +192,7 @@ textToAbilities ct = parse paras s s & _Left %~ show
                <|> try (ciString "any player's") -- FIXME: Perhaps this should be
                -- a separate value constructor, i.e. AnyPlayer
                <|> try (ciString "any player")
-            >> return Player)
+            >> return PMPlayer)
           <|> try (Controller <$> (it <|> they) <* optional possessive
                 <* optional (string " ") <* string "controller" <* optional (string "s")
                 <* optional possessive)
