@@ -8,6 +8,7 @@
 module Game.MtG.Types where
 
 import Data.Data
+import Data.Function (on)
 import Control.Lens
 import Data.IntMap (IntMap)
 import Data.Set (Set)
@@ -517,11 +518,15 @@ data Object a = Object
               { _oid :: OId
               , _owner :: PId
               , _object :: a
-              } deriving (Show, Eq, Ord, Data, Typeable)
--- TODO: Are the derived Eq and Ord instances what we want?
--- We could write them explicitly in terms of oid only
+              } deriving (Show, Data, Typeable)
 
 makeLenses ''Object
+
+instance Eq (Object a) where
+  (==) = (==) `on` (^.oid)
+
+instance Ord (Object a) where
+  compare = compare `on` (^.oid)
 
 type OCard         = Object Card
 type OPermanent    = Object Permanent
