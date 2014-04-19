@@ -126,7 +126,7 @@ textToAbilities ct = parse paras s s & _Left %~ show
                <|> try (DurationDuring <$ ciString "during "
                      <*> optionMaybe playerMatch
                      <*> optionMaybe next
-                     <*> step)
+                     <*> stepParser)
                <|> try (DurationEachTurn <$ ciString "each turn")
                <|> try (DurationEachCombat <$ ciString "each combat"))
 
@@ -137,7 +137,7 @@ textToAbilities ct = parse paras s s & _Left %~ show
         turnEvent = try (TEAt <$ ciString "the beginning of "
                       <*> optionMaybe playerMatch
                       <*> optionMaybe next
-                      <*> step)
+                      <*> stepParser)
                     <|> try (TEAt (Just EachPlayer) Nothing EndOfCombat
                       <$ optional (string "the ")
                       <* ciString "end of combat")
@@ -215,7 +215,7 @@ textToAbilities ct = parse paras s s & _Left %~ show
 
         possessive = try (string "'s") <|> try (string "'")
 
-        step =
+        stepParser =
           (try (ciString "untap step" >> return UntapStep)
           <|> try (ciString "upkeep" >> return Upkeep)
           <|> try (ciString "draw step" >> return DrawStep)
