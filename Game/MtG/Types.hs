@@ -518,7 +518,7 @@ data Object a = Object
               { _oid :: OId
               , _owner :: PId
               , _object :: a
-              } deriving (Show, Data, Typeable)
+              } deriving (Data, Typeable)
 
 makeLenses ''Object
 
@@ -527,6 +527,14 @@ instance Eq (Object a) where
 
 instance Ord (Object a) where
   compare = compare `on` (^.oid)
+
+instance Show OCard where
+  show (Object i p c) = "OCard " ++ show i ++ " - " ++ show p ++ " - " ++ show (c^.name)
+
+instance Show OPermanent
+instance Show OSpell
+instance Show OStackAbility
+instance Show OEmblem
 
 type OCard         = Object Card
 type OPermanent    = Object Permanent
@@ -539,7 +547,8 @@ type OEmblem       = Object Emblem
 -- for TargetMatch.
 -- type GCopy = Object Copy
 
-data StackObject = GSpell | GStackAbility -- | GCopy FIXME
+-- FIXME: This is totally broken!
+data StackObject = OSpell | OStackAbility -- | GCopy FIXME
                  deriving (Show, Data, Typeable)
 
 data Permanent = PCard

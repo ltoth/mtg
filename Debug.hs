@@ -3,6 +3,7 @@ module Debug where
 import Control.Applicative
 import Control.Lens
 import Control.Monad
+import Control.Monad.State
 import Data.Data.Lens (biplate)
 import Data.Either
 import Data.Maybe (fromMaybe)
