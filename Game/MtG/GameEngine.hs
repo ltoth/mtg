@@ -60,6 +60,15 @@ createObject p o = do
   i <- maxOId <+= 1
   return $ Object i p o
 
+drawCard :: MonadState Game m => PId -> m ()
+drawCard p = do
+  mc <- preuse $ players.ix p.library.ix 0
+  case mc of
+    Just c  -> do
+                 players.ix p.library %= drop 1
+                 players.ix p.hand <>= Set.singleton c
+    Nothing -> return () -- FIXME: p loses the game
+
 shuffleLibrary :: (MonadState Game m, MonadRandom m) => PId -> m ()
 shuffleLibrary p =
   (players.ix p.library) <~ (get >>= perform (players.ix p.library.act shuffleM))
