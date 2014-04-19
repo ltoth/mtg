@@ -8,7 +8,9 @@ let
     hscolour
     ipprint
     lens
+    MonadRandom
     optparseApplicative
+    randomShuffle
     safecopy;
 
 in cabal.mkDerivation (self: {
@@ -23,7 +25,9 @@ in cabal.mkDerivation (self: {
     hscolour
     ipprint
     lens
+    MonadRandom
     optparseApplicative
+    randomShuffle
     safecopy
   ];
   buildTools = [ cabalInstall_1_18_0_3 ];

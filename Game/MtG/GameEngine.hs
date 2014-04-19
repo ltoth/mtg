@@ -3,10 +3,12 @@
 module Game.MtG.GameEngine where
 
 import Control.Lens
+import Control.Monad.Random.Class
 import Control.Monad.State
 import qualified Data.IntMap as IntMap
 import qualified Data.Set as Set
 -- import qualified Data.Text as T
+import System.Random.Shuffle (shuffleM)
 
 import Game.MtG.Types
 
@@ -57,6 +59,10 @@ createObject :: MonadState Game m => PId -> a -> m (Object a)
 createObject p o = do
   i <- maxOId <+= 1
   return $ Object i p o
+
+shuffleLibrary :: (MonadState Game m, MonadRandom m) => PId -> m ()
+shuffleLibrary p =
+  (players.ix p.library) <~ (get >>= perform (players.ix p.library.act shuffleM))
 
 ---
 
