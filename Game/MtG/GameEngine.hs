@@ -54,6 +54,32 @@ createObject p o = do
   i <- maxOId <+= 1
   return $ Object i p o
 
+cardToPermanent :: MonadState Game m => OCard -> m OPermanent
+cardToPermanent oc = createObject (oc^.owner) PCard
+  { _pcardCard = oc^.object
+  , _pcardCharacteristics = cardToCharacteristics $ oc^.object
+  , _pcardController = oc^.owner
+  , _pcardPermanentStatus =
+      PermanentStatus Untapped Unflipped FaceUp PhasedIn
+  , _pcardSummoningSick = True
+  , _pcardLoyaltyAlreadyActivated = False
+  }
+
+cardToCharacteristics :: Card -> Characteristics
+cardToCharacteristics c = Characteristics
+  { _characteristicsName = c^.name
+  , _characteristicsManaCost = c^.manaCost
+  , _characteristicsColors = c^.colors
+  , _characteristicsTypes = c^.types
+  , _characteristicsSubtypes = c^.subtypes
+  , _characteristicsSupertypes = c^.supertypes
+  , _characteristicsRulesText = c^.rulesText
+  , _characteristicsAbilities = c^.abilities
+  , _characteristicsPower = c^.power
+  , _characteristicsToughness = c^.toughness
+  , _characteristicsLoyalty = c^.loyalty
+  }
+
 drawCard :: MonadState Game m => PId -> m ()
 drawCard p = do
   mc <- preuse $ players.ix p.library.ix 0
@@ -62,6 +88,16 @@ drawCard p = do
                  players.ix p.library %= drop 1
                  players.ix p.hand <>= Set.singleton c
     Nothing -> return () -- FIXME: p loses the game
+
+playLand :: MonadState Game m => PId -> OId -> m ()
+playLand p i = do
+  h <- use $ players.ix p.hand
+  case findOf folded (\o -> o^.oid == i) h of
+    Just c  -> do
+                 oP <- cardToPermanent c
+                 players.ix p.hand %= Set.delete c
+                 battlefield <>= Set.singleton oP
+    Nothing -> return ()
 
 shuffleLibrary :: (MonadState Game m, MonadRandom m) => PId -> m ()
 shuffleLibrary p =

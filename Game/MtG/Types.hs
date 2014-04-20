@@ -531,7 +531,6 @@ instance Ord (Object a) where
 instance Show OCard where
   show (Object i p c) = "OCard " ++ show i ++ " - " ++ show p ++ " - " ++ show (c^.name)
 
-instance Show OPermanent
 instance Show OSpell
 instance Show OStackAbility
 instance Show OEmblem
@@ -600,6 +599,9 @@ makeFields ''Spell
 makeFields ''StackAbility
 makeFields ''Emblem
 -- makeFields ''Copy
+
+instance Show OPermanent where
+  show (Object i p pe) = "OPermanent " ++ show i ++ " - " ++ show p ++ " - " ++ show (pe^.characteristics.name)
 
 type LifeTotal = Int
 type PoisonTotal = Word8
