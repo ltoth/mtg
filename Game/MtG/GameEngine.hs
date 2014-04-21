@@ -6,6 +6,7 @@ import Control.Lens
 import Control.Monad.Random.Class
 import Control.Monad.State
 import qualified Data.IntMap as IntMap
+import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
 -- import qualified Data.Text as T
 import System.Random.Shuffle (shuffleM)
@@ -19,14 +20,20 @@ initialGame ps = execState createLibraries initGame
         createPlayerLib i p =
           mapM (createObject i) (snd p) >>= assign (players.ix i.library)
 
+        -- FIXME: Should be randomized, or set according to
+        -- loser of last game etc.
+        createTurnOrder = Seq.fromList $ imap const ps
+
         initGame = Game
           { _players = map (initPlayer . fst) ps
           , _battlefield = Set.empty
           , _stack = []
           , _exile = Set.empty
           , _commandZone = Set.empty
-          , _activePlayerId = 0
-          , _playerWithPriorityId = Nothing
+          , _turnOrder = createTurnOrder
+          , _activePlayer = 0
+          , _priority = Nothing
+          , _successivePasses = Set.empty
           , _timestamp = 0
           , _turn = 0
           , _landCount = 0
@@ -98,6 +105,26 @@ playLand p i = do
                  players.ix p.hand %= Set.delete c
                  battlefield <>= Set.singleton oP
     Nothing -> return ()
+
+passPriority :: MonadState Game m => m ()
+passPriority = do
+  mp <- use priority
+  case mp of
+    Just p -> do
+      mnp <- nextPlayerInTurnOrder p
+      case mnp of
+        Just np -> do
+          successivePasses <>= Set.singleton p
+          priority .= Just np
+        Nothing -> return ()
+    Nothing -> return ()
+
+nextPlayerInTurnOrder :: MonadState Game m => PId -> m (Maybe PId)
+nextPlayerInTurnOrder p = do
+  tO <- use turnOrder
+  case ifind (\_ v -> v==p) tO of
+    Just (i, _) -> return $ tO^..cycled traverse^?ix (succ i)
+    Nothing     -> return Nothing
 
 shuffleLibrary :: (MonadState Game m, MonadRandom m) => PId -> m ()
 shuffleLibrary p =

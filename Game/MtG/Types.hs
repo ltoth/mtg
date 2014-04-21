@@ -11,6 +11,7 @@ import Data.Data
 import Data.Function (on)
 import Control.Lens
 import Data.IntMap (IntMap)
+import Data.Sequence (Seq)
 import Data.Set (Set)
 import Data.Text (Text)
 import Data.Word (Word8)
@@ -638,8 +639,10 @@ data Game = Game
           , _stack :: [StackObject] -- TODO: Should this be Seq or something else?
           , _exile :: Set OCard
           , _commandZone :: Set OCard
-          , _activePlayerId :: PId
-          , _playerWithPriorityId :: Maybe PId
+          , _turnOrder :: Seq PId
+          , _activePlayer :: PId
+          , _priority :: Maybe PId
+          , _successivePasses :: Set PId
           , _timestamp :: Timestamp
           , _turn :: TurnNumber
           , _landCount :: LandCount
