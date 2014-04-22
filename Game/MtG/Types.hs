@@ -611,6 +611,7 @@ instance Show OPermanent where
 
 type LifeTotal = Int
 type PoisonTotal = Word8
+type HandSize = Int
 
 -- FIXME: This should be a product type with name, etc.
 type PlayerInfo = Text
@@ -621,6 +622,7 @@ data Player = Player
             , _graveyard :: [OCard]
             , _life :: LifeTotal
             , _poison :: PoisonTotal
+            , _maxHandSize :: HandSize
             , _playerInfo :: PlayerInfo
             } deriving (Show, Typeable)
 
@@ -656,3 +658,11 @@ data Game = Game
           } deriving (Show, Typeable)
 
 makeLenses ''Game
+
+type AId = Int  -- activated ability id
+
+data GameAction = CastSpell OId
+                | ActivateAbility AId
+                | PlayLand OId
+                | PassPriority
+                deriving (Show, Typeable)

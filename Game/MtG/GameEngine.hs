@@ -6,6 +6,8 @@ import Control.Lens
 import Control.Monad.Random.Class
 import Control.Monad.State
 import qualified Data.IntMap as IntMap
+import Data.Maybe
+import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
 -- import qualified Data.Text as T
@@ -49,6 +51,7 @@ initialGame ps = execState createLibraries initGame
           , _graveyard = []
           , _life = 20
           , _poison = 0
+          , _maxHandSize = 7
           , _playerInfo = pI
           }
 
@@ -113,6 +116,31 @@ playLand p i = do
                  battlefield <>= Set.singleton oP
                  landCount -= 1
     Nothing -> return ()
+
+legalActions :: MonadState Game m => m (Seq GameAction)
+legalActions = do
+  aP <- use activePlayer
+  pr <- use priority
+  s <- use stack
+  st <- use step
+  if Seq.null s &&
+     pr == Just aP &&
+     (st == PreCombatMain || st == PostCombatMain) then do
+       -- sorcery speed
+       lc <- use landCount
+       if lc > 0 then do
+         h <- use $ players.ix aP.hand
+         let lands = h^..folded.filtered
+                       (\o -> Land `elem` o^.object^.types)
+         return . Seq.fromList $ map PlayLand (lands^..traversed.oid)
+       else
+         return Seq.empty
+  else if isJust pr then
+    -- instant speed
+    return $ Seq.singleton PassPriority
+  else
+    -- mana ability speed
+    return Seq.empty
 
 passPriority :: MonadState Game m => m ()
 passPriority = do
