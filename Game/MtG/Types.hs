@@ -651,7 +651,7 @@ data Game = Game
           , _successivePasses :: Set PId
           , _maxTimestamp :: Timestamp
           , _turn :: TurnNumber
-          , _landCount :: LandCount
+          , _remainingLandCount :: LandCount
           , _step :: Step
           , _relationships :: Relationships
           , _maxOId :: OId

@@ -40,7 +40,7 @@ initialGame ps = execState createLibraries initGame
           , _successivePasses = Set.empty
           , _maxTimestamp = 0
           , _turn = 0
-          , _landCount = 0
+          , _remainingLandCount = 0
           , _step = Cleanup
           , _relationships = initRelationships
           , _maxOId = 0
@@ -116,7 +116,7 @@ playLand i = do
                  oP <- cardToPermanent c
                  players.ix aP.hand %= Set.delete c
                  battlefield <>= Set.singleton oP
-                 landCount -= 1
+                 remainingLandCount -= 1
     Nothing -> return ()
 
 legalActions :: MonadState Game m => m (Seq GameAction)
@@ -144,12 +144,13 @@ legalActions = do
 
     actionsPlayLands = do
       aP <- use activePlayer
-      lc <- use landCount
+      lc <- use remainingLandCount
       if lc > 0 then do
         h <- use $ players.ix aP.hand
-        let lands = h^..folded.filtered
-                    (\o -> Land `elem` o^.object^.types)
-        return . Seq.fromList $ map PlayLand (lands^..traversed.oid)
+        let landOIds = h^..folded.filtered
+                       (\o -> Land `elem` o^.object^.types)
+                       ^..traversed.oid
+        return . Seq.fromList $ map PlayLand landOIds
       else return Seq.empty
 
 passPriority :: MonadState Game m => m ()
@@ -178,7 +179,7 @@ moveToNextStep = do
   case ns of
     UntapStep -> do
       turn += 1
-      landCount .= 1
+      remainingLandCount .= 1
       aP <- use activePlayer
       np <- nextPlayerInTurnOrder aP
       activePlayer .= np
