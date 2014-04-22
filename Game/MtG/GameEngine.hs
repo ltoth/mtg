@@ -13,10 +13,39 @@ import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
 -- import qualified Data.Text as T
+import qualified IPPrint
+import qualified Language.Haskell.HsColour as HsColour
+import qualified Language.Haskell.HsColour.Colourise as HsColour
+import qualified Language.Haskell.HsColour.Output as HsColour
 import Text.Read (readMaybe)
 import System.Random.Shuffle (shuffleM)
 
 import Game.MtG.Types
+
+-- |
+-- = Interface
+
+playGame :: App ()
+playGame = do
+  ps <- use players
+  iforM_ ps $ \i _ -> do
+    shuffleLibrary i
+    replicateM_ 7 (drawCard i)
+  -- resolveMulligans -- TODO: Implement
+  moveToNextStep
+  loopActions
+
+loopActions :: App ()
+loopActions = getAction >> loopActions
+
+getAction :: (MonadState Game m, MonadIO m) => m ()
+getAction = do
+  la <- legalActions
+  g <- get
+  i <- chooseAction g la  -- TODO: more general
+  case la^?ix i of
+    Just a  -> evalAction a
+    Nothing -> getAction
 
 initialGame :: [(PlayerInfo, [Card])] -> Game
 initialGame ps = execState createLibraries initGame
@@ -62,6 +91,9 @@ initialGame ps = execState createLibraries initGame
           { _attachedTo = IntMap.empty
           , _exiledWith = IntMap.empty
           }
+
+-- |
+-- = Internal game engine
 
 createObject :: MonadState Game m => PId -> a -> m (Object a)
 createObject p o = do
@@ -121,24 +153,6 @@ playLand i = do
                  remainingLandCount -= 1
     Nothing -> return ()
 
-getAction :: (MonadState Game m, MonadIO m) => m ()
-getAction = do
-  la <- legalActions
-  i <- chooseAction la  -- TODO: more general
-  case la^?ix i of
-    Just a  -> evalAction a
-    Nothing -> getAction
-
-chooseAction :: (MonadState Game m, MonadIO m) => Seq GameAction -> m Int
-chooseAction as = do
-  s <- get
-  putIO . show $ s
-  putIO . show $ as
-  liftIO getLine >>= maybe (putIO "Invalid action" >> chooseAction as) return . readMaybe
-
-putIO :: MonadIO m => String -> m ()
-putIO = liftIO . putStrLn
-
 evalAction :: MonadState Game m => GameAction -> m ()
 evalAction (PlayLand i) = playLand i
 evalAction PassPriority = passPriority
@@ -155,15 +169,16 @@ legalActions = do
          pr == Just aP &&
          (st == PreCombatMain || st == PostCombatMain) then
        -- sorcery speed
-      [ actionsPlayLands
+      [ actionsPassPriority
+      , actionsPlayLands
       , actionsCastSorcerySpeed
       , actionsCastInstantSpeed
-      , actionsPassPriority
       ]
     else if isJust pr then
       -- instant speed
-      [ actionsCastInstantSpeed
-      , actionsPassPriority ]
+      [ actionsPassPriority
+      , actionsCastInstantSpeed
+      ]
     else
       -- mana ability speed, or just nothing (if we implement
       -- mana abilities in the middle of casting spells and activating
@@ -244,6 +259,7 @@ performTurnBasedActions :: MonadState Game m => Step -> m ()
 performTurnBasedActions UntapStep = do
   -- phaseInAndOut
   untapPermanents
+  -- resetSummoningSickness
   moveToNextStep
 performTurnBasedActions DrawStep = do
   aP <- use activePlayer
@@ -286,3 +302,32 @@ shuffleLibrary :: (MonadState Game m, MonadRandom m) => PId -> m ()
 shuffleLibrary p =
   (players.ix p.library) <~ (get >>= perform (players.ix p.library.act shuffleM))
 
+---
+-- TODO: Move this into Debug, or Main
+
+chooseAction :: MonadIO m => Game -> Seq GameAction -> m Int
+chooseAction g as = do
+  liftIO . myPrint $ g
+  printActions as
+  l <- liftIO getLine 
+  maybe (putIO "Invalid action" >> chooseAction g as) return (readMaybe l)
+  where printActions = imapM_ (\i a -> putIO $ show i ++ ": " ++ show a)
+
+putIO :: MonadIO m => String -> m ()
+putIO = liftIO . putStrLn
+
+myColourPrefs :: HsColour.ColourPrefs
+myColourPrefs = HsColour.defaultColourPrefs
+  { HsColour.conid = [HsColour.Foreground HsColour.Magenta]
+  , HsColour.conop = [HsColour.Foreground HsColour.Yellow]
+  , HsColour.string = [HsColour.Foreground HsColour.Green]
+  , HsColour.char = [HsColour.Foreground HsColour.Red]
+  , HsColour.number = [HsColour.Foreground HsColour.Red]
+  , HsColour.layout = [HsColour.Foreground HsColour.White]
+  , HsColour.keyglyph = [HsColour.Foreground HsColour.White]
+  }
+
+myPrint :: Show a => a -> IO ()
+myPrint = putStrLn . HsColour.hscolour
+  (HsColour.TTYg HsColour.XTerm256Compatible) myColourPrefs
+  False False "" False . IPPrint.pshow

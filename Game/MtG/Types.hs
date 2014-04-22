@@ -10,6 +10,7 @@ module Game.MtG.Types where
 import Data.Data
 import Data.Function (on)
 import Control.Lens
+import Control.Monad.State (StateT)
 import Data.IntMap (IntMap)
 import Data.Sequence (Seq)
 import Data.Set (Set)
@@ -658,6 +659,8 @@ data Game = Game
           } deriving (Show, Typeable)
 
 makeLenses ''Game
+
+type App = StateT Game IO
 
 type AId = Int  -- activated ability id
 

@@ -18,18 +18,6 @@ import Game.MtG.JSONParser (parseSet)
 main :: IO Game
 main = execStateT playGame testInitialGame
 
-playGame :: StateT Game IO ()
-playGame = do
-  ps <- use players
-  iforM_ ps $ \i _ -> do
-    shuffleLibrary i
-    replicateM_ 7 (drawCard i)
-  moveToNextStep
-  loopActions
-
-loopActions :: StateT Game IO ()
-loopActions = getAction >> loopActions
-
 testInitialGame :: Game
 testInitialGame = initialGame
   [ ("Player 1", replicate 17 plains ++ replicate 15 yokedOx
