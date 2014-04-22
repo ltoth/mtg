@@ -541,11 +541,14 @@ type OPermanent    = Object Permanent
 type OSpell        = Object Spell
 type OStackAbility = Object StackAbility
 type OEmblem       = Object Emblem
+
 -- TODO: Implement Copy (perhaps only of spells, since permanents could be
 -- done within the Permanent type?)  Or is there no reason to have a separate
 -- type for copies, even of spells?  Having no separate type would be useful
 -- for TargetMatch.
 -- type GCopy = Object Copy
+
+type Timestamp = Integer
 
 -- FIXME: This is totally broken!
 data StackObject = OSpell | OStackAbility -- | GCopy FIXME
@@ -558,6 +561,7 @@ data Permanent = PCard
                , _pcardPermanentStatus :: PermanentStatus
                , _pcardSummoningSick :: Bool
                , _pcardLoyaltyAlreadyActivated :: Bool
+               , _pcardTimestamp :: Timestamp
                -- TODO: Add more fields: activatedAbilityAlreadyActivated
                }
                | PToken
@@ -567,6 +571,7 @@ data Permanent = PCard
                , _ptokenPermanentStatus :: PermanentStatus
                , _ptokenSummoningSick :: Bool
                , _ptokenLoyaltyAlreadyActivated :: Bool
+               , _ptokenTimestamp :: Timestamp
                -- TODO: Add more fields
                }
                deriving (Show, Data, Typeable)
@@ -621,7 +626,6 @@ data Player = Player
 
 makeLenses ''Player
 
-type Timestamp = Integer
 type TurnNumber = Int
 type LandCount = Word8
 
@@ -643,7 +647,7 @@ data Game = Game
           , _activePlayer :: PId
           , _priority :: Maybe PId
           , _successivePasses :: Set PId
-          , _timestamp :: Timestamp
+          , _maxTimestamp :: Timestamp
           , _turn :: TurnNumber
           , _landCount :: LandCount
           , _step :: Step

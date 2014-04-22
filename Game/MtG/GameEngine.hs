@@ -35,7 +35,7 @@ initialGame ps = execState createLibraries initGame
                                -- player in turn order
           , _priority = Nothing
           , _successivePasses = Set.empty
-          , _timestamp = 0
+          , _maxTimestamp = 0
           , _turn = 0
           , _landCount = 0
           , _step = Cleanup
@@ -62,16 +62,22 @@ createObject p o = do
   i <- maxOId <+= 1
   return $ Object i p o
 
+newTimestamp :: MonadState Game m => m Timestamp
+newTimestamp = maxTimestamp <+= 1
+
 cardToPermanent :: MonadState Game m => OCard -> m OPermanent
-cardToPermanent oc = createObject (oc^.owner) PCard
-  { _pcardCard = oc^.object
-  , _pcardCharacteristics = cardToCharacteristics $ oc^.object
-  , _pcardController = oc^.owner
-  , _pcardPermanentStatus =
-      PermanentStatus Untapped Unflipped FaceUp PhasedIn
-  , _pcardSummoningSick = True
-  , _pcardLoyaltyAlreadyActivated = False
-  }
+cardToPermanent oc = do
+  t <- newTimestamp
+  createObject (oc^.owner) PCard
+    { _pcardCard = oc^.object
+    , _pcardCharacteristics = cardToCharacteristics $ oc^.object
+    , _pcardController = oc^.owner
+    , _pcardPermanentStatus =
+        PermanentStatus Untapped Unflipped FaceUp PhasedIn
+    , _pcardSummoningSick = True
+    , _pcardLoyaltyAlreadyActivated = False
+    , _pcardTimestamp = t
+    }
 
 cardToCharacteristics :: Card -> Characteristics
 cardToCharacteristics c = Characteristics
@@ -105,6 +111,7 @@ playLand p i = do
                  oP <- cardToPermanent c
                  players.ix p.hand %= Set.delete c
                  battlefield <>= Set.singleton oP
+                 landCount -= 1
     Nothing -> return ()
 
 passPriority :: MonadState Game m => m ()
