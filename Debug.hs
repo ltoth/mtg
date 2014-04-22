@@ -22,9 +22,9 @@ playGame :: StateT Game IO ()
 playGame = do
   ps <- use players
   iforM_ ps $ \i _ -> do
-    -- shuffleLibrary i
+    shuffleLibrary i
     replicateM_ 7 (drawCard i)
-  playLand 1 45
+  moveToNextStep
 
 testInitialGame :: Game
 testInitialGame = initialGame
