@@ -291,7 +291,7 @@ data Step = UntapStep | Upkeep | DrawStep | PreCombatMain
           | BeginningOfCombat | DeclareAttackers | DeclareBlockers
           | CombatDamage | EndOfCombat | PostCombatMain
           | End | Cleanup
-          deriving (Show, Eq, Data, Typeable)
+          deriving (Show, Eq, Bounded, Enum, Data, Typeable)
 
 data Divided = Divided deriving (Show, Eq, Data, Typeable)
 
@@ -636,7 +636,7 @@ makeLenses ''Relationships
 data Game = Game
           { _players :: [Player] -- FIXME: Should this be Seq?
           , _battlefield :: Set OPermanent
-          , _stack :: [StackObject] -- TODO: Should this be Seq or something else?
+          , _stack :: Seq StackObject
           , _exile :: Set OCard
           , _commandZone :: Set OCard
           , _turnOrder :: Seq PId

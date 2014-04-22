@@ -27,17 +27,18 @@ initialGame ps = execState createLibraries initGame
         initGame = Game
           { _players = map (initPlayer . fst) ps
           , _battlefield = Set.empty
-          , _stack = []
+          , _stack = Seq.empty
           , _exile = Set.empty
           , _commandZone = Set.empty
           , _turnOrder = createTurnOrder
-          , _activePlayer = 0
+          , _activePlayer = 1  -- FIXME: Should be set to the last
+                               -- player in turn order
           , _priority = Nothing
           , _successivePasses = Set.empty
           , _timestamp = 0
           , _turn = 0
           , _landCount = 0
-          , _step = UntapStep
+          , _step = Cleanup
           , _relationships = initRelationships
           , _maxOId = 0
           }
@@ -111,20 +112,75 @@ passPriority = do
   mp <- use priority
   case mp of
     Just p -> do
-      mnp <- nextPlayerInTurnOrder p
-      case mnp of
-        Just np -> do
-          successivePasses <>= Set.singleton p
-          priority .= Just np
-        Nothing -> return ()
+      sp <- successivePasses <<>= Set.singleton p
+      ps <- use players
+      if Set.size sp == length ps then do
+        successivePasses .= Set.empty
+        s <- use stack
+        if Seq.null s then
+          moveToNextStep
+        else
+          resolveTopOfStack
+      else do
+        np <- nextPlayerInTurnOrder p
+        priority .= Just np
     Nothing -> return ()
 
-nextPlayerInTurnOrder :: MonadState Game m => PId -> m (Maybe PId)
+moveToNextStep :: MonadState Game m => m ()
+moveToNextStep = do
+  priority .= Nothing
+  ns <- step <%= succB
+  case ns of
+    UntapStep -> do
+      turn += 1
+      landCount .= 1
+      aP <- use activePlayer
+      np <- nextPlayerInTurnOrder aP
+      activePlayer .= np
+    _ -> return ()
+  performTurnBasedActions ns
+  performStateBasedActions
+  aP <- use activePlayer
+  priority .= Just aP   -- Even though no one should receive
+                        -- priority during UntapStep and Cleanup,
+                        -- the turn-based actions will immediately
+                        -- moveToNextStep
+
+performTurnBasedActions :: MonadState Game m => Step -> m ()
+performTurnBasedActions UntapStep = do
+  -- phaseInAndOut
+  -- untapPermanents
+  moveToNextStep
+performTurnBasedActions DrawStep = do
+  aP <- use activePlayer
+  drawCard aP
+performTurnBasedActions Cleanup = do
+  -- discardToMaxHandSize
+  -- removeMarkedDamage    -- This and the next one happen at once
+  -- endUntilEndOfTurnEvents
+  moveToNextStep
+performTurnBasedActions _ = return ()
+
+performStateBasedActions :: MonadState Game m => m ()
+performStateBasedActions = return ()
+
+succB :: (Bounded a, Enum a, Eq a) => a -> a
+succB e | e == maxBound = minBound
+        | otherwise     = succ e
+
+resolveTopOfStack :: MonadState Game m => m ()
+resolveTopOfStack = do
+  -- TODO: Actually implement resolving
+  aP <- use activePlayer
+  priority .= Just aP
+
+
+nextPlayerInTurnOrder :: MonadState Game m => PId -> m PId
 nextPlayerInTurnOrder p = do
   tO <- use turnOrder
   case ifind (\_ v -> v==p) tO of
-    Just (i, _) -> return $ tO^..cycled traverse^?ix (succ i)
-    Nothing     -> return Nothing
+    Just (i, _) -> return $ tO^..cycled traverse^?!ix (succ i)
+    Nothing     -> fail "Player not found in turn order"
 
 shuffleLibrary :: (MonadState Game m, MonadRandom m) => PId -> m ()
 shuffleLibrary p =
