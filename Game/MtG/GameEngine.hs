@@ -7,6 +7,7 @@ import Control.Monad.Random.Class
 import Control.Monad.State
 import qualified Data.IntMap as IntMap
 import Data.Maybe
+import Data.Monoid
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
@@ -106,13 +107,14 @@ drawCard p = do
                  players.ix p.hand <>= Set.singleton c
     Nothing -> return () -- FIXME: p loses the game
 
-playLand :: MonadState Game m => PId -> OId -> m ()
-playLand p i = do
-  h <- use $ players.ix p.hand
+playLand :: MonadState Game m => OId -> m ()
+playLand i = do
+  aP <- use activePlayer
+  h <- use $ players.ix aP.hand
   case findOf folded (\o -> o^.oid == i) h of
     Just c  -> do
                  oP <- cardToPermanent c
-                 players.ix p.hand %= Set.delete c
+                 players.ix aP.hand %= Set.delete c
                  battlefield <>= Set.singleton oP
                  landCount -= 1
     Nothing -> return ()
@@ -123,24 +125,32 @@ legalActions = do
   pr <- use priority
   s <- use stack
   st <- use step
-  if Seq.null s &&
-     pr == Just aP &&
-     (st == PreCombatMain || st == PostCombatMain) then do
+  liftM mconcat . sequence $
+    if Seq.null s &&
+         pr == Just aP &&
+         (st == PreCombatMain || st == PostCombatMain) then
        -- sorcery speed
-       lc <- use landCount
-       if lc > 0 then do
-         h <- use $ players.ix aP.hand
-         let lands = h^..folded.filtered
-                       (\o -> Land `elem` o^.object^.types)
-         return . Seq.fromList $ map PlayLand (lands^..traversed.oid)
-       else
-         return Seq.empty
-  else if isJust pr then
-    -- instant speed
-    return $ Seq.singleton PassPriority
-  else
-    -- mana ability speed
-    return Seq.empty
+      [ actionsPlayLands
+      , actionsPassPriority
+      ]
+    else if isJust pr then
+      -- instant speed
+      [ actionsPassPriority ]
+    else
+      -- mana ability speed
+      [ return Seq.empty ]
+  where
+    actionsPassPriority = return $ Seq.singleton PassPriority
+
+    actionsPlayLands = do
+      aP <- use activePlayer
+      lc <- use landCount
+      if lc > 0 then do
+        h <- use $ players.ix aP.hand
+        let lands = h^..folded.filtered
+                    (\o -> Land `elem` o^.object^.types)
+        return . Seq.fromList $ map PlayLand (lands^..traversed.oid)
+      else return Seq.empty
 
 passPriority :: MonadState Game m => m ()
 passPriority = do
@@ -184,17 +194,23 @@ moveToNextStep = do
 performTurnBasedActions :: MonadState Game m => Step -> m ()
 performTurnBasedActions UntapStep = do
   -- phaseInAndOut
-  -- untapPermanents
+  untapPermanents
   moveToNextStep
 performTurnBasedActions DrawStep = do
   aP <- use activePlayer
   drawCard aP
 performTurnBasedActions Cleanup = do
   -- discardToMaxHandSize
-  -- removeMarkedDamage    -- This and the next one happen at once
+  removeMarkedDamage    -- This and the next one happen at once
   -- endUntilEndOfTurnEvents
   moveToNextStep
 performTurnBasedActions _ = return ()
+
+untapPermanents :: MonadState Game m => m ()
+untapPermanents = return () -- TODO: Implement
+
+removeMarkedDamage :: MonadState Game m => m ()
+removeMarkedDamage = return () -- TODO: Implement
 
 performStateBasedActions :: MonadState Game m => m ()
 performStateBasedActions = return ()
