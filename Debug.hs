@@ -25,11 +25,17 @@ playGame = do
     shuffleLibrary i
     replicateM_ 7 (drawCard i)
   moveToNextStep
+  loopActions
+
+loopActions :: StateT Game IO ()
+loopActions = getAction >> loopActions
 
 testInitialGame :: Game
 testInitialGame = initialGame
-  [ ("Player 1", replicate 17 plains ++ replicate 23 yokedOx)
-  , ("Player 2", replicate 17 forest ++ replicate 23 leafcrownDryad)
+  [ ("Player 1", replicate 17 plains ++ replicate 15 yokedOx
+              ++ replicate 8 battlewiseValor)
+  , ("Player 2", replicate 9 forest ++ replicate 8 island
+              ++ replicate 15 leafcrownDryad ++ replicate 8 horizonChimera)
   ]
 
 yokedOx :: Card
@@ -75,6 +81,21 @@ forest = Card{_cardLayout = Normal, _cardTypeLine = "Basic Land \8212 Forest",
          _cardImageName = "forest2", _cardWatermark = Nothing,
          _cardCardBorder = Nothing, _cardSetCode = "THS"}
 
+island :: Card
+island = Card{_cardLayout = Normal, _cardTypeLine = "Basic Land \8212 Island",
+         _cardTypes = [Land], _cardColors = [], _cardMultiverseID = 373595,
+         _cardName = "Island", _cardNames = [], _cardSupertypes = [Basic],
+         _cardSubtypes = [LandType (BasicLand Island)], _cardCmc = Nothing,
+         _cardRarity = BasicLandRarity, _cardArtist = "Steven Belledin",
+         _cardPower = Nothing, _cardToughness = Nothing, _cardLoyalty = Nothing,
+         _cardManaCost = Nothing, _cardRulesText = Just "U",
+         _cardAbilities =
+           [ActivatedAbility [CTap] [AddMana Nothing (ManaSymbols [[U]])]
+              Nothing],
+         _cardCardNumber = "235", _cardVariations = [373558, 373723, 373736],
+         _cardImageName = "island2", _cardWatermark = Nothing,
+         _cardCardBorder = Nothing, _cardSetCode = "THS"}
+
 leafcrownDryad :: Card
 leafcrownDryad = Card{_cardLayout = Normal,
          _cardTypeLine = "Enchantment Creature \8212 Nymph Dryad",
@@ -99,6 +120,58 @@ leafcrownDryad = Card{_cardLayout = Normal,
                  Nothing]],
          _cardCardNumber = "161", _cardVariations = [],
          _cardImageName = "leafcrown dryad", _cardWatermark = Nothing,
+         _cardCardBorder = Nothing, _cardSetCode = "THS"}
+
+horizonChimera :: Card
+horizonChimera = Card{_cardLayout = Normal, _cardTypeLine = "Creature \8212 Chimera",
+         _cardTypes = [Creature], _cardColors = [Blue, Green],
+         _cardMultiverseID = 373738, _cardName = "Horizon Chimera",
+         _cardNames = [], _cardSupertypes = [],
+         _cardSubtypes = [CreatureType Chimera], _cardCmc = Just 4,
+         _cardRarity = Uncommon, _cardArtist = "Sam Burley",
+         _cardPower = Just "3", _cardToughness = Just "2",
+         _cardLoyalty = Nothing, _cardManaCost = Just [CL 2, G, U],
+         _cardRulesText =
+           Just
+             "Flash (You may cast this spell any time you could cast an instant.)\n\nFlying, trample\n\nWhenever you draw a card, you gain 1 life.",
+         _cardAbilities =
+           [KeywordAbility Flash, KeywordAbility Flying, KeywordAbility Trample,
+            TriggeredAbility (TEOther "you draw a card")
+              [GainLife (NoTarget Nothing [TMPlayer You]) (NumValue 1)]
+              Nothing],
+         _cardCardNumber = "194", _cardVariations = [],
+         _cardImageName = "horizon chimera", _cardWatermark = Nothing,
+         _cardCardBorder = Nothing, _cardSetCode = "THS"}
+
+battlewiseValor :: Card
+battlewiseValor = Card{_cardLayout = Normal, _cardTypeLine = "Instant",
+         _cardTypes = [Instant], _cardColors = [White],
+         _cardMultiverseID = 373627, _cardName = "Battlewise Valor",
+         _cardNames = [], _cardSupertypes = [], _cardSubtypes = [],
+         _cardCmc = Just 2, _cardRarity = Common, _cardArtist = "Zack Stella",
+         _cardPower = Nothing, _cardToughness = Nothing, _cardLoyalty = Nothing,
+         _cardManaCost = Just [CL 1, W],
+         _cardRulesText =
+           Just
+             "Target creature gets +2/+2 until end of turn. Scry 1. (Look at the top card of your library. You may put that card on the bottom of your library.)",
+         _cardAbilities =
+           [SpellAbility
+              [ModifyPT
+                 (Target (Exactly (AnyCount (NumValue 1)))
+                    [TMPermanent
+                       (PermanentMatch Nothing [] (CMColors []) CardOrToken
+                          (PermanentTypeMatch [] [Non True Creature] [])
+                          []
+                          Nothing
+                          Nothing
+                          Nothing)])
+                 (Plus (NumValue 2))
+                 (Plus (NumValue 2))
+                 (Just
+                    (DurationUntil (TEAt (Just EachPlayer) Nothing Cleanup))),
+               Scry (NumValue 1)]],
+         _cardCardNumber = "1", _cardVariations = [],
+         _cardImageName = "battlewise valor", _cardWatermark = Nothing,
          _cardCardBorder = Nothing, _cardSetCode = "THS"}
 
 ---

@@ -5,6 +5,7 @@ module Game.MtG.GameEngine where
 import Control.Lens
 import Control.Monad.Random.Class
 import Control.Monad.State
+import Data.Foldable (Foldable)
 import qualified Data.IntMap as IntMap
 import Data.Maybe
 import Data.Monoid
@@ -12,6 +13,7 @@ import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
 -- import qualified Data.Text as T
+import Text.Read (readMaybe)
 import System.Random.Shuffle (shuffleM)
 
 import Game.MtG.Types
@@ -119,6 +121,29 @@ playLand i = do
                  remainingLandCount -= 1
     Nothing -> return ()
 
+getAction :: (MonadState Game m, MonadIO m) => m ()
+getAction = do
+  la <- legalActions
+  i <- chooseAction la  -- TODO: more general
+  case la^?ix i of
+    Just a  -> evalAction a
+    Nothing -> getAction
+
+chooseAction :: (MonadState Game m, MonadIO m) => Seq GameAction -> m Int
+chooseAction as = do
+  s <- get
+  putIO . show $ s
+  putIO . show $ as
+  liftIO getLine >>= maybe (putIO "Invalid action" >> chooseAction as) return . readMaybe
+
+putIO :: MonadIO m => String -> m ()
+putIO = liftIO . putStrLn
+
+evalAction :: MonadState Game m => GameAction -> m ()
+evalAction (PlayLand i) = playLand i
+evalAction PassPriority = passPriority
+evalAction _ = return ()
+
 legalActions :: MonadState Game m => m (Seq GameAction)
 legalActions = do
   aP <- use activePlayer
@@ -131,13 +156,18 @@ legalActions = do
          (st == PreCombatMain || st == PostCombatMain) then
        -- sorcery speed
       [ actionsPlayLands
+      , actionsCastSorcerySpeed
+      , actionsCastInstantSpeed
       , actionsPassPriority
       ]
     else if isJust pr then
       -- instant speed
-      [ actionsPassPriority ]
+      [ actionsCastInstantSpeed
+      , actionsPassPriority ]
     else
-      -- mana ability speed
+      -- mana ability speed, or just nothing (if we implement
+      -- mana abilities in the middle of casting spells and activating
+      -- abilities)
       [ return Seq.empty ]
   where
     actionsPassPriority = return $ Seq.singleton PassPriority
@@ -147,11 +177,29 @@ legalActions = do
       lc <- use remainingLandCount
       if lc > 0 then do
         h <- use $ players.ix aP.hand
-        let landOIds = h^..folded.filtered
-                       (\o -> Land `elem` o^.object^.types)
-                       ^..traversed.oid
+        let landOIds = oidsMatchingPredicate
+                       (\o -> Land `elem` o^.object.types) h
         return . Seq.fromList $ map PlayLand landOIds
       else return Seq.empty
+
+    actionsCastSorcerySpeed = do
+      aP <- use activePlayer
+      h <- use $ players.ix aP.hand
+      let sorceryOIds = oidsMatchingPredicate
+                        (\o -> Land `notElem` o^.object.types) h
+      return . Seq.fromList $ map CastSpell sorceryOIds
+
+    actionsCastInstantSpeed = do
+      Just p <- use priority  -- We can do this, because we checked
+                              -- the timing in legalActions
+      h <- use $ players.ix p.hand
+      let instantOIds = oidsMatchingPredicate
+                        (\o -> Instant `elem` o^.object.types ||
+                         KeywordAbility Flash `elem` o^.object.abilities) h
+      return . Seq.fromList $ map CastSpell instantOIds
+
+oidsMatchingPredicate :: Foldable f => (OCard -> Bool) -> f OCard -> [OId]
+oidsMatchingPredicate p f = f^..folded.filtered p^..traversed.oid
 
 passPriority :: MonadState Game m => m ()
 passPriority = do
