@@ -214,11 +214,13 @@ legalActions = do
       , actionsPlayLands
       , actionsCastSorcerySpeed
       , actionsCastInstantSpeed
+      , actionsActivateAbilities
       ]
     else if isJust pr then
       -- instant speed
       [ actionsPassPriority
       , actionsCastInstantSpeed
+      , actionsActivateAbilities
       ]
     else
       -- mana ability speed, or just nothing (if we implement
@@ -253,6 +255,21 @@ legalActions = do
                         (\o -> Instant `elem` o^.object.types ||
                          KeywordAbility Flash `elem` o^.object.abilities) h
       return . Set.fromList $ map CastSpell instantOIds
+
+    actionsActivateAbilities = do
+      Just p <- use priority  -- We can do this, because we checked
+                              -- the timing in legalActions
+      b <- use battlefield
+      let perms = b^..folded.filtered
+                  (\o -> p == o^.object.controller).filtered
+                  (\o -> anyOf each isActivatedAbility
+                         (o^.object.characteristics.abilities))
+      let aids = concatMap (\o ->
+            zip (repeat $ o^.oid)
+                (imap const
+                  (o^.object.characteristics.abilities^..folded.filtered
+                    isActivatedAbility))) perms
+      return . Set.fromList $ map ActivateAbility aids
 
 oidsMatchingPredicate :: Foldable f => (OCard -> Bool) -> f OCard -> [OId]
 oidsMatchingPredicate p f = f^..folded.filtered p^..traversed.oid

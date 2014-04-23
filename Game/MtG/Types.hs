@@ -11,6 +11,7 @@ import Data.Data
 import Data.Function (on)
 import Control.Lens
 import Control.Monad.State (StateT)
+import Data.DeriveTH
 import Data.IntMap (IntMap)
 import Data.Sequence (Seq)
 import Data.Set (Set)
@@ -301,19 +302,6 @@ data FromAmong = FromAmong deriving (Show, Eq, Data, Typeable)
 data CardOrder = AnyOrder | RandomOrder
                deriving (Show, Eq, Data, Typeable)
 
-type TriggerCondition = Text -- TODO: should this be the same as AltCostCondition?
-type ActivationInst = Text
-type AltCostCondition = Text
-
-data Ability = AdditionalCost ([Cost])
-             | AlternativeCost ([Cost]) (Maybe [AltCostCondition])
-             | KeywordAbility Keyword
-             | ActivatedAbility ([Cost]) [Effect] (Maybe ActivationInst)
-             | TriggeredAbility TriggerEvent [Effect] (Maybe [TriggerCondition])
-             | StaticAbility [Effect]
-             | SpellAbility [Effect]
-             deriving (Show, Eq, Data, Typeable)
-
 data Effect =
     -- One-shot effects
     Choose Targets Targets (Maybe Zone)
@@ -416,6 +404,22 @@ data Keyword = Deathtouch
              | Vigilance
              | Bestow ([Cost])
              deriving (Show, Eq, Data, Typeable)
+
+type TriggerCondition = Text -- TODO: should this be the same as AltCostCondition?
+type ActivationInst = Text
+type AltCostCondition = Text
+
+data Ability = AdditionalCost ([Cost])
+             | AlternativeCost ([Cost]) (Maybe [AltCostCondition])
+             | KeywordAbility Keyword
+             | ActivatedAbility ([Cost]) [Effect] (Maybe ActivationInst)
+             | TriggeredAbility TriggerEvent [Effect] (Maybe [TriggerCondition])
+             | StaticAbility [Effect]
+             | SpellAbility [Effect]
+             deriving (Show, Eq, Data, Typeable)
+
+$( derive makeIs ''Ability)
+
 
 type SetCode = Text
 
@@ -701,7 +705,7 @@ makeFields ''KGame
 
 type App = StateT Game IO
 
-type AId = Int  -- activated ability id
+type AId = (OId, Int)  -- activated ability id
 
 data GameAction = PassPriority
                 | CastSpell OId

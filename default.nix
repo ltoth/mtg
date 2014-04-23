@@ -5,6 +5,7 @@ let
     cabal cabalInstall_1_18_0_3 haskellPlatform ghcMod
     acidState
     aeson
+    derive
     hscolour
     ipprint
     lens
@@ -22,6 +23,7 @@ in cabal.mkDerivation (self: {
     ghcMod
     acidState
     aeson
+    derive
     hscolour
     ipprint
     lens
