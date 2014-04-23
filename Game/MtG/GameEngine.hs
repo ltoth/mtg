@@ -41,18 +41,25 @@ playGame = do
 loopActions :: App ()
 loopActions = getAction >> loopActions
 
+-- Ask the player with priority which action he'd like to take
 getAction :: (MonadState Game m, MonadIO m) => m ()
 getAction = do
-  la <- legalActions
-  g <- get
-  Just p <- use priority -- FIXME: What if there is no priority?
+  mp <- use priority
+  case mp of
+    Just p  -> do
+      la <- legalActions p
+      g <- get
 
-  -- TODO: This function should be looked up in player's state, so
-  -- that we can support multiple UI clients and potentially AI
-  i <- chooseAction (knownGame p g) la
-  case la^?ix i of
-    Just a  -> evalAction a
-    Nothing -> getAction
+      -- TODO: This function should be looked up in player's state, so
+      -- that we can support multiple UI clients and potentially AI
+      i <- chooseAction (knownGame p g) la
+      case la^?ix i of
+        Just a  -> evalAction a
+        Nothing -> getAction
+
+    Nothing ->
+      -- This means the game actions left the game inconsistent
+      fail "No player had priority when we tried to get legalActions"
 
 initialGame :: [(PlayerInfo, [Card])] -> Game
 initialGame ps = execState createLibraries initGame
@@ -102,15 +109,15 @@ initialGame ps = execState createLibraries initGame
 -- |
 -- = Determining legal game actions
 
-legalActions :: MonadState Game m => m (Seq GameAction)
-legalActions = do
+-- | Get the set of legal actions for the passed in player with
+-- priority. Return a Seq rather than Set so that it can be indexed.
+legalActions :: MonadState Game m => PId -> m (Seq GameAction)
+legalActions pr = do
   aP <- use activePlayer
-  pr <- use priority
   s <- use stack
   st <- use step
   liftM (Seq.fromList . Set.toList . mconcat) . sequence $
-    if Seq.null s &&
-         pr == Just aP &&
+    if Seq.null s && pr == aP &&
          (st == PreCombatMain || st == PostCombatMain) then
        -- sorcery speed
       [ actionsPassPriority
@@ -119,52 +126,41 @@ legalActions = do
       , actionsCastInstantSpeed
       , actionsActivateAbilities
       ]
-    else if isJust pr then
+    else
       -- instant speed
       [ actionsPassPriority
       , actionsCastInstantSpeed
       , actionsActivateAbilities
       ]
-    else
-      -- mana ability speed, or just nothing (if we implement
-      -- mana abilities in the middle of casting spells and activating
-      -- abilities)
-      [ return Set.empty ]
   where
     actionsPassPriority = return $ Set.singleton PassPriority
 
     actionsPlayLands = do
-      aP <- use activePlayer
       lc <- use remainingLandCount
       if lc > 0 then do
-        h <- use $ players.ix aP.hand
+        h <- use $ players.ix pr.hand
         let landOIds = oidsMatchingPredicate
                        (\o -> Land `elem` o^.object.types) h
         return . Set.fromList $ map PlayLand landOIds
       else return Set.empty
 
     actionsCastSorcerySpeed = do
-      aP <- use activePlayer
-      h <- use $ players.ix aP.hand
+      h <- use $ players.ix pr.hand
       let sorceryOIds = oidsMatchingPredicate
                         (\o -> Land `notElem` o^.object.types) h
       return . Set.fromList $ map CastSpell sorceryOIds
 
     actionsCastInstantSpeed = do
-      Just p <- use priority  -- We can do this, because we checked
-                              -- the timing in legalActions
-      h <- use $ players.ix p.hand
+      h <- use $ players.ix pr.hand
       let instantOIds = oidsMatchingPredicate
                         (\o -> Instant `elem` o^.object.types ||
                          KeywordAbility Flash `elem` o^.object.abilities) h
       return . Set.fromList $ map CastSpell instantOIds
 
     actionsActivateAbilities = do
-      Just p <- use priority  -- We can do this, because we checked
-                              -- the timing in legalActions
       b <- use battlefield
       let perms = b^..folded.filtered
-                  (\o -> p == o^.object.controller).filtered
+                  (\o -> pr == o^.object.controller).filtered
                   (\o -> anyOf each isActivatedAbility
                          (o^.object.characteristics.abilities))
       let aids = concatMap (\o ->
@@ -188,6 +184,8 @@ evalAction PassPriority  = passPriority
 -- evalAction (CastSpell i) = castSpell i
 evalAction (PlayLand i)  = playLand i
 evalAction _ = return ()
+
+-- castSpell :: (MonadState Game m, MonadIO m) => OId -> m ()
 
 playLand :: MonadState Game m => OId -> m ()
 playLand i = do
