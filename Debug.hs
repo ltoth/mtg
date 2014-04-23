@@ -20,8 +20,8 @@ main = execStateT playGame testInitialGame
 
 testInitialGame :: Game
 testInitialGame = initialGame
-  [ ("Player 1", replicate 17 plains ++ replicate 15 yokedOx
-              ++ replicate 8 battlewiseValor)
+  [ ("Player 1", replicate 9 plains ++ replicate 7 nykthos
+              ++ replicate 15 yokedOx ++ replicate 8 battlewiseValor)
   , ("Player 2", replicate 9 forest ++ replicate 8 island
               ++ replicate 15 leafcrownDryad ++ replicate 8 horizonChimera)
   ]
@@ -161,6 +161,33 @@ battlewiseValor = Card{_cardLayout = Normal, _cardTypeLine = "Instant",
          _cardCardNumber = "1", _cardVariations = [],
          _cardImageName = "battlewise valor", _cardWatermark = Nothing,
          _cardCardBorder = Nothing, _cardSetCode = "THS"}
+
+nykthos :: Card
+nykthos = Card{_cardLayout = Normal, _cardTypeLine = "Legendary Land",
+         _cardTypes = [Land], _cardColors = [], _cardMultiverseID = 373713,
+         _cardName = "Nykthos, Shrine to Nyx", _cardNames = [],
+         _cardSupertypes = [Legendary], _cardSubtypes = [], _cardCmc = Nothing,
+         _cardRarity = Rare, _cardArtist = "Jung Park", _cardPower = Nothing,
+         _cardToughness = Nothing, _cardLoyalty = Nothing,
+         _cardManaCost = Nothing,
+         _cardRulesText =
+           Just
+             "{T}: Add {1} to your mana pool.\n\n{2}, {T}: Choose a color. Add to your mana pool an amount of mana of that color equal to your devotion to that color. (Your devotion to a color is the number of mana symbols of that color in the mana costs of permanents you control.)",
+         _cardAbilities =
+           [ActivatedAbility [CTap] [AddMana Nothing (ManaSymbols [[CL 1]])]
+              Nothing,
+            ActivatedAbility [CMana [CL 2], CTap]
+              [OtherEffect "Choose a color",
+               AddMana
+                 (Just
+                    (Exactly
+                       (AnyCount (NumVariable "your devotion to that color"))))
+                 ManaThatColor]
+              Nothing],
+         _cardCardNumber = "223", _cardVariations = [],
+         _cardImageName = "nykthos, shrine to nyx", _cardWatermark = Nothing,
+         _cardCardBorder = Nothing, _cardSetCode = "THS"}
+
 
 ---
 
