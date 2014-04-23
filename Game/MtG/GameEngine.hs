@@ -54,7 +54,7 @@ getAction = do
       -- that we can support multiple UI clients and potentially AI
       i <- chooseAction (knownGame p g) la
       case la^?ix i of
-        Just a  -> evalAction a
+        Just a  -> evalAction a p
         Nothing -> getAction
 
     Nothing ->
@@ -179,44 +179,41 @@ legalActions pr = do
 -- may require more choices (castSpell), while others are pure
 -- (playLand, passPriority)
 
-evalAction :: MonadState Game m => GameAction -> m ()
+evalAction :: (MonadState Game m, MonadIO m) => GameAction -> PId -> m ()
 evalAction PassPriority  = passPriority
--- evalAction (CastSpell i) = castSpell i
+evalAction (CastSpell i) = castSpell i
 evalAction (PlayLand i)  = playLand i
-evalAction _ = return ()
+evalAction _ = \p -> return ()
 
--- castSpell :: (MonadState Game m, MonadIO m) => OId -> m ()
+castSpell :: (MonadState Game m, MonadIO m) => OId -> PId -> m ()
+castSpell i p = do
+  return ()
 
-playLand :: MonadState Game m => OId -> m ()
-playLand i = do
-  aP <- use activePlayer
-  h <- use $ players.ix aP.hand
+playLand :: MonadState Game m => OId -> PId -> m ()
+playLand i p = do
+  h <- use $ players.ix p.hand
   case findOf folded (\o -> o^.oid == i) h of
     Just c  -> do
                  oP <- cardToPermanent c
-                 players.ix aP.hand %= Set.delete c
+                 players.ix p.hand %= Set.delete c
                  battlefield <>= Set.singleton oP
                  remainingLandCount -= 1
     Nothing -> return ()
 
-passPriority :: MonadState Game m => m ()
-passPriority = do
-  mp <- use priority
-  case mp of
-    Just p -> do
-      sp <- successivePasses <<>= Set.singleton p
-      ps <- use players
-      if Set.size sp == length ps then do
-        successivePasses .= Set.empty
-        s <- use stack
-        if Seq.null s then
-          moveToNextStep
-        else
-          resolveTopOfStack
-      else do
-        np <- nextPlayerInTurnOrder p
-        priority .= Just np
-    Nothing -> return ()
+passPriority :: MonadState Game m => PId -> m ()
+passPriority p = do
+  sp <- successivePasses <<>= Set.singleton p
+  ps <- use players
+  if Set.size sp == length ps then do
+    successivePasses .= Set.empty
+    s <- use stack
+    if Seq.null s then
+      moveToNextStep
+    else
+      resolveTopOfStack
+  else do
+    np <- nextPlayerInTurnOrder p
+    priority .= Just np
 
 -- |
 -- = Internal game actions
