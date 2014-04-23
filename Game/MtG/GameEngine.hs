@@ -27,6 +27,8 @@ import Game.MtG.Types
 --
 -- Runs in IO monad, as we need access to MonadRandom, and most
 -- conceivable clients (except for AI) will need to do IO.
+--
+-- All rules cross-reference MagicCompRules_20140201.pdf
 
 playGame :: App ()
 playGame = do
@@ -191,25 +193,32 @@ castSpell i p = do
   case findOf folded (\o -> o^.oid == i) h of
     Nothing -> return ()
     Just c  -> do
+      -- rule 116.4 (casting a spell resets the set of players)
+      successivePasses .= Set.empty
+
       oS <- cardToSpell c
       players.ix p.hand %= Set.delete c
       stack %= (oS <|)
+
+      -- rule 116.3c (same player keeps priority)
 
 playLand :: MonadState Game m => OId -> PId -> m ()
 playLand i p = do
   h <- use $ players.ix p.hand
   case findOf folded (\o -> o^.oid == i) h of
     Just c  -> do
-                 oP <- cardToPermanent c
-                 players.ix p.hand %= Set.delete c
-                 battlefield <>= Set.singleton oP
-                 remainingLandCount -= 1
+      oP <- cardToPermanent c
+      players.ix p.hand %= Set.delete c
+      battlefield <>= Set.singleton oP
+      remainingLandCount -= 1
     Nothing -> return ()
 
 passPriority :: MonadState Game m => PId -> m ()
 passPriority p = do
   sp <- successivePasses <<>= Set.singleton p
   ps <- use players
+
+  -- rule 116.4 (all players passed in succession)
   if Set.size sp == length ps then do
     successivePasses .= Set.empty
     s <- use stack
@@ -217,9 +226,10 @@ passPriority p = do
       moveToNextStep
     else
       resolveTopOfStack
+  -- rule 116.3d (next player receives priority)
   else do
     np <- nextPlayerInTurnOrder p
-    priority .= Just np
+    givePlayerPriority np
 
 -- |
 -- = Internal game actions
@@ -240,18 +250,29 @@ moveToNextStep = do
       activePlayer .= np
     _ -> return ()
   performTurnBasedActions ns
-  performStateBasedActions
+
+  -- rule 116.3a
   aP <- use activePlayer
-  priority .= Just aP   -- Even though no one should receive
+  givePlayerPriority aP -- Even though no one should receive
                         -- priority during UntapStep and Cleanup,
                         -- the turn-based actions will immediately
                         -- moveToNextStep
 
+givePlayerPriority :: MonadState Game m => PId -> m ()
+givePlayerPriority p = do
+  -- rule 116.5 (each time a player would get priority...)
+  performStateBasedActions
+  -- putTriggeredAbilitiesOnStack
+  priority .= Just p
+
 resolveTopOfStack :: MonadState Game m => m ()
 resolveTopOfStack = do
   -- TODO: Actually implement resolving
+  stack %= Seq.drop 1
+
+  -- rule 116.3b
   aP <- use activePlayer
-  priority .= Just aP
+  givePlayerPriority aP
 
 performTurnBasedActions :: MonadState Game m => Step -> m ()
 performTurnBasedActions UntapStep = do
