@@ -187,7 +187,13 @@ evalAction _ = \p -> return ()
 
 castSpell :: (MonadState Game m, MonadIO m) => OId -> PId -> m ()
 castSpell i p = do
-  return ()
+  h <- use $ players.ix p.hand
+  case findOf folded (\o -> o^.oid == i) h of
+    Nothing -> return ()
+    Just c  -> do
+      oS <- cardToSpell c
+      players.ix p.hand %= Set.delete c
+      stack %= (oS <|)
 
 playLand :: MonadState Game m => OId -> PId -> m ()
 playLand i p = do
@@ -357,6 +363,14 @@ cardToPermanent oc = do
     , _pcardSummoningSick = True
     , _pcardLoyaltyAlreadyActivated = False
     , _pcardTimestamp = t
+    }
+
+cardToSpell :: MonadState Game m => OCard -> m StackObject
+cardToSpell oc = return . OSpell =<<
+  createObject (oc^.owner) Spell
+    { _spellCard = oc^.object
+    , _spellCharacteristics = cardToCharacteristics $ oc^.object
+    , _spellController = oc^.owner
     }
 
 cardToCharacteristics :: Card -> Characteristics

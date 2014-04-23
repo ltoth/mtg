@@ -537,14 +537,11 @@ instance Ord (Object a) where
 instance Show OCard where
   show (Object i p c) = "OCard " ++ show i ++ " - " ++ show p ++ " - " ++ show (c^.name)
 
-instance Show OSpell
-instance Show OStackAbility
 instance Show OEmblem
+instance Show (Object StackAbility)
 
 type OCard         = Object Card
 type OPermanent    = Object Permanent
-type OSpell        = Object Spell
-type OStackAbility = Object StackAbility
 type OEmblem       = Object Emblem
 
 -- TODO: Implement Copy (perhaps only of spells, since permanents could be
@@ -554,10 +551,6 @@ type OEmblem       = Object Emblem
 -- type GCopy = Object Copy
 
 type Timestamp = Integer
-
--- FIXME: This is totally broken!
-data StackObject = OSpell | OStackAbility -- | GCopy FIXME
-                 deriving (Show, Data, Typeable)
 
 data Permanent = PCard
                { _pcardCard :: Card
@@ -613,6 +606,14 @@ makeFields ''Emblem
 
 instance Show OPermanent where
   show (Object i p pe) = "OPermanent " ++ show i ++ " - " ++ show p ++ " - " ++ show (pe^.characteristics.name)
+
+instance Show (Object Spell) where
+  show (Object i p sp) = "OSpell " ++ show i ++ " - " ++ show p ++ " - " ++ show (sp^.characteristics.name)
+
+data StackObject = OSpell (Object Spell)
+                 | OStackAbility (Object StackAbility)
+                 -- | OCopy FIXME
+                 deriving (Show, Data, Typeable)
 
 type LifeTotal = Int
 type PoisonTotal = Word8
