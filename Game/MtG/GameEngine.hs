@@ -23,7 +23,10 @@ import System.Random.Shuffle (shuffleM)
 import Game.MtG.Types
 
 -- |
--- = Interface
+-- = Top-level game engine
+--
+-- Runs in IO monad, as we need access to MonadRandom, and most
+-- conceivable clients (except for AI) will need to do IO.
 
 playGame :: App ()
 playGame = do
@@ -43,10 +46,10 @@ getAction = do
   la <- legalActions
   g <- get
   Just p <- use priority -- FIXME: What if there is no priority?
-  i <- chooseAction (knownGame p g) la  -- TODO: This function should be looked
-                                        -- up in state, so that we can support
-                                        -- multiple UI clients and potentially
-                                        -- AI
+
+  -- TODO: This function should be looked up in player's state, so
+  -- that we can support multiple UI clients and potentially AI
+  i <- chooseAction (knownGame p g) la
   case la^?ix i of
     Just a  -> evalAction a
     Nothing -> getAction
@@ -97,107 +100,7 @@ initialGame ps = execState createLibraries initGame
           }
 
 -- |
--- = Internal game engine
-
-knownGame :: PId -> Game -> KGame
-knownGame y g = KGame
-  { _kgameYou = y
-  , _kgamePlayers = knownPlayers (g^.players)
-  , _kgameBattlefield = g^.battlefield
-  , _kgameStack = g^.stack
-  , _kgameExile = g^.exile
-  , _kgameCommandZone = g^.commandZone
-  , _kgameTurnOrder = g^.turnOrder
-  , _kgameActivePlayer = g^.activePlayer
-  , _kgamePriority = g^.priority
-  , _kgameTurn = g^.turn
-  , _kgameRemainingLandCount = g^.remainingLandCount
-  , _kgameStep = g^.step
-  , _kgameRelationships = g^.relationships  -- FIXME: What about hidden relationships?
-  }
-  where 
-    knownPlayers = imap $ \i p ->
-          if i == y then KPlayerYou
-            { _kplayeryouLibrarySize = length (p^.library)
-            , _kplayeryouHand = p^.hand
-            , _kplayeryouGraveyard = p^.graveyard
-            , _kplayeryouLife = p^.life
-            , _kplayeryouPoison = p^.poison
-            , _kplayeryouMaxHandSize = p^.maxHandSize
-            , _kplayeryouPlayerInfo = p^.playerInfo
-            }
-          else KPlayerOpponent
-            { _kplayeropponentLibrarySize = length (p^.library)
-            , _kplayeropponentHandSize = Set.size (p^.hand)
-            , _kplayeropponentGraveyard = p^.graveyard
-            , _kplayeropponentLife = p^.life
-            , _kplayeropponentPoison = p^.poison
-            , _kplayeropponentMaxHandSize = p^.maxHandSize
-            , _kplayeropponentPlayerInfo = p^.playerInfo
-            }
-
-createObject :: MonadState Game m => PId -> a -> m (Object a)
-createObject p o = do
-  i <- maxOId <+= 1
-  return $ Object i p o
-
-newTimestamp :: MonadState Game m => m Timestamp
-newTimestamp = maxTimestamp <+= 1
-
-cardToPermanent :: MonadState Game m => OCard -> m OPermanent
-cardToPermanent oc = do
-  t <- newTimestamp
-  createObject (oc^.owner) PCard
-    { _pcardCard = oc^.object
-    , _pcardCharacteristics = cardToCharacteristics $ oc^.object
-    , _pcardController = oc^.owner
-    , _pcardPermanentStatus =
-        PermanentStatus Untapped Unflipped FaceUp PhasedIn
-    , _pcardSummoningSick = True
-    , _pcardLoyaltyAlreadyActivated = False
-    , _pcardTimestamp = t
-    }
-
-cardToCharacteristics :: Card -> Characteristics
-cardToCharacteristics c = Characteristics
-  { _characteristicsName = c^.name
-  , _characteristicsManaCost = c^.manaCost
-  , _characteristicsColors = c^.colors
-  , _characteristicsTypes = c^.types
-  , _characteristicsSubtypes = c^.subtypes
-  , _characteristicsSupertypes = c^.supertypes
-  , _characteristicsRulesText = c^.rulesText
-  , _characteristicsAbilities = c^.abilities
-  , _characteristicsPower = c^.power
-  , _characteristicsToughness = c^.toughness
-  , _characteristicsLoyalty = c^.loyalty
-  }
-
-drawCard :: MonadState Game m => PId -> m ()
-drawCard p = do
-  mc <- preuse $ players.ix p.library.ix 0
-  case mc of
-    Just c  -> do
-                 players.ix p.library %= drop 1
-                 players.ix p.hand <>= Set.singleton c
-    Nothing -> return () -- FIXME: p loses the game
-
-playLand :: MonadState Game m => OId -> m ()
-playLand i = do
-  aP <- use activePlayer
-  h <- use $ players.ix aP.hand
-  case findOf folded (\o -> o^.oid == i) h of
-    Just c  -> do
-                 oP <- cardToPermanent c
-                 players.ix aP.hand %= Set.delete c
-                 battlefield <>= Set.singleton oP
-                 remainingLandCount -= 1
-    Nothing -> return ()
-
-evalAction :: MonadState Game m => GameAction -> m ()
-evalAction (PlayLand i) = playLand i
-evalAction PassPriority = passPriority
-evalAction _ = return ()
+-- = Determining legal game actions
 
 legalActions :: MonadState Game m => m (Seq GameAction)
 legalActions = do
@@ -271,8 +174,32 @@ legalActions = do
                     isActivatedAbility))) perms
       return . Set.fromList $ map ActivateAbility aids
 
-oidsMatchingPredicate :: Foldable f => (OCard -> Bool) -> f OCard -> [OId]
-oidsMatchingPredicate p f = f^..folded.filtered p^..traversed.oid
+    oidsMatchingPredicate p f = f^..folded.filtered p^..traversed.oid
+
+-- |
+-- = Game actions chosen by players
+--
+-- Some of these might require a MonadIO constraint, as they
+-- may require more choices (castSpell), while others are pure
+-- (playLand, passPriority)
+
+evalAction :: MonadState Game m => GameAction -> m ()
+evalAction PassPriority  = passPriority
+-- evalAction (CastSpell i) = castSpell i
+evalAction (PlayLand i)  = playLand i
+evalAction _ = return ()
+
+playLand :: MonadState Game m => OId -> m ()
+playLand i = do
+  aP <- use activePlayer
+  h <- use $ players.ix aP.hand
+  case findOf folded (\o -> o^.oid == i) h of
+    Just c  -> do
+                 oP <- cardToPermanent c
+                 players.ix aP.hand %= Set.delete c
+                 battlefield <>= Set.singleton oP
+                 remainingLandCount -= 1
+    Nothing -> return ()
 
 passPriority :: MonadState Game m => m ()
 passPriority = do
@@ -293,6 +220,12 @@ passPriority = do
         priority .= Just np
     Nothing -> return ()
 
+-- |
+-- = Internal game actions
+--
+-- Hopefully none of these require any player interaction, and
+-- thus don't need to have a MonadIO constraint
+
 moveToNextStep :: MonadState Game m => m ()
 moveToNextStep = do
   priority .= Nothing
@@ -312,6 +245,12 @@ moveToNextStep = do
                         -- priority during UntapStep and Cleanup,
                         -- the turn-based actions will immediately
                         -- moveToNextStep
+
+resolveTopOfStack :: MonadState Game m => m ()
+resolveTopOfStack = do
+  -- TODO: Actually implement resolving
+  aP <- use activePlayer
+  priority .= Just aP
 
 performTurnBasedActions :: MonadState Game m => Step -> m ()
 performTurnBasedActions UntapStep = do
@@ -338,16 +277,63 @@ removeMarkedDamage = return () -- TODO: Implement
 performStateBasedActions :: MonadState Game m => m ()
 performStateBasedActions = return ()
 
-succB :: (Bounded a, Enum a, Eq a) => a -> a
-succB e | e == maxBound = minBound
-        | otherwise     = succ e
+drawCard :: MonadState Game m => PId -> m ()
+drawCard p = do
+  mc <- preuse $ players.ix p.library.ix 0
+  case mc of
+    Just c  -> do
+                 players.ix p.library %= drop 1
+                 players.ix p.hand <>= Set.singleton c
+    Nothing -> return () -- FIXME: p loses the game
 
-resolveTopOfStack :: MonadState Game m => m ()
-resolveTopOfStack = do
-  -- TODO: Actually implement resolving
-  aP <- use activePlayer
-  priority .= Just aP
+shuffleLibrary :: (MonadState Game m, MonadRandom m) => PId -> m ()
+shuffleLibrary p =
+  (players.ix p.library) <~ (get >>= perform (players.ix p.library.act shuffleM))
 
+-- |
+-- = Helpers for internal game actions
+--
+-- None of these are complete game actions, they just help with
+-- bookkeeping
+
+-- | Turn the perfect information Game into a player's view of
+-- the game, KGame
+knownGame :: PId -> Game -> KGame
+knownGame y g = KGame
+  { _kgameYou = y
+  , _kgamePlayers = knownPlayers (g^.players)
+  , _kgameBattlefield = g^.battlefield
+  , _kgameStack = g^.stack
+  , _kgameExile = g^.exile
+  , _kgameCommandZone = g^.commandZone
+  , _kgameTurnOrder = g^.turnOrder
+  , _kgameActivePlayer = g^.activePlayer
+  , _kgamePriority = g^.priority
+  , _kgameTurn = g^.turn
+  , _kgameRemainingLandCount = g^.remainingLandCount
+  , _kgameStep = g^.step
+  , _kgameRelationships = g^.relationships  -- FIXME: What about hidden relationships?
+  }
+  where 
+    knownPlayers = imap $ \i p ->
+          if i == y then KPlayerYou
+            { _kplayeryouLibrarySize = length (p^.library)
+            , _kplayeryouHand = p^.hand
+            , _kplayeryouGraveyard = p^.graveyard
+            , _kplayeryouLife = p^.life
+            , _kplayeryouPoison = p^.poison
+            , _kplayeryouMaxHandSize = p^.maxHandSize
+            , _kplayeryouPlayerInfo = p^.playerInfo
+            }
+          else KPlayerOpponent
+            { _kplayeropponentLibrarySize = length (p^.library)
+            , _kplayeropponentHandSize = Set.size (p^.hand)
+            , _kplayeropponentGraveyard = p^.graveyard
+            , _kplayeropponentLife = p^.life
+            , _kplayeropponentPoison = p^.poison
+            , _kplayeropponentMaxHandSize = p^.maxHandSize
+            , _kplayeropponentPlayerInfo = p^.playerInfo
+            }
 
 nextPlayerInTurnOrder :: MonadState Game m => PId -> m PId
 nextPlayerInTurnOrder p = do
@@ -356,11 +342,50 @@ nextPlayerInTurnOrder p = do
     Just (i, _) -> return $ tO^..cycled traverse^?!ix (succ i)
     Nothing     -> fail "Player not found in turn order"
 
-shuffleLibrary :: (MonadState Game m, MonadRandom m) => PId -> m ()
-shuffleLibrary p =
-  (players.ix p.library) <~ (get >>= perform (players.ix p.library.act shuffleM))
+createObject :: MonadState Game m => PId -> a -> m (Object a)
+createObject p o = do
+  i <- maxOId <+= 1
+  return $ Object i p o
 
----
+newTimestamp :: MonadState Game m => m Timestamp
+newTimestamp = maxTimestamp <+= 1
+
+cardToPermanent :: MonadState Game m => OCard -> m OPermanent
+cardToPermanent oc = do
+  t <- newTimestamp
+  createObject (oc^.owner) PCard
+    { _pcardCard = oc^.object
+    , _pcardCharacteristics = cardToCharacteristics $ oc^.object
+    , _pcardController = oc^.owner
+    , _pcardPermanentStatus =
+        PermanentStatus Untapped Unflipped FaceUp PhasedIn
+    , _pcardSummoningSick = True
+    , _pcardLoyaltyAlreadyActivated = False
+    , _pcardTimestamp = t
+    }
+
+cardToCharacteristics :: Card -> Characteristics
+cardToCharacteristics c = Characteristics
+  { _characteristicsName = c^.name
+  , _characteristicsManaCost = c^.manaCost
+  , _characteristicsColors = c^.colors
+  , _characteristicsTypes = c^.types
+  , _characteristicsSubtypes = c^.subtypes
+  , _characteristicsSupertypes = c^.supertypes
+  , _characteristicsRulesText = c^.rulesText
+  , _characteristicsAbilities = c^.abilities
+  , _characteristicsPower = c^.power
+  , _characteristicsToughness = c^.toughness
+  , _characteristicsLoyalty = c^.loyalty
+  }
+
+succB :: (Bounded a, Enum a, Eq a) => a -> a
+succB e | e == maxBound = minBound
+        | otherwise     = succ e
+
+-- |
+-- = UI client
+--
 -- TODO: Move this into Debug, or Main
 
 chooseAction :: MonadIO m => KGame -> Seq GameAction -> m Int
