@@ -703,8 +703,8 @@ type App = StateT Game IO
 
 type AId = Int  -- activated ability id
 
-data GameAction = CastSpell OId
+data GameAction = PassPriority
+                | CastSpell OId
                 | ActivateAbility AId
                 | PlayLand OId
-                | PassPriority
-                deriving (Show, Typeable)
+                deriving (Show, Eq, Ord, Typeable)

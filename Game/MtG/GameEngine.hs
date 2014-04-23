@@ -205,7 +205,7 @@ legalActions = do
   pr <- use priority
   s <- use stack
   st <- use step
-  liftM mconcat . sequence $
+  liftM (Seq.fromList . Set.toList . mconcat) . sequence $
     if Seq.null s &&
          pr == Just aP &&
          (st == PreCombatMain || st == PostCombatMain) then
@@ -224,9 +224,9 @@ legalActions = do
       -- mana ability speed, or just nothing (if we implement
       -- mana abilities in the middle of casting spells and activating
       -- abilities)
-      [ return Seq.empty ]
+      [ return Set.empty ]
   where
-    actionsPassPriority = return $ Seq.singleton PassPriority
+    actionsPassPriority = return $ Set.singleton PassPriority
 
     actionsPlayLands = do
       aP <- use activePlayer
@@ -235,15 +235,15 @@ legalActions = do
         h <- use $ players.ix aP.hand
         let landOIds = oidsMatchingPredicate
                        (\o -> Land `elem` o^.object.types) h
-        return . Seq.fromList $ map PlayLand landOIds
-      else return Seq.empty
+        return . Set.fromList $ map PlayLand landOIds
+      else return Set.empty
 
     actionsCastSorcerySpeed = do
       aP <- use activePlayer
       h <- use $ players.ix aP.hand
       let sorceryOIds = oidsMatchingPredicate
                         (\o -> Land `notElem` o^.object.types) h
-      return . Seq.fromList $ map CastSpell sorceryOIds
+      return . Set.fromList $ map CastSpell sorceryOIds
 
     actionsCastInstantSpeed = do
       Just p <- use priority  -- We can do this, because we checked
@@ -252,7 +252,7 @@ legalActions = do
       let instantOIds = oidsMatchingPredicate
                         (\o -> Instant `elem` o^.object.types ||
                          KeywordAbility Flash `elem` o^.object.abilities) h
-      return . Seq.fromList $ map CastSpell instantOIds
+      return . Set.fromList $ map CastSpell instantOIds
 
 oidsMatchingPredicate :: Foldable f => (OCard -> Bool) -> f OCard -> [OId]
 oidsMatchingPredicate p f = f^..folded.filtered p^..traversed.oid
