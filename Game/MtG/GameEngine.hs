@@ -42,7 +42,11 @@ getAction :: (MonadState Game m, MonadIO m) => m ()
 getAction = do
   la <- legalActions
   g <- get
-  i <- chooseAction g la  -- TODO: more general
+  Just p <- use priority -- FIXME: What if there is no priority?
+  i <- chooseAction (knownGame p g) la  -- TODO: This function should be looked
+                                        -- up in state, so that we can support
+                                        -- multiple UI clients and potentially
+                                        -- AI
   case la^?ix i of
     Just a  -> evalAction a
     Nothing -> getAction
@@ -59,32 +63,32 @@ initialGame ps = execState createLibraries initGame
         createTurnOrder = Seq.fromList $ imap const ps
 
         initGame = Game
-          { _players = map (initPlayer . fst) ps
-          , _battlefield = Set.empty
-          , _stack = Seq.empty
-          , _exile = Set.empty
-          , _commandZone = Set.empty
-          , _turnOrder = createTurnOrder
-          , _activePlayer = 1  -- FIXME: Should be set to the last
-                               -- player in turn order
-          , _priority = Nothing
-          , _successivePasses = Set.empty
-          , _maxTimestamp = 0
-          , _turn = 0
-          , _remainingLandCount = 0
-          , _step = Cleanup
-          , _relationships = initRelationships
-          , _maxOId = 0
+          { _gamePlayers = map (initPlayer . fst) ps
+          , _gameBattlefield = Set.empty
+          , _gameStack = Seq.empty
+          , _gameExile = Set.empty
+          , _gameCommandZone = Set.empty
+          , _gameTurnOrder = createTurnOrder
+          , _gameActivePlayer = 1  -- FIXME: Should be set to the last
+                                   -- player in turn order
+          , _gamePriority = Nothing
+          , _gameSuccessivePasses = Set.empty
+          , _gameMaxTimestamp = 0
+          , _gameTurn = 0
+          , _gameRemainingLandCount = 0
+          , _gameStep = Cleanup
+          , _gameRelationships = initRelationships
+          , _gameMaxOId = 0
           }
 
         initPlayer pI = Player
-          { _library = []
-          , _hand = Set.empty
-          , _graveyard = []
-          , _life = 20
-          , _poison = 0
-          , _maxHandSize = 7
-          , _playerInfo = pI
+          { _playerLibrary = []
+          , _playerHand = Set.empty
+          , _playerGraveyard = []
+          , _playerLife = 20
+          , _playerPoison = 0
+          , _playerMaxHandSize = 7
+          , _playerPlayerInfo = pI
           }
 
         initRelationships = Relationships
@@ -94,6 +98,43 @@ initialGame ps = execState createLibraries initGame
 
 -- |
 -- = Internal game engine
+
+knownGame :: PId -> Game -> KGame
+knownGame y g = KGame
+  { _kgameYou = y
+  , _kgamePlayers = knownPlayers (g^.players)
+  , _kgameBattlefield = g^.battlefield
+  , _kgameStack = g^.stack
+  , _kgameExile = g^.exile
+  , _kgameCommandZone = g^.commandZone
+  , _kgameTurnOrder = g^.turnOrder
+  , _kgameActivePlayer = g^.activePlayer
+  , _kgamePriority = g^.priority
+  , _kgameTurn = g^.turn
+  , _kgameRemainingLandCount = g^.remainingLandCount
+  , _kgameStep = g^.step
+  , _kgameRelationships = g^.relationships  -- FIXME: What about hidden relationships?
+  }
+  where 
+    knownPlayers = imap $ \i p ->
+          if i == y then KPlayerYou
+            { _kplayeryouLibrarySize = length (p^.library)
+            , _kplayeryouHand = p^.hand
+            , _kplayeryouGraveyard = p^.graveyard
+            , _kplayeryouLife = p^.life
+            , _kplayeryouPoison = p^.poison
+            , _kplayeryouMaxHandSize = p^.maxHandSize
+            , _kplayeryouPlayerInfo = p^.playerInfo
+            }
+          else KPlayerOpponent
+            { _kplayeropponentLibrarySize = length (p^.library)
+            , _kplayeropponentHandSize = Set.size (p^.hand)
+            , _kplayeropponentGraveyard = p^.graveyard
+            , _kplayeropponentLife = p^.life
+            , _kplayeropponentPoison = p^.poison
+            , _kplayeropponentMaxHandSize = p^.maxHandSize
+            , _kplayeropponentPlayerInfo = p^.playerInfo
+            }
 
 createObject :: MonadState Game m => PId -> a -> m (Object a)
 createObject p o = do
@@ -305,12 +346,12 @@ shuffleLibrary p =
 ---
 -- TODO: Move this into Debug, or Main
 
-chooseAction :: MonadIO m => Game -> Seq GameAction -> m Int
-chooseAction g as = do
-  liftIO . myPrint $ g
+chooseAction :: MonadIO m => KGame -> Seq GameAction -> m Int
+chooseAction kg as = do
+  liftIO . myPrint $ kg
   printActions as
   l <- liftIO getLine 
-  maybe (putIO "Invalid action" >> chooseAction g as) return (readMaybe l)
+  maybe (putIO "Invalid action" >> chooseAction kg as) return (readMaybe l)
   where printActions = imapM_ (\i a -> putIO $ show i ++ ": " ++ show a)
 
 putIO :: MonadIO m => String -> m ()

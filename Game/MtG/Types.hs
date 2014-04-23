@@ -618,16 +618,38 @@ type HandSize = Int
 type PlayerInfo = Text
 
 data Player = Player
-            { _library :: [OCard]
-            , _hand :: Set OCard
-            , _graveyard :: [OCard]
-            , _life :: LifeTotal
-            , _poison :: PoisonTotal
-            , _maxHandSize :: HandSize
-            , _playerInfo :: PlayerInfo
+            { _playerLibrary :: [OCard]
+            , _playerHand :: Set OCard
+            , _playerGraveyard :: [OCard]
+            , _playerLife :: LifeTotal
+            , _playerPoison :: PoisonTotal
+            , _playerMaxHandSize :: HandSize
+            , _playerPlayerInfo :: PlayerInfo
             } deriving (Show, Typeable)
 
-makeLenses ''Player
+-- player info known to a particular player
+data KPlayer = KPlayerYou
+             { _kplayeryouLibrarySize :: Int
+             , _kplayeryouHand :: Set OCard
+             , _kplayeryouGraveyard :: [OCard]
+             , _kplayeryouLife :: LifeTotal
+             , _kplayeryouPoison :: PoisonTotal
+             , _kplayeryouMaxHandSize :: HandSize
+             , _kplayeryouPlayerInfo :: PlayerInfo
+             }
+             | KPlayerOpponent
+             { _kplayeropponentLibrarySize :: Int
+             , _kplayeropponentHandSize :: Int
+             , _kplayeropponentGraveyard :: [OCard]
+             , _kplayeropponentLife :: LifeTotal
+             , _kplayeropponentPoison :: PoisonTotal
+             , _kplayeropponentMaxHandSize :: HandSize
+             , _kplayeropponentPlayerInfo :: PlayerInfo
+             }
+             deriving (Show, Typeable)
+
+makeFields ''Player
+makeFields ''KPlayer
 
 type TurnNumber = Int
 type LandCount = Word8
@@ -641,24 +663,41 @@ data Relationships = Relationships
 makeLenses ''Relationships
 
 data Game = Game
-          { _players :: [Player] -- FIXME: Should this be Seq?
-          , _battlefield :: Set OPermanent
-          , _stack :: Seq StackObject
-          , _exile :: Set OCard
-          , _commandZone :: Set OCard
-          , _turnOrder :: Seq PId
-          , _activePlayer :: PId
-          , _priority :: Maybe PId
-          , _successivePasses :: Set PId
-          , _maxTimestamp :: Timestamp
-          , _turn :: TurnNumber
-          , _remainingLandCount :: LandCount
-          , _step :: Step
-          , _relationships :: Relationships
-          , _maxOId :: OId
+          { _gamePlayers :: [Player] -- FIXME: Should this be Seq?
+          , _gameBattlefield :: Set OPermanent
+          , _gameStack :: Seq StackObject
+          , _gameExile :: Set OCard
+          , _gameCommandZone :: Set OCard
+          , _gameTurnOrder :: Seq PId
+          , _gameActivePlayer :: PId
+          , _gamePriority :: Maybe PId
+          , _gameSuccessivePasses :: Set PId
+          , _gameMaxTimestamp :: Timestamp
+          , _gameTurn :: TurnNumber
+          , _gameRemainingLandCount :: LandCount
+          , _gameStep :: Step
+          , _gameRelationships :: Relationships
+          , _gameMaxOId :: OId
           } deriving (Show, Typeable)
 
-makeLenses ''Game
+data KGame = KGame
+          { _kgameYou :: PId
+          , _kgamePlayers :: [KPlayer]
+          , _kgameBattlefield :: Set OPermanent
+          , _kgameStack :: Seq StackObject
+          , _kgameExile :: Set OCard
+          , _kgameCommandZone :: Set OCard
+          , _kgameTurnOrder :: Seq PId
+          , _kgameActivePlayer :: PId
+          , _kgamePriority :: Maybe PId
+          , _kgameTurn :: TurnNumber
+          , _kgameRemainingLandCount :: LandCount
+          , _kgameStep :: Step
+          , _kgameRelationships :: Relationships
+          } deriving (Show, Typeable)
+
+makeFields ''Game
+makeFields ''KGame
 
 type App = StateT Game IO
 
