@@ -196,9 +196,16 @@ castSpell i p = do
       -- rule 116.4 (casting a spell resets the set of players)
       successivePasses .= Set.empty
 
+      -- rule 601.2a (card moves from hand to stack)
       oS <- cardToSpell c
       players.ix p.hand %= Set.delete c
       stack %= (oS <|)
+
+      -- rule 601.2b (modes, splice, alternative, additional,
+      -- variable cost, hybrid mana, Phyrexian mana)
+      -- TODO: implement asking for these choices where appropriate
+
+      -- rule 601.2c (choose targets)
 
       -- rule 116.3c (same player keeps priority)
 

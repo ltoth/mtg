@@ -589,6 +589,8 @@ data StackAbility = StackAbility
                   , _stackabilityTriggerCondition :: Maybe [TriggerCondition]
                   , _stackabilitySource :: OId
                   -- TODO: Add more fields, i.e. modes, targets, value of X
+                  -- TODO: Copy source object into this as a way to keep
+                  -- "last known information"
                   } deriving (Show, Data, Typeable)
 
 data Emblem = Emblem
