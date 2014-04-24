@@ -554,7 +554,7 @@ type Timestamp = Integer
 
 data Permanent = PCard
                { _pcardCard :: Card
-               , _pcardCharacteristics :: Characteristics
+               , _pcardChars :: Characteristics
                , _pcardController :: PId
                , _pcardPermanentStatus :: PermanentStatus
                , _pcardSummoningSick :: Bool
@@ -564,7 +564,7 @@ data Permanent = PCard
                }
                | PToken
                { _ptokenCopyOfCard :: Maybe Card
-               , _ptokenCharacteristics :: Characteristics
+               , _ptokenChars :: Characteristics
                , _ptokenController :: PId
                , _ptokenPermanentStatus :: PermanentStatus
                , _ptokenSummoningSick :: Bool
@@ -576,7 +576,7 @@ data Permanent = PCard
 
 data Spell = Spell
            { _spellCard :: Card
-           , _spellCharacteristics :: Characteristics
+           , _spellChars :: Characteristics
            , _spellController :: PId
            -- TODO: Add more fields, i.e. modes, targets, value of X,
            -- additional or alternative costs
@@ -607,10 +607,10 @@ makeFields ''Emblem
 -- makeFields ''Copy
 
 instance Show OPermanent where
-  show (Object i p pe) = "OPermanent " ++ show i ++ " - " ++ show p ++ " - " ++ show (pe^.characteristics.name)
+  show (Object i p pe) = "OPermanent " ++ show i ++ " - " ++ show p ++ " - " ++ show (pe^.chars.name)
 
 instance Show (Object Spell) where
-  show (Object i p sp) = "OSpell " ++ show i ++ " - " ++ show p ++ " - " ++ show (sp^.characteristics.name)
+  show (Object i p sp) = "OSpell " ++ show i ++ " - " ++ show p ++ " - " ++ show (sp^.chars.name)
 
 data StackObject = OSpell (Object Spell)
                  | OStackAbility (Object StackAbility)

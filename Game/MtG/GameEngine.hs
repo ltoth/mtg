@@ -11,6 +11,8 @@ import Data.Maybe
 import Data.Monoid
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
+import Data.Sequence.Lens
+import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Set.Lens
 -- import qualified Data.Text as T
@@ -129,64 +131,85 @@ legalActions pr = do
   aP <- use activePlayer
   s <- use stack
   st <- use step
-  liftM (Seq.fromList . Set.toList . mconcat) . sequence $
+  liftM (seqOf folded . mconcat) . sequence . map ($ pr) $
+    -- instant speed
+    [ actionsPassPriority
+    , actionsCastInstantSpeed
+    , actionsActivateAbilities
+    , actionsManaAbilities
+    ] ++
+    -- sorcery speed
     if Seq.null s && pr == aP &&
          (st == PreCombatMain || st == PostCombatMain) then
-       -- sorcery speed
-      [ actionsPassPriority
-      , actionsPlayLands
+      [ actionsPlayLands
       , actionsCastSorcerySpeed
-      , actionsCastInstantSpeed
-      , actionsActivateAbilities
-      -- TODO: , actionsLoyaltyAbilities
+      , actionsLoyaltyAbilities
       ]
-    else
-      -- instant speed
-      [ actionsPassPriority
-      , actionsCastInstantSpeed
-      , actionsActivateAbilities
-      ]
-  where
-    actionsPassPriority = return $ Set.singleton PassPriority
+    else []
 
-    actionsPlayLands = do
-      lc <- use remainingLandCount
-      if lc > 0 then do
-        h <- use $ players.ix pr.hand
-        let landOIds = oidsMatchingPredicate
-                       (\o -> Land `elem` o^.object.types) h
-        return . Set.fromList $ map PlayLand landOIds
-      else return Set.empty
+actionsPassPriority :: MonadState Game m => PId -> m (Set GameAction)
+actionsPassPriority _ = return $ Set.singleton PassPriority
 
-    actionsCastSorcerySpeed = do
-      h <- use $ players.ix pr.hand
-      let sorceryOIds = oidsMatchingPredicate
-                        (\o -> Land `notElem` o^.object.types) h
-      return . Set.fromList $ map CastSpell sorceryOIds
+actionsPlayLands :: MonadState Game m => PId -> m (Set GameAction)
+actionsPlayLands p = do
+  lc <- use remainingLandCount
+  if lc > 0 then do
+    h <- use $ players.ix p.hand
+    let os = oids $ h^..folded.filtered
+             (\o -> Land `elem` o^.object.types)
+    return . Set.fromList $ map PlayLand os
+  else return Set.empty
 
-    actionsCastInstantSpeed = do
-      h <- use $ players.ix pr.hand
-      let instantOIds = oidsMatchingPredicate
-                        (\o -> Instant `elem` o^.object.types ||
-                         KeywordAbility Flash `elem` o^.object.abilities) h
-      return . Set.fromList $ map CastSpell instantOIds
+actionsCastSorcerySpeed :: MonadState Game m => PId -> m (Set GameAction)
+actionsCastSorcerySpeed p = do
+  h <- use $ players.ix p.hand
+  let os = oids $ h^..folded.filtered
+           (\o -> Land `notElem` o^.object.types)
+  return . Set.fromList $ map CastSpell os
 
-    actionsActivateAbilities = do
-      b <- use battlefield
-      -- TODO: Filter out loyalty abilities
-      let perms = b^..folded.controlledBy pr.filtered
-                  (\o -> anyOf each isActivatedAbility
-                         (o^.object.characteristics.abilities))
-      let aids = concatMap (\o ->
-            zip (repeat $ o^.oid)
-                (imap const
-                  (o^.object.characteristics.abilities^..folded.filtered
-                    isActivatedAbility))) perms
-      return . Set.fromList $ map ActivateAbility aids
+actionsCastInstantSpeed :: MonadState Game m => PId -> m (Set GameAction)
+actionsCastInstantSpeed p = do
+  h <- use $ players.ix p.hand
+  let os = oids $ h^..folded.filtered
+           (\o -> Instant `elem` o^.object.types ||
+                  KeywordAbility Flash `elem` o^.object.abilities)
+  return . Set.fromList $ map CastSpell os
 
-    oidsMatchingPredicate p f = f^..folded.filtered p^..folded.oid
+actionsActivateAbilities :: MonadState Game m => PId -> m (Set GameAction)
+actionsActivateAbilities p = do
+  b <- use battlefield
+  let as = aids isRegularActivatedAbility $
+             b^..folded.filtered (controlledBy p).
+             filtered hasRegularActivatedAbilities
+  return . Set.fromList $ map ActivateAbility as
 
-    controlledBy p = filtered (\o -> p == o^.object.controller)
+-- TODO: implement
+actionsManaAbilities :: MonadState Game m => PId -> m (Set GameAction)
+actionsManaAbilities p = return Set.empty
+
+-- TODO: implement
+actionsLoyaltyAbilities :: MonadState Game m => PId -> m (Set GameAction)
+actionsLoyaltyAbilities p = return Set.empty
+
+oids :: [Object a] -> [OId]
+oids = toListOf (folded.oid)
+
+aids :: (Ability -> Bool) -> [OPermanent] -> [AId]
+aids f = concatMap (\o ->
+         zip (repeat $ o^.oid)
+             (imap const
+                   (o^.object.chars.abilities^..folded.filtered f)))
+
+controlledBy :: PId -> OPermanent -> Bool
+controlledBy p o = o^.object.controller == p
+
+hasRegularActivatedAbilities :: OPermanent -> Bool
+hasRegularActivatedAbilities o =
+  anyOf each isRegularActivatedAbility (o^.object.chars.abilities)
+
+-- TODO: Filter out loyalty abilities and mana abilities
+isRegularActivatedAbility :: Ability -> Bool
+isRegularActivatedAbility = isActivatedAbility
 
 -- |
 -- = Game actions chosen by players
@@ -411,7 +434,7 @@ cardToPermanent oc = do
   t <- newTimestamp
   createObject (oc^.owner) PCard
     { _pcardCard = oc^.object
-    , _pcardCharacteristics = cardToCharacteristics $ oc^.object
+    , _pcardChars = cardToCharacteristics $ oc^.object
     , _pcardController = oc^.owner
     , _pcardPermanentStatus =
         PermanentStatus Untapped Unflipped FaceUp PhasedIn
@@ -424,7 +447,7 @@ cardToSpell :: MonadState Game m => OCard -> m StackObject
 cardToSpell oc = return . OSpell =<<
   createObject (oc^.owner) Spell
     { _spellCard = oc^.object
-    , _spellCharacteristics = cardToCharacteristics $ oc^.object
+    , _spellChars = cardToCharacteristics $ oc^.object
     , _spellController = oc^.owner
     }
 

@@ -20,7 +20,7 @@ main = execStateT playGame testInitialGame
 
 testInitialGame :: Game
 testInitialGame = initialGame
-  [ ("Player 1", replicate 9 plains ++ replicate 7 nykthos
+  [ ("Player 1", replicate 9 plains ++ replicate 8 nykthos
               ++ replicate 15 yokedOx ++ replicate 8 battlewiseValor)
   , ("Player 2", replicate 9 forest ++ replicate 8 island
               ++ replicate 15 leafcrownDryad ++ replicate 8 horizonChimera)
