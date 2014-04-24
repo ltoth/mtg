@@ -621,6 +621,17 @@ type LifeTotal = Int
 type PoisonTotal = Word8
 type HandSize = Int
 
+data ManaPool = ManaPool
+              { _whiteMana :: Int
+              , _blueMana :: Int
+              , _blackMana :: Int
+              , _redMana :: Int
+              , _greenMana :: Int
+              , _colorlessMana :: Int
+              } deriving (Show, Data, Typeable)
+
+makeLenses ''ManaPool
+
 -- FIXME: This should be a product type with name, etc.
 type PlayerInfo = Text
 
@@ -631,6 +642,7 @@ data Player = Player
             , _playerLife :: LifeTotal
             , _playerPoison :: PoisonTotal
             , _playerMaxHandSize :: HandSize
+            , _playerManaPool :: ManaPool
             , _playerPlayerInfo :: PlayerInfo
             } deriving (Show, Typeable)
 
@@ -642,6 +654,7 @@ data KPlayer = KPlayerYou
              , _kplayeryouLife :: LifeTotal
              , _kplayeryouPoison :: PoisonTotal
              , _kplayeryouMaxHandSize :: HandSize
+             , _kplayeryouManaPool :: ManaPool
              , _kplayeryouPlayerInfo :: PlayerInfo
              }
              | KPlayerOpponent
@@ -651,6 +664,7 @@ data KPlayer = KPlayerYou
              , _kplayeropponentLife :: LifeTotal
              , _kplayeropponentPoison :: PoisonTotal
              , _kplayeropponentMaxHandSize :: HandSize
+             , _kplayeropponentManaPool :: ManaPool
              , _kplayeropponentPlayerInfo :: PlayerInfo
              }
              deriving (Show, Typeable)

@@ -12,6 +12,7 @@ import Data.Monoid
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
+import Data.Set.Lens
 -- import qualified Data.Text as T
 import qualified IPPrint
 import qualified Language.Haskell.HsColour as HsColour
@@ -100,12 +101,22 @@ initialGame ps = execState createLibraries initGame
           , _playerLife = 20
           , _playerPoison = 0
           , _playerMaxHandSize = 7
+          , _playerManaPool = initManaPool
           , _playerPlayerInfo = pI
           }
 
         initRelationships = Relationships
           { _attachedTo = IntMap.empty
           , _exiledWith = IntMap.empty
+          }
+
+        initManaPool = ManaPool
+          { _whiteMana = 0
+          , _blueMana = 0
+          , _blackMana = 0
+          , _redMana = 0
+          , _greenMana = 0
+          , _colorlessMana = 0
           }
 
 -- |
@@ -127,6 +138,7 @@ legalActions pr = do
       , actionsCastSorcerySpeed
       , actionsCastInstantSpeed
       , actionsActivateAbilities
+      -- TODO: , actionsLoyaltyAbilities
       ]
     else
       -- instant speed
@@ -161,8 +173,8 @@ legalActions pr = do
 
     actionsActivateAbilities = do
       b <- use battlefield
-      let perms = b^..folded.filtered
-                  (\o -> pr == o^.object.controller).filtered
+      -- TODO: Filter out loyalty abilities
+      let perms = b^..folded.controlledBy pr.filtered
                   (\o -> anyOf each isActivatedAbility
                          (o^.object.characteristics.abilities))
       let aids = concatMap (\o ->
@@ -172,7 +184,9 @@ legalActions pr = do
                     isActivatedAbility))) perms
       return . Set.fromList $ map ActivateAbility aids
 
-    oidsMatchingPredicate p f = f^..folded.filtered p^..traversed.oid
+    oidsMatchingPredicate p f = f^..folded.filtered p^..folded.oid
+
+    controlledBy p = filtered (\o -> p == o^.object.controller)
 
 -- |
 -- = Game actions chosen by players
@@ -206,8 +220,17 @@ castSpell i p = do
       -- TODO: implement asking for these choices where appropriate
 
       -- rule 601.2c (choose targets)
+      -- TODO: implement
+
+      -- rule 601.2d (choose division)
+      -- TODO: implement
+
+      -- rule 601.2e (calculate total cost)
+      -- let tc = totalCost
 
       -- rule 116.3c (same player keeps priority)
+  where
+    -- totalCost :: Maybe ManaCost -> [Cost] ->
 
 playLand :: MonadState Game m => OId -> PId -> m ()
 playLand i p = do
@@ -232,6 +255,7 @@ passPriority p = do
     if Seq.null s then
       moveToNextStep
     else
+      -- rule 608.1
       resolveTopOfStack
   -- rule 116.3d (next player receives priority)
   else do
@@ -275,6 +299,7 @@ givePlayerPriority p = do
 resolveTopOfStack :: MonadState Game m => m ()
 resolveTopOfStack = do
   -- TODO: Actually implement resolving
+  -- rule 608.2
   stack %= Seq.drop 1
 
   -- rule 116.3b
@@ -352,6 +377,7 @@ knownGame y g = KGame
             , _kplayeryouLife = p^.life
             , _kplayeryouPoison = p^.poison
             , _kplayeryouMaxHandSize = p^.maxHandSize
+            , _kplayeryouManaPool = p^.manaPool
             , _kplayeryouPlayerInfo = p^.playerInfo
             }
           else KPlayerOpponent
@@ -360,6 +386,7 @@ knownGame y g = KGame
             , _kplayeropponentGraveyard = p^.graveyard
             , _kplayeropponentLife = p^.life
             , _kplayeropponentPoison = p^.poison
+            , _kplayeropponentManaPool = p^.manaPool
             , _kplayeropponentMaxHandSize = p^.maxHandSize
             , _kplayeropponentPlayerInfo = p^.playerInfo
             }
