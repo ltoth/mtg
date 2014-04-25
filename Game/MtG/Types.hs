@@ -519,41 +519,17 @@ type OId = Int
 -- Player ID
 type PId = Int
 
-data Object a = Object
-              { _oid :: OId
-              , _owner :: PId
-              , _object :: a
-              } deriving (Data, Typeable)
-
-makeLenses ''Object
-
-instance Eq (Object a) where
-  (==) = (==) `on` (^.oid)
-
-instance Ord (Object a) where
-  compare = compare `on` (^.oid)
-
-instance Show OCard where
-  show (Object i p c) = "OCard " ++ show i ++ " - " ++ show p ++ " - " ++ show (c^.name)
-
-instance Show OEmblem
-instance Show (Object StackAbility)
-
-type OCard         = Object Card
-type OPermanent    = Object Permanent
-type OEmblem       = Object Emblem
-
--- TODO: Implement Copy (perhaps only of spells, since permanents could be
--- done within the Permanent type?)  Or is there no reason to have a separate
--- type for copies, even of spells?  Having no separate type would be useful
--- for TargetMatch.
--- type GCopy = Object Copy
+data OCard = OCard
+           { _ocardOwner :: PId
+           , _ocardCard :: Card
+           } deriving (Data, Typeable)
 
 type Timestamp = Integer
 
 data Permanent = PCard
                { _pcardCard :: Card
                , _pcardChars :: Characteristics
+               , _pcardOwner :: PId
                , _pcardController :: PId
                , _pcardPermanentStatus :: PermanentStatus
                , _pcardSummoningSick :: Bool
@@ -564,6 +540,7 @@ data Permanent = PCard
                | PToken
                { _ptokenCopyOfCard :: Maybe Card
                , _ptokenChars :: Characteristics
+               , _ptokenOwner :: PId
                , _ptokenController :: PId
                , _ptokenPermanentStatus :: PermanentStatus
                , _ptokenSummoningSick :: Bool
@@ -571,15 +548,16 @@ data Permanent = PCard
                , _ptokenTimestamp :: Timestamp
                -- TODO: Add more fields
                }
-               deriving (Show, Data, Typeable)
+               deriving (Data, Typeable)
 
 data Spell = Spell
            { _spellCard :: Card
            , _spellChars :: Characteristics
+           , _spellOwner :: PId
            , _spellController :: PId
            -- TODO: Add more fields, i.e. modes, targets, value of X,
            -- additional or alternative costs
-           } deriving (Show, Data, Typeable)
+           } deriving (Data, Typeable)
 
 data StackAbility = StackAbility
                   { _stackabilityEffects :: [Effect]
@@ -587,6 +565,8 @@ data StackAbility = StackAbility
                   , _stackabilityActivationCost :: Maybe [Cost]
                   , _stackabilityTriggerCondition :: Maybe [TriggerCondition]
                   , _stackabilitySource :: OId
+                  , _stackabilityOwner :: PId
+                  , _stackabilityController :: PId
                   -- TODO: Add more fields, i.e. modes, targets, value of X
                   -- TODO: Copy source object into this as a way to keep
                   -- "last known information"
@@ -594,25 +574,34 @@ data StackAbility = StackAbility
 
 data Emblem = Emblem
             { _emblemAbilities :: [Ability]
+            , _emblemOwner :: PId
             , _emblemController :: PId
             } deriving (Show, Data, Typeable)
 
+-- TODO: Implement Copy (perhaps only of spells, since permanents could be
+-- done within the Permanent type?)  Or is there no reason to have a separate
+-- type for copies, even of spells?  Having no separate type would be useful
+-- for TargetMatch.
 --data Copy = Copy
 
+makeFields ''OCard
 makeFields ''Permanent
 makeFields ''Spell
 makeFields ''StackAbility
 makeFields ''Emblem
 -- makeFields ''Copy
 
-instance Show OPermanent where
-  show (Object i p pe) = "OPermanent " ++ show i ++ " - " ++ show p ++ " - " ++ show (pe^.chars.name)
+instance Show OCard where
+  show oc = "OCard " ++ show (oc^.owner) ++ " - " ++ show (oc^.card.name)
 
-instance Show (Object Spell) where
-  show (Object i p sp) = "OSpell " ++ show i ++ " - " ++ show p ++ " - " ++ show (sp^.chars.name)
+instance Show Permanent where
+  show pe = "Permanent " ++ show (pe^.owner) ++ " - " ++ show (pe^.chars.name)
 
-data StackObject = OSpell (Object Spell)
-                 | OStackAbility (Object StackAbility)
+instance Show Spell where
+  show sp = "Spell " ++ show (sp^.owner) ++ " - " ++ show (sp^.chars.name)
+
+data StackObject = OSpell Spell
+                 | OStackAbility StackAbility
                  -- | OCopy FIXME
                  deriving (Show, Data, Typeable)
 
@@ -635,9 +624,9 @@ makeLenses ''ManaPool
 type PlayerInfo = Text
 
 data Player = Player
-            { _playerLibrary :: [OCard]
-            , _playerHand :: Set OCard
-            , _playerGraveyard :: [OCard]
+            { _playerLibrary :: Seq (OId, OCard)
+            , _playerHand :: IntMap OCard
+            , _playerGraveyard :: Seq (OId, OCard)
             , _playerLife :: LifeTotal
             , _playerPoison :: PoisonTotal
             , _playerMaxHandSize :: HandSize
@@ -648,8 +637,8 @@ data Player = Player
 -- player info known to a particular player
 data KPlayer = KPlayerYou
              { _kplayeryouLibrarySize :: Int
-             , _kplayeryouHand :: Set OCard
-             , _kplayeryouGraveyard :: [OCard]
+             , _kplayeryouHand :: IntMap OCard
+             , _kplayeryouGraveyard :: Seq (OId, OCard)
              , _kplayeryouLife :: LifeTotal
              , _kplayeryouPoison :: PoisonTotal
              , _kplayeryouMaxHandSize :: HandSize
@@ -659,7 +648,7 @@ data KPlayer = KPlayerYou
              | KPlayerOpponent
              { _kplayeropponentLibrarySize :: Int
              , _kplayeropponentHandSize :: Int
-             , _kplayeropponentGraveyard :: [OCard]
+             , _kplayeropponentGraveyard :: Seq (OId, OCard)
              , _kplayeropponentLife :: LifeTotal
              , _kplayeropponentPoison :: PoisonTotal
              , _kplayeropponentMaxHandSize :: HandSize
@@ -684,10 +673,10 @@ makeLenses ''Relationships
 
 data Game = Game
           { _gamePlayers :: [Player] -- FIXME: Should this be Seq?
-          , _gameBattlefield :: Set OPermanent
-          , _gameStack :: Seq StackObject
-          , _gameExile :: Set OCard
-          , _gameCommandZone :: Set OCard
+          , _gameBattlefield :: IntMap Permanent
+          , _gameStack :: Seq (OId, StackObject)
+          , _gameExile :: IntMap OCard
+          , _gameCommandZone :: IntMap OCard
           , _gameTurnOrder :: Seq PId
           , _gameActivePlayer :: PId
           , _gamePriority :: Maybe PId
@@ -703,10 +692,10 @@ data Game = Game
 data KGame = KGame
           { _kgameYou :: PId
           , _kgamePlayers :: [KPlayer]
-          , _kgameBattlefield :: Set OPermanent
-          , _kgameStack :: Seq StackObject
-          , _kgameExile :: Set OCard
-          , _kgameCommandZone :: Set OCard
+          , _kgameBattlefield :: IntMap Permanent
+          , _kgameStack :: Seq (OId, StackObject)
+          , _kgameExile :: IntMap OCard
+          , _kgameCommandZone :: IntMap OCard
           , _kgameTurnOrder :: Seq PId
           , _kgameActivePlayer :: PId
           , _kgamePriority :: Maybe PId

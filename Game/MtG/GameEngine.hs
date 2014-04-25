@@ -6,7 +6,7 @@ import Control.Lens
 import Control.Monad.Random.Class
 import Control.Monad.State
 import Data.Data.Lens (biplate)
-import Data.Foldable (Foldable)
+import Data.Foldable (Foldable, toList)
 import qualified Data.IntMap as IntMap
 import Data.Maybe
 import Data.Monoid
@@ -71,8 +71,11 @@ initialGame :: [(PlayerInfo, [Card])] -> Game
 initialGame ps = execState createLibraries initGame
   where createLibraries = imapM_ createPlayerLib ps
 
-        createPlayerLib i p =
-          mapM (createObject i) (snd p) >>= assign (players.ix i.library)
+        createPlayerLib i (_, cs) =
+          mapM (\c -> do
+            ci <- newOId
+            players.ix i.library %= ((ci, c) <|))
+          $ map (OCard i) cs
 
         -- FIXME: Should be randomized, or set according to
         -- loser of last game etc.
@@ -80,10 +83,10 @@ initialGame ps = execState createLibraries initGame
 
         initGame = Game
           { _gamePlayers = map (initPlayer . fst) ps
-          , _gameBattlefield = Set.empty
+          , _gameBattlefield = IntMap.empty
           , _gameStack = Seq.empty
-          , _gameExile = Set.empty
-          , _gameCommandZone = Set.empty
+          , _gameExile = IntMap.empty
+          , _gameCommandZone = IntMap.empty
           , _gameTurnOrder = createTurnOrder
           , _gameActivePlayer = 1  -- FIXME: Should be set to the last
                                    -- player in turn order
@@ -98,9 +101,9 @@ initialGame ps = execState createLibraries initGame
           }
 
         initPlayer pI = Player
-          { _playerLibrary = []
-          , _playerHand = Set.empty
-          , _playerGraveyard = []
+          { _playerLibrary = Seq.empty
+          , _playerHand = IntMap.empty
+          , _playerGraveyard = Seq.empty
           , _playerLife = 20
           , _playerPoison = 0
           , _playerMaxHandSize = 7
@@ -156,31 +159,31 @@ actionsPlayLands p = do
   lc <- use remainingLandCount
   if lc > 0 then do
     h <- use $ players.ix p.hand
-    let os = oids $ h^..folded.filtered
-             (\o -> Land `elem` o^.object.types)
+    let os = map fst $ h^@..ifolded.filtered
+             (\o -> Land `elem` o^.card.types)
     return . Set.fromList $ map PlayLand os
   else return Set.empty
 
 actionsCastSorcerySpeed :: MonadState Game m => PId -> m (Set GameAction)
 actionsCastSorcerySpeed p = do
   h <- use $ players.ix p.hand
-  let os = oids $ h^..folded.filtered
-           (\o -> Land `notElem` o^.object.types)
+  let os = map fst $ h^@..ifolded.filtered
+           (\o -> Land `notElem` o^.card.types)
   return . Set.fromList $ map CastSpell os
 
 actionsCastInstantSpeed :: MonadState Game m => PId -> m (Set GameAction)
 actionsCastInstantSpeed p = do
   h <- use $ players.ix p.hand
-  let os = oids $ h^..folded.filtered
-           (\o -> Instant `elem` o^.object.types ||
-                  KeywordAbility Flash `elem` o^.object.abilities)
+  let os = map fst $ h^@..ifolded.filtered
+           (\o -> Instant `elem` o^.card.types ||
+                  KeywordAbility Flash `elem` o^.card.abilities)
   return . Set.fromList $ map CastSpell os
 
 actionsActivateAbilities :: MonadState Game m => PId -> m (Set GameAction)
 actionsActivateAbilities p = do
   b <- use battlefield
   let as = aids isRegularActivatedAbility $
-             b^..folded.filtered (controlledBy p).
+             b^@..ifolded.filtered (controlledBy p).
              filtered (hasAbilities isRegularActivatedAbility)
              -- TODO: filter out ones with CTap in cost already tapped
   return . Set.fromList $ map ActivateAbility as
@@ -189,7 +192,7 @@ actionsManaAbilities :: MonadState Game m => PId -> m (Set GameAction)
 actionsManaAbilities p = do
   b <- use battlefield
   let as = aids isManaAbility $
-             b^..folded.filtered (controlledBy p).
+             b^@..ifolded.filtered (controlledBy p).
              filtered (hasAbilities isManaAbility)
              -- TODO: filter out ones with CTap in cost already tapped
   return . Set.fromList $ map ActivateManaAbility as
@@ -198,29 +201,25 @@ actionsLoyaltyAbilities :: MonadState Game m => PId -> m (Set GameAction)
 actionsLoyaltyAbilities p = do
   b <- use battlefield
   let as = aids isLoyaltyAbility $
-             b^..folded.filtered (controlledBy p).
+             b^@..ifolded.filtered (controlledBy p).
              filtered (hasAbilities isLoyaltyAbility).
              filtered loyaltyNotYetActivated
   return . Set.fromList $ map ActivateLoyaltyAbility as
 
-oids :: [Object a] -> [OId]
-oids = toListOf (folded.oid)
-
-aids :: (Ability -> Bool) -> [OPermanent] -> [AId]
-aids f = concatMap (\o ->
-         zip (repeat $ o^.oid)
+aids :: (Ability -> Bool) -> [(OId, Permanent)] -> [AId]
+aids f = concatMap (\(i,o) ->
+         zip (repeat i)
              (imap const
-                   (o^.object.chars.abilities^..folded.filtered f)))
+                   (o^.chars.abilities^..folded.filtered f)))
 
-controlledBy :: PId -> OPermanent -> Bool
-controlledBy p o = o^.object.controller == p
+controlledBy :: PId -> Permanent -> Bool
+controlledBy p o = o^.controller == p
 
-loyaltyNotYetActivated :: OPermanent -> Bool
-loyaltyNotYetActivated o = not $ o^.object.loyaltyAlreadyActivated
+loyaltyNotYetActivated :: Permanent -> Bool
+loyaltyNotYetActivated o = not $ o^.loyaltyAlreadyActivated
 
-hasAbilities :: (Ability -> Bool) -> OPermanent -> Bool
-hasAbilities f o =
-  anyOf each f (o^.object.chars.abilities)
+hasAbilities :: (Ability -> Bool) -> Permanent -> Bool
+hasAbilities f o = anyOf each f (o^.chars.abilities)
 
 isRegularActivatedAbility :: Ability -> Bool
 isRegularActivatedAbility a = isActivatedAbility a
@@ -256,16 +255,17 @@ evalAction (PlayLand o)               = playLand o
 castSpell :: (MonadState Game m, MonadIO m) => OId -> PId -> m ()
 castSpell i p = do
   h <- use $ players.ix p.hand
-  case findOf folded (\o -> o^.oid == i) h of
+  case h^.at i of
     Nothing -> return ()
-    Just c  -> do
+    Just c -> do
       -- rule 116.4 (casting a spell resets the set of players)
       successivePasses .= Set.empty
 
       -- rule 601.2a (card moves from hand to stack)
-      oS <- cardToSpell c
-      players.ix p.hand %= Set.delete c
-      stack %= (oS <|)
+      players.ix p.hand %= sans i
+      let oS = cardToSpell c
+      oi <- newOId
+      stack %= ((oi, oS) <|)
 
       -- rule 601.2b (modes, splice, alternative, additional,
       -- variable cost, hybrid mana, Phyrexian mana)
@@ -292,11 +292,10 @@ activateAbility a p = return ()
 activateManaAbility :: (MonadState Game m, MonadIO m) => AId -> PId -> m ()
 activateManaAbility (oi, ai) p = do
   b <- use battlefield
-  case findOf (folded.filtered (controlledBy p))
-              (\o -> o^.oid == oi) b of
+  case b^?ifolded.filtered (controlledBy p).index oi of
     Nothing -> return ()
     Just o  -> do
-      case o^?object.chars.abilities.ix ai of
+      case o^?chars.abilities.ix ai of
         Nothing -> return ()
         Just (ActivatedAbility cs es ainst) -> do
           -- TODO: implement all the steps of activating abilities
@@ -312,10 +311,10 @@ activateManaAbility (oi, ai) p = do
 payCost :: (MonadState Game m, MonadIO m) => Cost -> OId -> m Bool
 payCost CTap i = do
   b <- use battlefield
-  case findOf folded (\o -> o^.oid == i) b of
+  case b^.at i of
     Nothing -> return False
     Just o -> do
-      case o^.object.permanentStatus of
+      case o^.permanentStatus of
         PermanentStatus Tapped _ _ _   -> return False
         PermanentStatus Untapped _ _ _ -> do
           -- TODO: perform the tapping
@@ -334,11 +333,12 @@ activateLoyaltyAbility a p = return ()
 playLand :: MonadState Game m => OId -> PId -> m ()
 playLand i p = do
   h <- use $ players.ix p.hand
-  case findOf folded (\o -> o^.oid == i) h of
-    Just c  -> do
-      oP <- cardToPermanent c
-      players.ix p.hand %= Set.delete c
-      battlefield <>= Set.singleton oP
+  case h^.at i of
+    Just c -> do
+      players.ix p.hand %= sans i
+      o <- cardToPermanent c
+      oi <- newOId
+      battlefield.at oi ?= o
       remainingLandCount -= 1
     Nothing -> return ()
 
@@ -434,14 +434,18 @@ drawCard :: MonadState Game m => PId -> m ()
 drawCard p = do
   mc <- preuse $ players.ix p.library.ix 0
   case mc of
-    Just c  -> do
-                 players.ix p.library %= drop 1
-                 players.ix p.hand <>= Set.singleton c
+    Just (ci, c) -> do
+                 players.ix p.library %= Seq.drop 1
+                 players.ix p.hand.at ci ?= c
     Nothing -> return () -- FIXME: p loses the game
 
 shuffleLibrary :: (MonadState Game m, MonadRandom m) => PId -> m ()
 shuffleLibrary p =
-  (players.ix p.library) <~ (get >>= perform (players.ix p.library.act shuffleM))
+  -- TODO: Make work with Seq (OId, OCard)
+  (players.ix p.library) <~ (get >>= perform (players.ix p.library.act seqShuffleM))
+  where seqShuffleM as = do
+          ss <- shuffleM . toList $ as
+          return $ Seq.fromList ss
 
 -- |
 -- = Helpers for internal game actions
@@ -470,7 +474,7 @@ knownGame y g = KGame
   where 
     knownPlayers = imap $ \i p ->
           if i == y then KPlayerYou
-            { _kplayeryouLibrarySize = length (p^.library)
+            { _kplayeryouLibrarySize = Seq.length (p^.library)
             , _kplayeryouHand = p^.hand
             , _kplayeryouGraveyard = p^.graveyard
             , _kplayeryouLife = p^.life
@@ -480,8 +484,8 @@ knownGame y g = KGame
             , _kplayeryouPlayerInfo = p^.playerInfo
             }
           else KPlayerOpponent
-            { _kplayeropponentLibrarySize = length (p^.library)
-            , _kplayeropponentHandSize = Set.size (p^.hand)
+            { _kplayeropponentLibrarySize = Seq.length (p^.library)
+            , _kplayeropponentHandSize = IntMap.size (p^.hand)
             , _kplayeropponentGraveyard = p^.graveyard
             , _kplayeropponentLife = p^.life
             , _kplayeropponentPoison = p^.poison
@@ -497,20 +501,19 @@ nextPlayerInTurnOrder p = do
     Just (i, _) -> return $ tO^..cycled traverse^?!ix (succ i)
     Nothing     -> fail "Player not found in turn order"
 
-createObject :: MonadState Game m => PId -> a -> m (Object a)
-createObject p o = do
-  i <- maxOId <+= 1
-  return $ Object i p o
+newOId :: MonadState Game m => m OId
+newOId = maxOId <+= 1
 
 newTimestamp :: MonadState Game m => m Timestamp
 newTimestamp = maxTimestamp <+= 1
 
-cardToPermanent :: MonadState Game m => OCard -> m OPermanent
+cardToPermanent :: MonadState Game m => OCard -> m Permanent
 cardToPermanent oc = do
   t <- newTimestamp
-  createObject (oc^.owner) PCard
-    { _pcardCard = oc^.object
-    , _pcardChars = cardToCharacteristics $ oc^.object
+  return $ PCard
+    { _pcardCard = oc^.card
+    , _pcardChars = cardToCharacteristics $ oc^.card
+    , _pcardOwner = oc^.owner
     , _pcardController = oc^.owner
     , _pcardPermanentStatus =
         PermanentStatus Untapped Unflipped FaceUp PhasedIn
@@ -519,11 +522,11 @@ cardToPermanent oc = do
     , _pcardTimestamp = t
     }
 
-cardToSpell :: MonadState Game m => OCard -> m StackObject
-cardToSpell oc = return . OSpell =<<
-  createObject (oc^.owner) Spell
-    { _spellCard = oc^.object
-    , _spellChars = cardToCharacteristics $ oc^.object
+cardToSpell :: OCard -> StackObject
+cardToSpell oc = OSpell $ Spell
+    { _spellCard = oc^.card
+    , _spellChars = cardToCharacteristics $ oc^.card
+    , _spellOwner = oc^.owner
     , _spellController = oc^.owner
     }
 
