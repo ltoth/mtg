@@ -192,9 +192,14 @@ actionsManaAbilities p = do
              filtered (hasAbilities isManaAbility)
   return . Set.fromList $ map ActivateManaAbility as
 
--- TODO: implement
 actionsLoyaltyAbilities :: MonadState Game m => PId -> m (Set GameAction)
-actionsLoyaltyAbilities p = return Set.empty
+actionsLoyaltyAbilities p = do
+  b <- use battlefield
+  let as = aids isLoyaltyAbility $
+             b^..folded.filtered (controlledBy p).
+             filtered (hasAbilities isLoyaltyAbility).
+             filtered loyaltyNotYetActivated
+  return . Set.fromList $ map ActivateLoyaltyAbility as
 
 oids :: [Object a] -> [OId]
 oids = toListOf (folded.oid)
@@ -207,6 +212,9 @@ aids f = concatMap (\o ->
 
 controlledBy :: PId -> OPermanent -> Bool
 controlledBy p o = o^.object.controller == p
+
+loyaltyNotYetActivated :: OPermanent -> Bool
+loyaltyNotYetActivated o = not $ o^.object.loyaltyAlreadyActivated
 
 hasAbilities :: (Ability -> Bool) -> OPermanent -> Bool
 hasAbilities f o =

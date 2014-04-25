@@ -19,7 +19,8 @@ main = execStateT playGame testInitialGame
 
 testInitialGame :: Game
 testInitialGame = initialGame
-  [ ("Player 1", replicate 9 plains ++ replicate 8 nykthos
+  [ ("Player 1", replicate 9 plains ++ replicate 4 nykthos
+              ++ replicate 4 elspeth
               ++ replicate 15 yokedOx ++ replicate 8 battlewiseValor)
   , ("Player 2", replicate 9 forest ++ replicate 8 island
               ++ replicate 15 leafcrownDryad ++ replicate 8 horizonChimera)
@@ -185,6 +186,69 @@ nykthos = Card{_cardLayout = Normal, _cardTypeLine = "Legendary Land",
               Nothing],
          _cardCardNumber = "223", _cardVariations = [],
          _cardImageName = "nykthos, shrine to nyx", _cardWatermark = Nothing,
+         _cardCardBorder = Nothing, _cardSetCode = "THS"}
+
+elspeth :: Card
+elspeth = Card{_cardLayout = Normal,
+         _cardTypeLine = "Planeswalker \8212 Elspeth",
+         _cardTypes = [Planeswalker], _cardColors = [White],
+         _cardMultiverseID = 373649, _cardName = "Elspeth, Sun's Champion",
+         _cardNames = [], _cardSupertypes = [],
+         _cardSubtypes = [PlaneswalkerType Elspeth], _cardCmc = Just 6,
+         _cardRarity = MythicRare, _cardArtist = "Eric Deschamps",
+         _cardPower = Nothing, _cardToughness = Nothing, _cardLoyalty = Just 4,
+         _cardManaCost = Just [CL 4, W, W],
+         _cardRulesText =
+           Just
+             "+1: Put three 1/1 white Soldier creature tokens onto the battlefield.\n\n-3: Destroy all creatures with power 4 or greater.\n\n-7: You get an emblem with \"Creatures you control get +2/+2 and have flying.\"",
+         _cardAbilities =
+           [ActivatedAbility [CLoyalty (Plus (NumValue 1))]
+              [PutTokens (NoTarget Nothing [TMPlayer You]) (NumValue 3)
+                 (NumValue 1)
+                 (NumValue 1)
+                 (PermanentMatch Nothing [] (CMColors [Non True White])
+                    CardOrToken
+                    (PermanentTypeMatch [] [Non True Creature]
+                       [Non True (CreatureType Soldier)])
+                    []
+                    Nothing
+                    Nothing
+                    Nothing)
+                 Nothing]
+              Nothing,
+            ActivatedAbility [CLoyalty (Minus (NumValue 3))]
+              [Destroy
+                 (NoTarget (Just (Exactly (AnyCount All)))
+                    [TMPermanent
+                       (PermanentMatch Nothing [] (CMColors []) CardOrToken
+                          (PermanentTypeMatch [] [Non True Creature] [])
+                          []
+                          (Just (QPower (AtLeast (AnyCount (NumValue 4)))))
+                          Nothing
+                          Nothing)])]
+              Nothing,
+            ActivatedAbility [CLoyalty (Minus (NumValue 7))]
+              [GetEmblem
+                 [SpellAbility
+                    [ModifyPT
+                       (NoTarget Nothing
+                          [TMPermanent
+                             (PermanentMatch Nothing [] (CMColors [])
+                                CardOrToken
+                                (PermanentTypeMatch [] [Non True Creature] [])
+                                []
+                                Nothing
+                                Nothing
+                                (Just (Control You)))])
+                       (Plus (NumValue 2))
+                       (Plus (NumValue 2))
+                       Nothing,
+                     AddAbilities (NoTarget Nothing [TMIt])
+                       [KeywordAbility Flying]
+                       Nothing]]]
+              Nothing],
+         _cardCardNumber = "9", _cardVariations = [],
+         _cardImageName = "elspeth, sun's champion", _cardWatermark = Nothing,
          _cardCardBorder = Nothing, _cardSetCode = "THS"}
 
 
