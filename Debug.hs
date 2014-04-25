@@ -4,7 +4,6 @@ import Control.Applicative
 import Control.Lens
 import Control.Monad
 import Control.Monad.State
-import Data.Data.Lens (biplate)
 import Data.Either
 import Data.Maybe (fromMaybe)
 import Data.Text (Text)
@@ -210,14 +209,3 @@ cardTextIncludes s = fromMaybe False .
 
 nameStartsWith :: Text -> Card -> Bool
 nameStartsWith s = T.isPrefixOf s . view name
-
----
-
--- map doesTarget <$> filterCards (nameStartsWith "Rescue")
-
-doesTarget :: Card -> Bool
-doesTarget c = anyOf biplate isTarget (c^.abilities)
-
-isTarget :: Targets -> Bool
-isTarget (Target _ _) = True
-isTarget _            = False

@@ -418,7 +418,6 @@ data Ability = AdditionalCost ([Cost])
              | SpellAbility [Effect]
              deriving (Show, Eq, Data, Typeable)
 
-$( derive makeIs ''Ability)
 
 
 type SetCode = Text
@@ -727,5 +726,11 @@ type AId = (OId, Int)  -- activated ability id
 data GameAction = PassPriority
                 | CastSpell OId
                 | ActivateAbility AId
+                | ActivateManaAbility AId
+                | ActivateLoyaltyAbility AId
                 | PlayLand OId
                 deriving (Show, Eq, Ord, Typeable)
+
+$( derive makeIs ''Targets)
+$( derive makeIs ''Ability)
+$( derive makeIs ''Effect)

@@ -5,6 +5,7 @@ module Game.MtG.GameEngine where
 import Control.Lens
 import Control.Monad.Random.Class
 import Control.Monad.State
+import Data.Data.Lens (biplate)
 import Data.Foldable (Foldable)
 import qualified Data.IntMap as IntMap
 import Data.Maybe
@@ -180,12 +181,16 @@ actionsActivateAbilities p = do
   b <- use battlefield
   let as = aids isRegularActivatedAbility $
              b^..folded.filtered (controlledBy p).
-             filtered hasRegularActivatedAbilities
+             filtered (hasAbilities isRegularActivatedAbility)
   return . Set.fromList $ map ActivateAbility as
 
--- TODO: implement
 actionsManaAbilities :: MonadState Game m => PId -> m (Set GameAction)
-actionsManaAbilities p = return Set.empty
+actionsManaAbilities p = do
+  b <- use battlefield
+  let as = aids isManaAbility $
+             b^..folded.filtered (controlledBy p).
+             filtered (hasAbilities isManaAbility)
+  return . Set.fromList $ map ActivateManaAbility as
 
 -- TODO: implement
 actionsLoyaltyAbilities :: MonadState Game m => PId -> m (Set GameAction)
@@ -203,13 +208,25 @@ aids f = concatMap (\o ->
 controlledBy :: PId -> OPermanent -> Bool
 controlledBy p o = o^.object.controller == p
 
-hasRegularActivatedAbilities :: OPermanent -> Bool
-hasRegularActivatedAbilities o =
-  anyOf each isRegularActivatedAbility (o^.object.chars.abilities)
+hasAbilities :: (Ability -> Bool) -> OPermanent -> Bool
+hasAbilities f o =
+  anyOf each f (o^.object.chars.abilities)
 
--- TODO: Filter out loyalty abilities and mana abilities
 isRegularActivatedAbility :: Ability -> Bool
-isRegularActivatedAbility = isActivatedAbility
+isRegularActivatedAbility a = isActivatedAbility a
+                              && (not . isManaAbility $ a)
+                              && (not . isLoyaltyAbility $ a)
+
+-- rule 605.1a
+isManaAbility :: Ability -> Bool
+isManaAbility a = isActivatedAbility a
+                  && (not . anyOf biplate isTarget $ a)
+                  && (anyOf biplate isAddMana a)
+                  && (not . isLoyaltyAbility $ a)
+
+isLoyaltyAbility :: Ability -> Bool
+isLoyaltyAbility (ActivatedAbility [CLoyalty _] _ _) = True
+isLoyaltyAbility _ = False
 
 -- |
 -- = Game actions chosen by players
