@@ -643,7 +643,7 @@ data Player = Player
             , _playerMaxHandSize :: HandSize
             , _playerManaPool :: ManaPool
             , _playerPlayerInfo :: PlayerInfo
-            } deriving (Show, Typeable)
+            } deriving (Show, Data, Typeable)
 
 -- player info known to a particular player
 data KPlayer = KPlayerYou
@@ -698,7 +698,7 @@ data Game = Game
           , _gameStep :: Step
           , _gameRelationships :: Relationships
           , _gameMaxOId :: OId
-          } deriving (Show, Typeable)
+          } deriving (Show, Data, Typeable)
 
 data KGame = KGame
           { _kgameYou :: PId

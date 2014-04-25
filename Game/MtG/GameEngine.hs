@@ -182,6 +182,7 @@ actionsActivateAbilities p = do
   let as = aids isRegularActivatedAbility $
              b^..folded.filtered (controlledBy p).
              filtered (hasAbilities isRegularActivatedAbility)
+             -- TODO: filter out ones with CTap in cost already tapped
   return . Set.fromList $ map ActivateAbility as
 
 actionsManaAbilities :: MonadState Game m => PId -> m (Set GameAction)
@@ -190,6 +191,7 @@ actionsManaAbilities p = do
   let as = aids isManaAbility $
              b^..folded.filtered (controlledBy p).
              filtered (hasAbilities isManaAbility)
+             -- TODO: filter out ones with CTap in cost already tapped
   return . Set.fromList $ map ActivateManaAbility as
 
 actionsLoyaltyAbilities :: MonadState Game m => PId -> m (Set GameAction)
@@ -244,10 +246,12 @@ isLoyaltyAbility _ = False
 -- (playLand, passPriority)
 
 evalAction :: (MonadState Game m, MonadIO m) => GameAction -> PId -> m ()
-evalAction PassPriority  = passPriority
-evalAction (CastSpell i) = castSpell i
-evalAction (PlayLand i)  = playLand i
-evalAction _ = \p -> return ()
+evalAction PassPriority               = passPriority
+evalAction (CastSpell o)              = castSpell o
+evalAction (ActivateAbility a)        = activateAbility a
+evalAction (ActivateManaAbility a)    = activateManaAbility a
+evalAction (ActivateLoyaltyAbility a) = activateLoyaltyAbility a
+evalAction (PlayLand o)               = playLand o
 
 castSpell :: (MonadState Game m, MonadIO m) => OId -> PId -> m ()
 castSpell i p = do
@@ -279,6 +283,53 @@ castSpell i p = do
       -- rule 116.3c (same player keeps priority)
   where
     -- totalCost :: Maybe ManaCost -> [Cost] ->
+
+-- TODO: implement
+activateAbility :: (MonadState Game m, MonadIO m) => AId -> PId -> m ()
+activateAbility a p = return ()
+
+-- TODO: implement
+activateManaAbility :: (MonadState Game m, MonadIO m) => AId -> PId -> m ()
+activateManaAbility (oi, ai) p = do
+  b <- use battlefield
+  case findOf (folded.filtered (controlledBy p))
+              (\o -> o^.oid == oi) b of
+    Nothing -> return ()
+    Just o  -> do
+      case o^?object.chars.abilities.ix ai of
+        Nothing -> return ()
+        Just (ActivatedAbility cs es ainst) -> do
+          -- TODO: implement all the steps of activating abilities
+
+          paid <- mapM (`payCost` oi) cs
+          case andOf each paid of
+            False -> return ()  -- actually rewind here
+            True  -> mapM_ resolveEffect es
+
+-- Needs MonadIO as it may need to ask how the costs should be paid
+-- OId is the context (what it TMThis, what should be CTap'ed)
+-- Returns the success of paying the cost
+payCost :: (MonadState Game m, MonadIO m) => Cost -> OId -> m Bool
+payCost CTap i = do
+  b <- use battlefield
+  case findOf folded (\o -> o^.oid == i) b of
+    Nothing -> return False
+    Just o -> do
+      case o^.object.permanentStatus of
+        PermanentStatus Tapped _ _ _   -> return False
+        PermanentStatus Untapped _ _ _ -> do
+          -- TODO: perform the tapping
+          return True
+
+payCost _ _ = return False
+
+-- TODO: implement
+resolveEffect :: (MonadState Game m, MonadIO m) => Effect -> m ()
+resolveEffect _ = return ()
+
+-- TODO: implement
+activateLoyaltyAbility :: (MonadState Game m, MonadIO m) => AId -> PId -> m ()
+activateLoyaltyAbility a p = return ()
 
 playLand :: MonadState Game m => OId -> PId -> m ()
 playLand i p = do
