@@ -292,7 +292,6 @@ castSpell i p = do
 activateAbility :: (MonadState Game m, MonadIO m) => AId -> PId -> m ()
 activateAbility a p = return ()
 
--- TODO: implement
 activateManaAbility :: (MonadState Game m, MonadIO m) => AId -> PId -> m ()
 activateManaAbility (oi, ai) p = do
   b <- use battlefield
@@ -302,11 +301,14 @@ activateManaAbility (oi, ai) p = do
       case o^?chars.abilities.ix ai of
         Nothing -> return ()
         Just (ActivatedAbility cs es ainst) -> do
+          -- save the state in case we have to rewind
+          g1 <- get
+
           -- TODO: implement all the steps of activating abilities
 
           paid <- mapM (`payCost` oi) cs
           case andOf each paid of
-            False -> return ()  -- actually rewind here
+            False -> put g1
             True  -> mapM_ resolveEffect es
 
 -- Needs MonadIO as it may need to ask how the costs should be paid
