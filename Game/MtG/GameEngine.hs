@@ -309,7 +309,7 @@ activateManaAbility (oi, ai) p = do
           paid <- mapM (`payCost` oi) cs
           case andOf each paid of
             False -> put g1
-            True  -> mapM_ resolveEffect es
+            True  -> mapM_ (resolveEffect p oi) es
 
 -- Needs MonadIO as it may need to ask how the costs should be paid
 -- OId is the context (what it TMThis, what should be CTap'ed)
@@ -328,9 +328,12 @@ payCost CTap i = do
 
 payCost _ _ = return False
 
--- TODO: implement
-resolveEffect :: (MonadState Game m, MonadIO m) => Effect -> m ()
-resolveEffect _ = return ()
+-- TODO: should also take Maybe StackObject for targets, X, etc.
+resolveEffect :: (MonadState Game m, MonadIO m) => PId -> OId -> Effect -> m ()
+resolveEffect p i (AddMana Nothing (ManaSymbols [ms])) =
+  mapM_ (addManaSymbolToPool p) ms
+
+resolveEffect _ _ _ = return ()
 
 -- TODO: implement
 activateLoyaltyAbility :: (MonadState Game m, MonadIO m) => AId -> PId -> m ()
@@ -373,9 +376,28 @@ passPriority p = do
 -- Hopefully none of these require any player interaction, and
 -- thus don't need to have a MonadIO constraint
 
+addManaSymbolToPool :: MonadState Game m => PId -> ManaSymbol -> m ()
+addManaSymbolToPool p W = players.ix p.manaPool.whiteMana += 1
+addManaSymbolToPool p U = players.ix p.manaPool.blueMana  += 1
+addManaSymbolToPool p B = players.ix p.manaPool.blackMana += 1
+addManaSymbolToPool p R = players.ix p.manaPool.redMana   += 1
+addManaSymbolToPool p G = players.ix p.manaPool.greenMana += 1
+addManaSymbolToPool p (CL n) =
+  players.ix p.manaPool.colorlessMana += fromIntegral n
+
+emptyManaPools :: MonadState Game m => m ()
+emptyManaPools = do
+  players.each.manaPool.whiteMana .= 0
+  players.each.manaPool.blueMana  .= 0
+  players.each.manaPool.blackMana .= 0
+  players.each.manaPool.redMana   .= 0
+  players.each.manaPool.greenMana .= 0
+  players.each.manaPool.colorlessMana .= 0
+
 moveToNextStep :: MonadState Game m => m ()
 moveToNextStep = do
   priority .= Nothing
+  emptyManaPools
   ns <- step <%= succB
   case ns of
     UntapStep -> do
