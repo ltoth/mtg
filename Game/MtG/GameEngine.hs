@@ -376,6 +376,16 @@ passPriority p = do
 -- Hopefully none of these require any player interaction, and
 -- thus don't need to have a MonadIO constraint
 
+resolveTopOfStack :: MonadState Game m => m ()
+resolveTopOfStack = do
+  -- TODO: Actually implement resolving
+  -- rule 608.2
+  stack %= Seq.drop 1
+
+  -- rule 116.3b
+  aP <- use activePlayer
+  givePlayerPriority aP
+
 addManaSymbolToPool :: MonadState Game m => PId -> ManaSymbol -> m ()
 addManaSymbolToPool p W = players.ix p.manaPool.whiteMana += 1
 addManaSymbolToPool p U = players.ix p.manaPool.blueMana  += 1
@@ -400,6 +410,7 @@ moveToNextStep = do
   emptyManaPools
   ns <- step <%= succB
   case ns of
+    -- new turn
     UntapStep -> do
       turn += 1
       remainingLandCount .= 1
@@ -423,16 +434,6 @@ givePlayerPriority p = do
   -- putTriggeredAbilitiesOnStack
   priority .= Just p
 
-resolveTopOfStack :: MonadState Game m => m ()
-resolveTopOfStack = do
-  -- TODO: Actually implement resolving
-  -- rule 608.2
-  stack %= Seq.drop 1
-
-  -- rule 116.3b
-  aP <- use activePlayer
-  givePlayerPriority aP
-
 performTurnBasedActions :: MonadState Game m => Step -> m ()
 performTurnBasedActions UntapStep = do
   -- phaseInAndOut
@@ -442,11 +443,18 @@ performTurnBasedActions UntapStep = do
 performTurnBasedActions DrawStep = do
   aP <- use activePlayer
   t <- use turn
+  -- TODO: Generalize to multiplayer games with a setting in
+  -- Game (and argument in initialGame)
   unless (t == 1) (drawCard aP)
 performTurnBasedActions Cleanup = do
   -- discardToMaxHandSize
   removeMarkedDamage    -- This and the next one happen at once
   -- endUntilEndOfTurnEvents
+
+  -- TODO: rule 514.3a (if stateBasedActions or triggeredAbilities
+  -- would happen, perform them, then aP gets priority; once
+  -- players pass in succession, there is another Cleanup)
+
   moveToNextStep
 performTurnBasedActions _ = return ()
 
@@ -463,7 +471,7 @@ resetSummoningSickness = do
     summoningSick .= False
 
 removeMarkedDamage :: MonadState Game m => m ()
-removeMarkedDamage = return () -- TODO: Implement
+removeMarkedDamage = battlefield.traversed.markedDamage .= 0
 
 performStateBasedActions :: MonadState Game m => m ()
 performStateBasedActions = return ()
@@ -556,6 +564,7 @@ cardToPermanent oc = do
     , _pcardPermanentStatus =
         PermanentStatus Untapped Unflipped FaceUp PhasedIn
     , _pcardSummoningSick = True
+    , _pcardMarkedDamage = 0
     , _pcardLoyaltyAlreadyActivated = False
     , _pcardTimestamp = t
     }

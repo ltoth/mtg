@@ -537,6 +537,7 @@ data Permanent = PCard
                , _pcardController :: PId
                , _pcardPermanentStatus :: PermanentStatus
                , _pcardSummoningSick :: Bool
+               , _pcardMarkedDamage :: Int
                , _pcardLoyaltyAlreadyActivated :: Bool
                , _pcardTimestamp :: Timestamp
                -- TODO: Add more fields: activatedAbilityAlreadyActivated
@@ -548,6 +549,7 @@ data Permanent = PCard
                , _ptokenController :: PId
                , _ptokenPermanentStatus :: PermanentStatus
                , _ptokenSummoningSick :: Bool
+               , _ptokenMarkedDamage :: Int
                , _ptokenLoyaltyAlreadyActivated :: Bool
                , _ptokenTimestamp :: Timestamp
                -- TODO: Add more fields
