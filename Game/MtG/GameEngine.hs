@@ -417,7 +417,8 @@ performTurnBasedActions UntapStep = do
   moveToNextStep
 performTurnBasedActions DrawStep = do
   aP <- use activePlayer
-  drawCard aP
+  t <- use turn
+  unless (t == 1) (drawCard aP)
 performTurnBasedActions Cleanup = do
   -- discardToMaxHandSize
   removeMarkedDamage    -- This and the next one happen at once
