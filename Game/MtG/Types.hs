@@ -405,6 +405,8 @@ data Keyword = Deathtouch
              | Shroud
              | Trample
              | Vigilance
+
+             | Phasing
              | Bestow ([Cost])
              deriving (Show, Eq, Data, Typeable)
 

@@ -841,6 +841,7 @@ textToAbilities ct = parse paras s s & _Left %~ show
               <|> (KeywordAbility Shroud <$ ciString "Shroud")
               <|> (KeywordAbility Trample <$ ciString "Trample")
               <|> (KeywordAbility Vigilance <$ ciString "Vigilance")
+              <|> (KeywordAbility Phasing <$ ciString "Phasing")
               <|> (ciString "Bestow" >> keywordCostSep >>
                     (KeywordAbility . Bestow) <$> totalCost)
 

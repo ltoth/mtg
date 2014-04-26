@@ -436,7 +436,7 @@ givePlayerPriority p = do
 
 performTurnBasedActions :: MonadState Game m => Step -> m ()
 performTurnBasedActions UntapStep = do
-  -- phaseInAndOut
+  phaseInAndOut
   untapPermanents
   resetSummoningSickness
   moveToNextStep
@@ -457,6 +457,20 @@ performTurnBasedActions Cleanup = do
 
   moveToNextStep
 performTurnBasedActions _ = return ()
+
+phaseInAndOut :: MonadState Game m => m ()
+phaseInAndOut = do
+  aP <- use activePlayer
+  -- TODO: First phase out indirectly (need attachedTo relationship)
+  -- FIXME: Invalid traversal?
+  battlefield.traversed.filtered (controlledBy aP).filtered
+    (\o -> KeywordAbility Phasing `elem` o^.chars.abilities
+           && o^.permanentStatus.phaseStatus == PhasedIn).
+    permanentStatus.phaseStatus .= PhasedOut
+  -- TODO: First phase in indirectly (need attachedTo relationship)
+  battlefield.traversed.filtered (controlledBy aP).filtered
+    (\o -> o^.permanentStatus.phaseStatus == PhasedOut).
+    permanentStatus.phaseStatus .= PhasedIn
 
 untapPermanents :: MonadState Game m => m ()
 untapPermanents = do
