@@ -426,7 +426,10 @@ performTurnBasedActions Cleanup = do
 performTurnBasedActions _ = return ()
 
 untapPermanents :: MonadState Game m => m ()
-untapPermanents = return () -- TODO: Implement
+untapPermanents = do
+  aP <- use activePlayer
+  battlefield.traversed.filtered (controlledBy aP).
+    permanentStatus.tapStatus .= Untapped
 
 removeMarkedDamage :: MonadState Game m => m ()
 removeMarkedDamage = return () -- TODO: Implement
