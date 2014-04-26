@@ -184,8 +184,7 @@ actionsActivateAbilities p = do
   b <- use battlefield
   let as = aids isRegularActivatedAbility $
              b^@..ifolded.filtered (controlledBy p).
-             filtered (hasAbilities isRegularActivatedAbility)
-             -- TODO: filter out ones with CTap in cost already tapped
+             filtered (hasLegalAbilities isRegularActivatedAbility)
   return . Set.fromList $ map ActivateAbility as
 
 actionsManaAbilities :: MonadState Game m => PId -> m (Set GameAction)
@@ -193,8 +192,7 @@ actionsManaAbilities p = do
   b <- use battlefield
   let as = aids isManaAbility $
              b^@..ifolded.filtered (controlledBy p).
-             filtered (hasAbilities isManaAbility)
-             -- TODO: filter out ones with CTap in cost already tapped
+             filtered (hasLegalAbilities isManaAbility)
   return . Set.fromList $ map ActivateManaAbility as
 
 actionsLoyaltyAbilities :: MonadState Game m => PId -> m (Set GameAction)
@@ -202,7 +200,7 @@ actionsLoyaltyAbilities p = do
   b <- use battlefield
   let as = aids isLoyaltyAbility $
              b^@..ifolded.filtered (controlledBy p).
-             filtered (hasAbilities isLoyaltyAbility).
+             filtered (hasLegalAbilities isLoyaltyAbility).
              filtered loyaltyNotYetActivated
   return . Set.fromList $ map ActivateLoyaltyAbility as
 
@@ -218,8 +216,14 @@ controlledBy p o = o^.controller == p
 loyaltyNotYetActivated :: Permanent -> Bool
 loyaltyNotYetActivated o = not $ o^.loyaltyAlreadyActivated
 
-hasAbilities :: (Ability -> Bool) -> Permanent -> Bool
-hasAbilities f o = anyOf each f (o^.chars.abilities)
+hasLegalAbilities :: (Ability -> Bool) -> Permanent -> Bool
+hasLegalAbilities f o = anyOf each (\a -> f a && ifRequiresTapCanBe a)
+                     (o^.chars.abilities)
+  where ifRequiresTapCanBe a =
+          -- TODO: restrict the biplate to (a^.activationCost)
+          if anyOf biplate isCTap a then
+            o^.permanentStatus.tapStatus == Untapped
+          else True
 
 isRegularActivatedAbility :: Ability -> Bool
 isRegularActivatedAbility a = isActivatedAbility a
@@ -314,10 +318,10 @@ payCost CTap i = do
   case b^.at i of
     Nothing -> return False
     Just o -> do
-      case o^.permanentStatus of
-        PermanentStatus Tapped _ _ _   -> return False
-        PermanentStatus Untapped _ _ _ -> do
-          -- TODO: perform the tapping
+      case o^.permanentStatus.tapStatus of
+        Tapped   -> return False
+        Untapped -> do
+          battlefield.ix i.permanentStatus.tapStatus .= Tapped
           return True
 
 payCost _ _ = return False

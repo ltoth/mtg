@@ -218,9 +218,12 @@ data PermanentTypeMatch = PermanentTypeMatch [Non Supertype] [Non Type]
 data Non a = Non Bool a
            deriving (Show, Eq, Data, Typeable)
 
-data PermanentStatus =
-    PermanentStatus TapStatus FlipStatus FaceStatus PhaseStatus
-    deriving (Show, Eq, Data, Typeable)
+data PermanentStatus = PermanentStatus
+                     { _tapStatus :: TapStatus
+                     , _flipStatus :: FlipStatus
+                     , _faceStatus :: FaceStatus
+                     , _phaseStatus :: PhaseStatus
+                     } deriving (Show, Eq, Data, Typeable)
 
 data PermanentStatusMatch =
     PermanentStatusMatch (Maybe TapStatus) (Maybe FlipStatus) (Maybe FaceStatus) (Maybe PhaseStatus)
@@ -450,6 +453,7 @@ data Card = Card
           , _cardSetCode :: SetCode
           } deriving (Show, Data, Typeable)
 
+makeLenses ''PermanentStatus
 makeFields ''Card
 
 -- |
@@ -720,6 +724,7 @@ data GameAction = PassPriority
                 | PlayLand OId
                 deriving (Show, Eq, Ord, Typeable)
 
+$( derive makeIs ''Cost)
 $( derive makeIs ''Targets)
 $( derive makeIs ''Ability)
 $( derive makeIs ''Effect)
