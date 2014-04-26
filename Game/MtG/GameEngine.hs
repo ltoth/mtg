@@ -437,7 +437,7 @@ performTurnBasedActions :: MonadState Game m => Step -> m ()
 performTurnBasedActions UntapStep = do
   -- phaseInAndOut
   untapPermanents
-  -- resetSummoningSickness
+  resetSummoningSickness
   moveToNextStep
 performTurnBasedActions DrawStep = do
   aP <- use activePlayer
@@ -455,6 +455,12 @@ untapPermanents = do
   aP <- use activePlayer
   battlefield.traversed.filtered (controlledBy aP).
     permanentStatus.tapStatus .= Untapped
+
+resetSummoningSickness :: MonadState Game m => m ()
+resetSummoningSickness = do
+  aP <- use activePlayer
+  battlefield.traversed.filtered (controlledBy aP).
+    summoningSick .= False
 
 removeMarkedDamage :: MonadState Game m => m ()
 removeMarkedDamage = return () -- TODO: Implement
