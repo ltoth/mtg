@@ -5,6 +5,7 @@ module Game.MtG.GameEngine where
 
 import Control.Lens
 import Control.Monad.Random.Class
+import Control.Monad.Loops
 import Control.Monad.State
 import Data.Data.Lens (biplate)
 import Data.Foldable (Foldable, toList)
@@ -336,7 +337,6 @@ resolveManaCost = concatMap go
 -- Returns the success of paying the cost
 payCost :: (MonadState Game m, MonadIO m) => PId -> OId -> ResolvedCost -> m Bool
 payCost p _ (CMana' rmc) = do
-  -- TODO: Make this pure: take ManaPool and return (Bool, ManaPool)
   let (colorless, colored) = partition isCL' rmc
   coloredPaid <- mapM payOne colored
   case andOf each coloredPaid of
@@ -345,16 +345,21 @@ payCost p _ (CMana' rmc) = do
     True  -> do
       -- first, try paying colorless with colorless
       clPaid <- mapM payOne colorless
-      case andOf each clPaid of
+      let remaining = length $ filter not clPaid
+      case remaining == 0 of
         -- everything's been paid
         True -> return True
         False -> do
-          -- TODO: check if there is enough total colored mana left
-          -- if not, return False;
-          -- if yes, is it *exact*?: if so, pay it; otherwise ask
-          -- which colors should be used
-          return False
-
+          mp <- preuse $ players.ix p.manaPool
+          let avail = sumOf biplate mp :: Int
+          case remaining `compare` avail of
+            GT -> return False
+            EQ -> do
+              mapM_ (\rms -> iterateWhile id (payOne rms)) [W' .. G']
+              return True
+            LT -> do
+              -- TODO: ask which colors should be used
+              return False
   where
     payOne rms = do
       Just mp <- preuse $ players.ix p.manaPool.(cloneLens . rmsLens $ rms)

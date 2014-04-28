@@ -34,7 +34,7 @@ data ManaSymbol = W | U | B | R | G | S | CL Word8 | X | Y | Z
 
 type ResolvedManaCost = [ResolvedManaSymbol]
 data ResolvedManaSymbol = W' | U' | B' | R' | G' | CL'
-                        deriving (Show, Eq, Data, Typeable)
+                        deriving (Show, Eq, Enum, Data, Typeable)
 
 data ManaType = ManaAnyOneColor | ManaAnyColor | ManaThatColor
               | ManaAnyCombination | ManaAnyCombinationOf [ManaSymbol]

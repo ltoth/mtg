@@ -2,13 +2,14 @@
 }:
 let
   inherit (haskellPackages)
-    cabal cabalInstall_1_18_0_3 haskellPlatform ghcMod
+    cabal cabalInstall_1_18_0_3 haskellPlatform
     acidState
     aeson
     derive
     hscolour
     ipprint
     lens
+    monadLoops
     MonadRandom
     optparseApplicative
     randomShuffle
@@ -20,13 +21,13 @@ in cabal.mkDerivation (self: {
   src = ./.;
   buildDepends = [
     haskellPlatform
-    ghcMod
     acidState
     aeson
     derive
     hscolour
     ipprint
     lens
+    monadLoops
     MonadRandom
     optparseApplicative
     randomShuffle
