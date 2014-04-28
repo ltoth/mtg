@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE RankNTypes #-}
 
 module Game.MtG.GameEngine where
 
@@ -8,6 +9,7 @@ import Control.Monad.State
 import Data.Data.Lens (biplate)
 import Data.Foldable (Foldable, toList)
 import qualified Data.IntMap as IntMap
+import Data.List
 import Data.Maybe
 import Data.Monoid
 import Data.Sequence (Seq)
@@ -306,16 +308,69 @@ activateManaAbility (oi, ai) p = do
 
           -- TODO: implement all the steps of activating abilities
 
-          paid <- mapM (`payCost` oi) cs
+          let rcs = map resolveCost cs
+
+          paid <- mapM (payCost p oi) rcs
           case andOf each paid of
-            False -> put g1
+            False -> put g1  -- rewind
             True  -> mapM_ (resolveEffect p oi) es
+
+resolveCost :: Cost -> ResolvedCost
+resolveCost (CMana mc)   = CMana' $ resolveManaCost mc
+resolveCost CTap         = CTap'
+resolveCost CUntap       = CUntap'
+resolveCost (CLoyalty n) = CLoyalty' n
+resolveCost (CEffect e)  = CEffect' e
+
+resolveManaCost :: ManaCost -> ResolvedManaCost
+resolveManaCost = concatMap go
+  where go W = [W']
+        go U = [U']
+        go B = [B']
+        go R = [R']
+        go G = [G']
+        go (CL n) = replicate (fromIntegral n) CL'
 
 -- Needs MonadIO as it may need to ask how the costs should be paid
 -- OId is the context (what it TMThis, what should be CTap'ed)
 -- Returns the success of paying the cost
-payCost :: (MonadState Game m, MonadIO m) => Cost -> OId -> m Bool
-payCost CTap i = do
+payCost :: (MonadState Game m, MonadIO m) => PId -> OId -> ResolvedCost -> m Bool
+payCost p _ (CMana' mc) = do
+  -- TODO: Make this pure: take ManaPool and return (Bool, ManaPool)
+  let (colorless, colored) = partition isCL' mc
+  coloredPaid <- mapM (payOne . manaSymbolLens) colored
+  case andOf each coloredPaid of
+    -- all colored must be paid with the correct mana
+    False -> return False
+    True  -> do
+      -- first, try paying colorless with colorless
+      clPaid <- mapM (payOne . manaSymbolLens) colorless
+      case andOf each clPaid of
+        -- everything's been paid
+        True -> return True
+        False -> do
+          -- TODO: check if there is enough total colored mana left
+          -- if not, return False;
+          -- if yes, is it *exact*?: if so, pay it; otherwise ask
+          -- which colors should be used
+          return False
+
+  where
+    payOne l = do
+      Just mp <- preuse $ players.ix p.manaPool.(cloneLens l)
+      if mp > 0 then do
+        players.ix p.manaPool.(cloneLens l) -= 1
+        return True
+      else return False
+
+    manaSymbolLens W' = whiteMana
+    manaSymbolLens U' = blueMana
+    manaSymbolLens B' = blackMana
+    manaSymbolLens R' = redMana
+    manaSymbolLens G' = greenMana
+    manaSymbolLens CL' = colorlessMana
+
+payCost _ i CTap' = do
   b <- use battlefield
   case b^.at i of
     Nothing -> return False
@@ -326,7 +381,8 @@ payCost CTap i = do
           battlefield.ix i.permanentStatus.tapStatus .= Tapped
           return True
 
-payCost _ _ = return False
+payCost _ _ _ = return False
+
 
 -- TODO: should also take Maybe StackObject for targets, X, etc.
 resolveEffect :: (MonadState Game m, MonadIO m) => PId -> OId -> Effect -> m ()

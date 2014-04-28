@@ -32,6 +32,10 @@ data ManaSymbol = W | U | B | R | G | S | CL Word8 | X | Y | Z
                   | W2 | U2 | B2 | R2 | G2 | WP | UP | BP | RP | GP | P
                   deriving (Show, Eq, Data, Typeable)
 
+type ResolvedManaCost = [ResolvedManaSymbol]
+data ResolvedManaSymbol = W' | U' | B' | R' | G' | CL'
+                        deriving (Show, Eq, Data, Typeable)
+
 data ManaType = ManaAnyOneColor | ManaAnyColor | ManaThatColor
               | ManaAnyCombination | ManaAnyCombinationOf [ManaSymbol]
               | ManaSymbols [[ManaSymbol]] -- OrList ([ManaSymbol])
@@ -158,6 +162,10 @@ data Border = BlackBorder | WhiteBorder | SilverBorder
 data Cost = CMana ManaCost | CTap | CUntap | CLoyalty NumChange
           | CEffect Effect
           deriving (Show, Eq, Data, Typeable)
+
+data ResolvedCost = CMana' ResolvedManaCost | CTap' | CUntap'
+                  | CLoyalty' NumChange | CEffect' Effect
+                  deriving (Show, Eq, Data, Typeable)
 
 data Targets = Target CountRange [TargetMatch]
              | NoTarget (Maybe CountRange) [TargetMatch]
@@ -728,6 +736,7 @@ data GameAction = PassPriority
                 | PlayLand OId
                 deriving (Show, Eq, Ord, Typeable)
 
+$( derive makeIs ''ResolvedManaSymbol)
 $( derive makeIs ''Cost)
 $( derive makeIs ''Targets)
 $( derive makeIs ''Ability)
