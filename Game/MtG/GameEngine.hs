@@ -358,7 +358,9 @@ payCost p _ (CMana' rmc) = do
               mapM_ (\rms -> iterateWhile id (payOne rms)) [W' .. G']
               return True
             LT -> do
-              -- TODO: ask which colors should be used
+              -- TODO: is all the available mana the same color?
+              -- if so, just pay it
+              -- TODO: otherwise, ask which colors should be used
               return False
   where
     payOne rms = do
@@ -457,13 +459,7 @@ addManaSymbolToPool p (CL n) =
   players.ix p.manaPool.colorlessMana += fromIntegral n
 
 emptyManaPools :: MonadState Game m => m ()
-emptyManaPools = do
-  players.each.manaPool.whiteMana .= 0
-  players.each.manaPool.blueMana  .= 0
-  players.each.manaPool.blackMana .= 0
-  players.each.manaPool.redMana   .= 0
-  players.each.manaPool.greenMana .= 0
-  players.each.manaPool.colorlessMana .= 0
+emptyManaPools = players.each.manaPool.each .= 0
 
 moveToNextStep :: MonadState Game m => m ()
 moveToNextStep = do

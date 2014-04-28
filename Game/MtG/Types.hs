@@ -7,6 +7,7 @@
 
 module Game.MtG.Types where
 
+import Control.Applicative
 import Data.Data
 import Data.Function (on)
 import Control.Lens
@@ -633,6 +634,10 @@ data ManaPool = ManaPool
               , _greenMana :: Int
               , _colorlessMana :: Int
               } deriving (Show, Data, Typeable)
+
+instance Each ManaPool ManaPool Int Int where
+  each f (ManaPool w u b r g c) =
+    ManaPool <$> f w <*> f u <*> f b <*> f r <*> f g <*> f c
 
 makeLenses ''ManaPool
 
