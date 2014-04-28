@@ -370,12 +370,6 @@ payCost p _ (CMana' rmc) = do
         return True
       else return False
 
-    rmsLens W' = whiteMana
-    rmsLens U' = blueMana
-    rmsLens B' = blackMana
-    rmsLens R' = redMana
-    rmsLens G' = greenMana
-    rmsLens CL' = colorlessMana
 
 payCost _ i CTap' = do
   b <- use battlefield
@@ -394,7 +388,7 @@ payCost _ _ _ = return False
 -- TODO: should also take Maybe StackObject for targets, X, etc.
 resolveEffect :: (MonadState Game m, MonadIO m) => PId -> OId -> Effect -> m ()
 resolveEffect p i (AddMana Nothing (ManaSymbols [ms])) =
-  mapM_ (addManaSymbolToPool p) ms
+  mapM_ (addManaSymbolToPool p) (resolveManaCost ms)
 
 resolveEffect _ _ _ = return ()
 
@@ -449,14 +443,9 @@ resolveTopOfStack = do
   aP <- use activePlayer
   givePlayerPriority aP
 
-addManaSymbolToPool :: MonadState Game m => PId -> ManaSymbol -> m ()
-addManaSymbolToPool p W = players.ix p.manaPool.whiteMana += 1
-addManaSymbolToPool p U = players.ix p.manaPool.blueMana  += 1
-addManaSymbolToPool p B = players.ix p.manaPool.blackMana += 1
-addManaSymbolToPool p R = players.ix p.manaPool.redMana   += 1
-addManaSymbolToPool p G = players.ix p.manaPool.greenMana += 1
-addManaSymbolToPool p (CL n) =
-  players.ix p.manaPool.colorlessMana += fromIntegral n
+addManaSymbolToPool :: MonadState Game m => PId -> ResolvedManaSymbol -> m ()
+addManaSymbolToPool p rms =
+    players.ix p.manaPool.(cloneLens . rmsLens $ rms) += 1
 
 emptyManaPools :: MonadState Game m => m ()
 emptyManaPools = players.each.manaPool.each .= 0
@@ -662,6 +651,14 @@ cardToCharacteristics c = Characteristics
   , _characteristicsToughness = c^.toughness
   , _characteristicsLoyalty = c^.loyalty
   }
+
+rmsLens :: ResolvedManaSymbol -> Lens' ManaPool Int
+rmsLens W'  = whiteMana
+rmsLens U'  = blueMana
+rmsLens B'  = blackMana
+rmsLens R'  = redMana
+rmsLens G'  = greenMana
+rmsLens CL' = colorlessMana
 
 succB :: (Bounded a, Enum a, Eq a) => a -> a
 succB e | e == maxBound = minBound
