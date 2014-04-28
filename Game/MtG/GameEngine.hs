@@ -673,10 +673,14 @@ succB e | e == maxBound = minBound
 
 chooseAction :: MonadIO m => KGame -> Seq GameAction -> m Int
 chooseAction kg as = do
-  liftIO . myPrint $ kg
-  printActions as
-  l <- liftIO getLine 
-  maybe (putIO "Invalid action" >> chooseAction kg as) return (readMaybe l)
+  -- for debugging purposes, only "set a stop" at PreCombatMain
+  if (kg^.step) /= PreCombatMain then
+    return 0
+  else do
+    liftIO . myPrint $ kg
+    printActions as
+    l <- liftIO getLine
+    maybe (putIO "Invalid action" >> chooseAction kg as) return (readMaybe l)
   where printActions = imapM_ (\i a -> putIO $ show i ++ ": " ++ show a)
 
 putIO :: MonadIO m => String -> m ()
