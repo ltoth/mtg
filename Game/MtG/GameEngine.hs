@@ -335,16 +335,16 @@ resolveManaCost = concatMap go
 -- OId is the context (what it TMThis, what should be CTap'ed)
 -- Returns the success of paying the cost
 payCost :: (MonadState Game m, MonadIO m) => PId -> OId -> ResolvedCost -> m Bool
-payCost p _ (CMana' mc) = do
+payCost p _ (CMana' rmc) = do
   -- TODO: Make this pure: take ManaPool and return (Bool, ManaPool)
-  let (colorless, colored) = partition isCL' mc
-  coloredPaid <- mapM (payOne . manaSymbolLens) colored
+  let (colorless, colored) = partition isCL' rmc
+  coloredPaid <- mapM payOne colored
   case andOf each coloredPaid of
     -- all colored must be paid with the correct mana
     False -> return False
     True  -> do
       -- first, try paying colorless with colorless
-      clPaid <- mapM (payOne . manaSymbolLens) colorless
+      clPaid <- mapM payOne colorless
       case andOf each clPaid of
         -- everything's been paid
         True -> return True
@@ -356,19 +356,19 @@ payCost p _ (CMana' mc) = do
           return False
 
   where
-    payOne l = do
-      Just mp <- preuse $ players.ix p.manaPool.(cloneLens l)
+    payOne rms = do
+      Just mp <- preuse $ players.ix p.manaPool.(cloneLens . rmsLens $ rms)
       if mp > 0 then do
-        players.ix p.manaPool.(cloneLens l) -= 1
+        players.ix p.manaPool.(cloneLens . rmsLens $ rms) -= 1
         return True
       else return False
 
-    manaSymbolLens W' = whiteMana
-    manaSymbolLens U' = blueMana
-    manaSymbolLens B' = blackMana
-    manaSymbolLens R' = redMana
-    manaSymbolLens G' = greenMana
-    manaSymbolLens CL' = colorlessMana
+    rmsLens W' = whiteMana
+    rmsLens U' = blueMana
+    rmsLens B' = blackMana
+    rmsLens R' = redMana
+    rmsLens G' = greenMana
+    rmsLens CL' = colorlessMana
 
 payCost _ i CTap' = do
   b <- use battlefield
