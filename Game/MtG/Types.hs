@@ -622,6 +622,8 @@ data StackObject = OSpell Spell
                  -- | OCopy FIXME
                  deriving (Show, Data, Typeable)
 
+makePrisms ''StackObject
+
 type LifeTotal = Int
 type PoisonTotal = Word8
 type HandSize = Int

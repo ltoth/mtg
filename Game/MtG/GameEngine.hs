@@ -265,6 +265,8 @@ castSpell i p = do
   case h^.at i of
     Nothing -> return ()
     Just c -> do
+      g1 <- get  -- save the state in case we need to rewind
+
       -- rule 116.4 (casting a spell resets the set of players)
       successivePasses .= Set.empty
 
@@ -285,9 +287,16 @@ castSpell i p = do
       -- TODO: implement
 
       -- rule 601.2e (calculate total cost)
-      -- let tc = totalCost
+      -- TODO: make this more general
+      let mc = fromMaybe [] $ oS^._OSpell.chars.manaCost
+          tc = map resolveCost [CMana mc]
 
-      -- rule 116.3c (same player keeps priority)
+      paid <- mapM (payCost p oi) tc
+      case andOf each paid of
+        False -> put g1  -- rewind
+        True  -> return ()
+                 -- rule 116.3c (same player keeps priority)
+
   where
     -- totalCost :: Maybe ManaCost -> [Cost] ->
 
@@ -370,7 +379,6 @@ payCost p _ (CMana' rmc) = do
         return True
       else return False
 
-
 payCost _ i CTap' = do
   b <- use battlefield
   case b^.at i of
@@ -437,7 +445,24 @@ resolveTopOfStack :: MonadState Game m => m ()
 resolveTopOfStack = do
   -- TODO: Actually implement resolving
   -- rule 608.2
+  moS <- preuse $ stack.ix 0
   stack %= Seq.drop 1
+  case moS of
+    Nothing -> return ()  -- should never happen: stack shouldn't be
+                          -- empty when this is called
+    Just ((oi, OSpell s)) -> do
+      let ts = s^.chars.types
+      if Instant `elem` ts || Sorcery `elem` ts then do
+        -- TODO: implement, mapM_ resolveEffect
+        return ()
+      else do
+        -- permanent
+        o <- spellToPermanent s
+        noi <- newOId
+        battlefield.at noi ?= o
+    Just ((oi, OStackAbility sa)) -> do
+      -- TODO: implement, mapM_ resolveEffect
+      return ()
 
   -- rule 116.3b
   aP <- use activePlayer
@@ -621,6 +646,22 @@ cardToPermanent oc = do
     , _pcardChars = cardToCharacteristics $ oc^.card
     , _pcardOwner = oc^.owner
     , _pcardController = oc^.owner
+    , _pcardPermanentStatus =
+        PermanentStatus Untapped Unflipped FaceUp PhasedIn
+    , _pcardSummoningSick = True
+    , _pcardMarkedDamage = 0
+    , _pcardLoyaltyAlreadyActivated = False
+    , _pcardTimestamp = t
+    }
+
+spellToPermanent :: MonadState Game m => Spell -> m Permanent
+spellToPermanent s = do
+  t <- newTimestamp
+  return $ PCard
+    { _pcardCard = s^.card
+    , _pcardChars = cardToCharacteristics $ s^.card
+    , _pcardOwner = s^.owner
+    , _pcardController = s^.owner
     , _pcardPermanentStatus =
         PermanentStatus Untapped Unflipped FaceUp PhasedIn
     , _pcardSummoningSick = True
