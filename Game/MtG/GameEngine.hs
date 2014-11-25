@@ -17,7 +17,6 @@ import qualified Data.IntMap as IntMap
 import Data.List
 import Data.Maybe
 import Data.Monoid
-import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Data.Sequence.Lens
 import Data.Set (Set)
@@ -65,8 +64,18 @@ getPlayerChoice pid pc req = do
 
       -- TODO: update all other players with their knownGame
 
-      choiceFn p pc (knownGame pid g) req
-      -- TODO: validate choice
+      let kg = knownGame pid g
+      getValidChoice kg
+      where
+        getValidChoice kg = do
+          resp <- choiceFn p pc kg req
+          case pc of
+            SChoosePriorityAction ->
+              if resp `Set.member` req
+                then return resp
+                else getValidChoice kg
+            SChooseModes -> return resp
+              -- TODO: implement
 
 loopPriorityActions :: App ()
 loopPriorityActions = getPriorityAction >> loopPriorityActions
@@ -148,12 +157,12 @@ initialGame ps = execState createLibraries initGame
 
 -- | Get the set of legal actions for the passed in player with
 -- priority. Return a Seq rather than Set so that it can be indexed.
-legalActions :: MonadState Game m => PId -> m (Seq PriorityAction)
+legalActions :: MonadState Game m => PId -> m (Set PriorityAction)
 legalActions pr = do
   aP <- use activePlayer
   s <- use stack
   st <- use step
-  liftM (seqOf folded . mconcat) . mapM ($ pr) $
+  liftM mconcat . mapM ($ pr) $
     -- instant speed
     [ actionsPassPriority
     , actionsCastInstantSpeed
@@ -737,11 +746,12 @@ consoleChoiceFn SChoosePriorityAction kg as =
     return PassPriority
   else do
     liftIO . myPrint $ kg
-    printActions as
+    let sas = seqOf folded as
+    printActions sas
     l <- liftIO getLine
     maybe
       invalid
-      (\i -> case as^?ix i of
+      (\i -> case sas^?ix i of
                Just a  -> return a
                Nothing -> invalid)
       (readMaybe l)

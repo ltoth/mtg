@@ -679,7 +679,7 @@ data SPlayerChoice (c :: PlayerChoice) where
   SChooseModes :: SPlayerChoice 'ChooseModes
 
 type family PlayerChoiceRequest (c :: PlayerChoice) :: * where
-  PlayerChoiceRequest 'ChoosePriorityAction = Seq PriorityAction
+  PlayerChoiceRequest 'ChoosePriorityAction = Set PriorityAction
   PlayerChoiceRequest 'ChooseModes = (CountRange, [Effect])
 
 type family PlayerChoiceResponse (c :: PlayerChoice) :: * where
