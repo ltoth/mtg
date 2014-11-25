@@ -1,13 +1,19 @@
+{-# LANGUAGE DataKinds              #-}
 {-# LANGUAGE DeriveDataTypeable     #-}
+{-# LANGUAGE KindSignatures         #-}
 {-# LANGUAGE FlexibleInstances      #-}
 {-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE GADTs                  #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
+{-# LANGUAGE RankNTypes             #-}
 {-# LANGUAGE TemplateHaskell        #-}
+{-# LANGUAGE TypeFamilies           #-}
 {-# LANGUAGE TypeSynonymInstances   #-}
 
 module Game.MtG.Types where
 
 import Control.Applicative
+import Control.Monad.IO.Class
 import Data.Data
 import Control.Lens
 import Control.Monad.State (StateT)
@@ -645,16 +651,40 @@ makeLenses ''ManaPool
 -- FIXME: This should be a product type with name, etc.
 type PlayerInfo = Text
 
-data Player = Player
-            { _playerLibrary :: Seq (OId, OCard)
-            , _playerHand :: IntMap OCard
-            , _playerGraveyard :: Seq (OId, OCard)
-            , _playerLife :: LifeTotal
-            , _playerPoison :: PoisonTotal
-            , _playerMaxHandSize :: HandSize
-            , _playerManaPool :: ManaPool
-            , _playerPlayerInfo :: PlayerInfo
-            } deriving (Show, Data, Typeable)
+type AId = (OId, Int)  -- activated ability id
+
+data PriorityAction = PassPriority
+                    | CastSpell OId
+                    | ActivateAbility AId
+                    | ActivateManaAbility AId
+                    | ActivateLoyaltyAbility AId
+                    | PlayLand OId
+                    deriving (Show, Eq, Ord, Typeable)
+
+data PlayerChoice = ChoosePriorityAction
+                  | ChooseModes
+                  | ChooseAlternativeCost
+                  | ChooseAdditionalCosts
+                  | ChooseVariableCost
+                  | ChooseManaCost
+                  | ChooseTarget
+                  | ChooseDivision
+                  | ChooseAttackers
+                  | ChooseBlockers
+                  | ChooseBlockerOrder
+                  deriving (Show, Eq, Ord, Typeable)
+
+data SPlayerChoice (c :: PlayerChoice) where
+  SChoosePriorityAction :: SPlayerChoice 'ChoosePriorityAction
+  SChooseModes :: SPlayerChoice 'ChooseModes
+
+type family PlayerChoiceRequest (c :: PlayerChoice) :: * where
+  PlayerChoiceRequest 'ChoosePriorityAction = Seq PriorityAction
+  PlayerChoiceRequest 'ChooseModes = (CountRange, [Effect])
+
+type family PlayerChoiceResponse (c :: PlayerChoice) :: * where
+  PlayerChoiceResponse 'ChoosePriorityAction = PriorityAction
+  PlayerChoiceResponse 'ChooseModes = [Effect]
 
 -- player info known to a particular player
 data KPlayer = KPlayerYou
@@ -679,9 +709,6 @@ data KPlayer = KPlayerYou
              }
              deriving (Show, Typeable)
 
-makeFields ''Player
-makeFields ''KPlayer
-
 type TurnNumber = Int
 type LandCount = Word8
 
@@ -692,24 +719,6 @@ data Relationships = Relationships
                    } deriving (Show, Data, Typeable)
 
 makeLenses ''Relationships
-
-data Game = Game
-          { _gamePlayers :: [Player] -- FIXME: Should this be Seq?
-          , _gameBattlefield :: IntMap Permanent
-          , _gameStack :: Seq (OId, StackObject)
-          , _gameExile :: IntMap OCard
-          , _gameCommandZone :: IntMap OCard
-          , _gameTurnOrder :: Seq PId
-          , _gameActivePlayer :: PId
-          , _gamePriority :: Maybe PId
-          , _gameSuccessivePasses :: Set PId
-          , _gameMaxTimestamp :: Timestamp
-          , _gameTurn :: TurnNumber
-          , _gameRemainingLandCount :: LandCount
-          , _gameStep :: Step
-          , _gameRelationships :: Relationships
-          , _gameMaxOId :: OId
-          } deriving (Show, Data, Typeable)
 
 data KGame = KGame
           { _kgameYou :: PId
@@ -727,20 +736,44 @@ data KGame = KGame
           , _kgameRelationships :: Relationships
           } deriving (Show, Typeable)
 
+data Player = Player
+            { choiceFn :: (MonadIO m => SPlayerChoice c -> KGame ->
+                PlayerChoiceRequest c -> m (PlayerChoiceResponse c))
+            , _playerLibrary :: Seq (OId, OCard)
+            , _playerHand :: IntMap OCard
+            , _playerGraveyard :: Seq (OId, OCard)
+            , _playerLife :: LifeTotal
+            , _playerPoison :: PoisonTotal
+            , _playerMaxHandSize :: HandSize
+            , _playerManaPool :: ManaPool
+            , _playerPlayerInfo :: PlayerInfo
+            }
+
+makeFields ''Player
+makeFields ''KPlayer
+
+data Game = Game
+          { _gamePlayers :: [Player] -- FIXME: Should this be Seq?
+          , _gameBattlefield :: IntMap Permanent
+          , _gameStack :: Seq (OId, StackObject)
+          , _gameExile :: IntMap OCard
+          , _gameCommandZone :: IntMap OCard
+          , _gameTurnOrder :: Seq PId
+          , _gameActivePlayer :: PId
+          , _gamePriority :: Maybe PId
+          , _gameSuccessivePasses :: Set PId
+          , _gameMaxTimestamp :: Timestamp
+          , _gameTurn :: TurnNumber
+          , _gameRemainingLandCount :: LandCount
+          , _gameStep :: Step
+          , _gameRelationships :: Relationships
+          , _gameMaxOId :: OId
+          }
+
 makeFields ''Game
 makeFields ''KGame
 
 type App = StateT Game IO
-
-type AId = (OId, Int)  -- activated ability id
-
-data PriorityAction = PassPriority
-                    | CastSpell OId
-                    | ActivateAbility AId
-                    | ActivateManaAbility AId
-                    | ActivateLoyaltyAbility AId
-                    | PlayLand OId
-                    deriving (Show, Eq, Ord, Typeable)
 
 $( derive makeIs ''ResolvedManaSymbol)
 $( derive makeIs ''Cost)

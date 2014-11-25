@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE RankNTypes #-}
 {-# OPTIONS_GHC -fno-warn-unused-binds #-}
 {-# OPTIONS_GHC -fno-warn-unused-matches #-}
@@ -47,26 +48,38 @@ playGame = do
     replicateM_ 7 (drawCard i)
   -- resolveMulligans -- TODO: Implement
   moveToNextStep
-  loopActions
+  loopPriorityActions
 
-loopActions :: App ()
-loopActions = getAction >> loopActions
+getPlayerChoice
+  :: (MonadState Game m, MonadIO m)
+  => PId
+  -> SPlayerChoice c
+  -> PlayerChoiceRequest c
+  -> m (PlayerChoiceResponse c)
+getPlayerChoice pid pc req = do
+  mp <- preuse $ players.ix pid
+  case mp of
+    Nothing -> fail "Player does not exist"
+    Just p -> do
+      g <- get
+
+      -- TODO: update all other players with their knownGame
+
+      choiceFn p pc (knownGame pid g) req
+      -- TODO: validate choice
+
+loopPriorityActions :: App ()
+loopPriorityActions = getPriorityAction >> loopPriorityActions
 
 -- Ask the player with priority which action he'd like to take
-getAction :: (MonadState Game m, MonadIO m) => m ()
-getAction = do
+getPriorityAction :: (MonadState Game m, MonadIO m) => m ()
+getPriorityAction = do
   mp <- use priority
   case mp of
     Just p  -> do
       la <- legalActions p
-      g <- get
-
-      -- TODO: This function should be looked up in player's state, so
-      -- that we can support multiple UI clients and potentially AI
-      i <- chooseAction (knownGame p g) la
-      case la^?ix i of
-        Just a  -> evalAction a p
-        Nothing -> getAction
+      a <- getPlayerChoice p SChoosePriorityAction la
+      evalAction a p
 
     Nothing ->
       -- This means the game actions left the game inconsistent
@@ -105,7 +118,8 @@ initialGame ps = execState createLibraries initGame
           }
 
         initPlayer pI = Player
-          { _playerLibrary = Seq.empty
+          { choiceFn = consoleChoiceFn
+          , _playerLibrary = Seq.empty
           , _playerHand = IntMap.empty
           , _playerGraveyard = Seq.empty
           , _playerLife = 20
@@ -715,18 +729,27 @@ succB e | e == maxBound = minBound
 -- = UI client
 --
 -- TODO: Move this into Debug, or Main
-
-chooseAction :: MonadIO m => KGame -> Seq PriorityAction -> m Int
-chooseAction kg as =
+consoleChoiceFn :: MonadIO m => SPlayerChoice c -> KGame ->
+                   PlayerChoiceRequest c -> m (PlayerChoiceResponse c)
+consoleChoiceFn SChoosePriorityAction kg as =
   -- for debugging purposes, only "set a stop" at PreCombatMain
   if (kg^.step) /= PreCombatMain then
-    return 0
+    return PassPriority
   else do
     liftIO . myPrint $ kg
     printActions as
     l <- liftIO getLine
-    maybe (putIO "Invalid action" >> chooseAction kg as) return (readMaybe l)
+    maybe
+      invalid
+      (\i -> case as^?ix i of
+               Just a  -> return a
+               Nothing -> invalid)
+      (readMaybe l)
   where printActions = imapM_ (\i a -> putIO $ show i ++ ": " ++ show a)
+        invalid = putIO "Invalid action" >>
+                  consoleChoiceFn SChoosePriorityAction kg as
+-- TODO: implement
+consoleChoiceFn SChooseModes kg ms = return []
 
 putIO :: MonadIO m => String -> m ()
 putIO = liftIO . putStrLn
