@@ -9,7 +9,6 @@ module Game.MtG.Types where
 
 import Control.Applicative
 import Data.Data
-import Data.Function (on)
 import Control.Lens
 import Control.Monad.State (StateT)
 import Data.DeriveTH
@@ -735,13 +734,13 @@ type App = StateT Game IO
 
 type AId = (OId, Int)  -- activated ability id
 
-data GameAction = PassPriority
-                | CastSpell OId
-                | ActivateAbility AId
-                | ActivateManaAbility AId
-                | ActivateLoyaltyAbility AId
-                | PlayLand OId
-                deriving (Show, Eq, Ord, Typeable)
+data PriorityAction = PassPriority
+                    | CastSpell OId
+                    | ActivateAbility AId
+                    | ActivateManaAbility AId
+                    | ActivateLoyaltyAbility AId
+                    | PlayLand OId
+                    deriving (Show, Eq, Ord, Typeable)
 
 $( derive makeIs ''ResolvedManaSymbol)
 $( derive makeIs ''Cost)

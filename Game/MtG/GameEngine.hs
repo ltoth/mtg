@@ -1,14 +1,17 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RankNTypes #-}
+{-# OPTIONS_GHC -fno-warn-unused-binds #-}
+{-# OPTIONS_GHC -fno-warn-unused-matches #-}
 
 module Game.MtG.GameEngine where
 
 import Control.Lens
+import Control.Monad
 import Control.Monad.Random.Class
 import Control.Monad.Loops
 import Control.Monad.State
 import Data.Data.Lens (biplate)
-import Data.Foldable (Foldable, toList)
+import Data.Foldable (toList)
 import qualified Data.IntMap as IntMap
 import Data.List
 import Data.Maybe
@@ -18,7 +21,6 @@ import qualified Data.Sequence as Seq
 import Data.Sequence.Lens
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Set.Lens
 -- import qualified Data.Text as T
 import qualified IPPrint
 import qualified Language.Haskell.HsColour as HsColour
@@ -75,10 +77,9 @@ initialGame ps = execState createLibraries initGame
   where createLibraries = imapM_ createPlayerLib ps
 
         createPlayerLib i (_, cs) =
-          mapM (\c -> do
+          forM cs $ (\c -> do
             ci <- newOId
-            players.ix i.library %= ((ci, c) <|))
-          $ map (OCard i) cs
+            players.ix i.library %= ((ci, c) <|)) . OCard i
 
         -- FIXME: Should be randomized, or set according to
         -- loser of last game etc.
@@ -133,12 +134,12 @@ initialGame ps = execState createLibraries initGame
 
 -- | Get the set of legal actions for the passed in player with
 -- priority. Return a Seq rather than Set so that it can be indexed.
-legalActions :: MonadState Game m => PId -> m (Seq GameAction)
+legalActions :: MonadState Game m => PId -> m (Seq PriorityAction)
 legalActions pr = do
   aP <- use activePlayer
   s <- use stack
   st <- use step
-  liftM (seqOf folded . mconcat) . sequence . map ($ pr) $
+  liftM (seqOf folded . mconcat) . mapM ($ pr) $
     -- instant speed
     [ actionsPassPriority
     , actionsCastInstantSpeed
@@ -154,10 +155,10 @@ legalActions pr = do
       ]
     else []
 
-actionsPassPriority :: MonadState Game m => PId -> m (Set GameAction)
+actionsPassPriority :: MonadState Game m => PId -> m (Set PriorityAction)
 actionsPassPriority _ = return $ Set.singleton PassPriority
 
-actionsPlayLands :: MonadState Game m => PId -> m (Set GameAction)
+actionsPlayLands :: MonadState Game m => PId -> m (Set PriorityAction)
 actionsPlayLands p = do
   lc <- use remainingLandCount
   if lc > 0 then do
@@ -167,14 +168,14 @@ actionsPlayLands p = do
     return . Set.fromList $ map PlayLand os
   else return Set.empty
 
-actionsCastSorcerySpeed :: MonadState Game m => PId -> m (Set GameAction)
+actionsCastSorcerySpeed :: MonadState Game m => PId -> m (Set PriorityAction)
 actionsCastSorcerySpeed p = do
   h <- use $ players.ix p.hand
   let os = map fst $ h^@..ifolded.filtered
            (\o -> Land `notElem` o^.card.types)
   return . Set.fromList $ map CastSpell os
 
-actionsCastInstantSpeed :: MonadState Game m => PId -> m (Set GameAction)
+actionsCastInstantSpeed :: MonadState Game m => PId -> m (Set PriorityAction)
 actionsCastInstantSpeed p = do
   h <- use $ players.ix p.hand
   let os = map fst $ h^@..ifolded.filtered
@@ -182,7 +183,7 @@ actionsCastInstantSpeed p = do
                   KeywordAbility Flash `elem` o^.card.abilities)
   return . Set.fromList $ map CastSpell os
 
-actionsActivateAbilities :: MonadState Game m => PId -> m (Set GameAction)
+actionsActivateAbilities :: MonadState Game m => PId -> m (Set PriorityAction)
 actionsActivateAbilities p = do
   b <- use battlefield
   let as = aids isRegularActivatedAbility $
@@ -190,7 +191,7 @@ actionsActivateAbilities p = do
              filtered (hasLegalAbilities isRegularActivatedAbility)
   return . Set.fromList $ map ActivateAbility as
 
-actionsManaAbilities :: MonadState Game m => PId -> m (Set GameAction)
+actionsManaAbilities :: MonadState Game m => PId -> m (Set PriorityAction)
 actionsManaAbilities p = do
   b <- use battlefield
   let as = aids isManaAbility $
@@ -198,7 +199,7 @@ actionsManaAbilities p = do
              filtered (hasLegalAbilities isManaAbility)
   return . Set.fromList $ map ActivateManaAbility as
 
-actionsLoyaltyAbilities :: MonadState Game m => PId -> m (Set GameAction)
+actionsLoyaltyAbilities :: MonadState Game m => PId -> m (Set PriorityAction)
 actionsLoyaltyAbilities p = do
   b <- use battlefield
   let as = aids isLoyaltyAbility $
@@ -224,9 +225,8 @@ hasLegalAbilities f o = anyOf each (\a -> f a && ifRequiresTapCanBe a)
                      (o^.chars.abilities)
   where ifRequiresTapCanBe a =
           -- TODO: restrict the biplate to (a^.activationCost)
-          if anyOf biplate isCTap a then
-            o^.permanentStatus.tapStatus == Untapped
-          else True
+          not (anyOf biplate isCTap a)
+            || (o^.permanentStatus.tapStatus == Untapped)
 
 isRegularActivatedAbility :: Ability -> Bool
 isRegularActivatedAbility a = isActivatedAbility a
@@ -237,7 +237,7 @@ isRegularActivatedAbility a = isActivatedAbility a
 isManaAbility :: Ability -> Bool
 isManaAbility a = isActivatedAbility a
                   && (not . anyOf biplate isTarget $ a)
-                  && (anyOf biplate isAddMana a)
+                  && anyOf biplate isAddMana a
                   && (not . isLoyaltyAbility $ a)
 
 isLoyaltyAbility :: Ability -> Bool
@@ -251,7 +251,7 @@ isLoyaltyAbility _ = False
 -- may require more choices (castSpell), while others are pure
 -- (playLand, passPriority)
 
-evalAction :: (MonadState Game m, MonadIO m) => GameAction -> PId -> m ()
+evalAction :: (MonadState Game m, MonadIO m) => PriorityAction -> PId -> m ()
 evalAction PassPriority               = passPriority
 evalAction (CastSpell o)              = castSpell o
 evalAction (ActivateAbility a)        = activateAbility a
@@ -292,10 +292,8 @@ castSpell i p = do
           tc = map resolveCost [CMana mc]
 
       paid <- mapM (payCost p oi) tc
-      case andOf each paid of
-        False -> put g1  -- rewind
-        True  -> return ()
-                 -- rule 116.3c (same player keeps priority)
+      -- rule 116.3c (same player keeps priority)
+      unless (andOf each paid) $ put g1 -- rewind
 
   where
     -- totalCost :: Maybe ManaCost -> [Cost] ->
@@ -309,7 +307,7 @@ activateManaAbility (oi, ai) p = do
   b <- use battlefield
   case b^?ifolded.filtered (controlledBy p).index oi of
     Nothing -> return ()
-    Just o  -> do
+    Just o  ->
       case o^?chars.abilities.ix ai of
         Nothing -> return ()
         Just (ActivatedAbility cs es ainst) -> do
@@ -321,9 +319,12 @@ activateManaAbility (oi, ai) p = do
           let rcs = map resolveCost cs
 
           paid <- mapM (payCost p oi) rcs
-          case andOf each paid of
-            False -> put g1  -- rewind
-            True  -> mapM_ (resolveEffect p oi) es
+          if andOf each paid
+            then mapM_ (resolveEffect p oi) es
+            else put g1  -- rewind
+        Just _ -> return ()
+                  -- TODO: this should never happen; it should always be an
+                  -- activated ability. what to do?
 
 resolveCost :: Cost -> ResolvedCost
 resolveCost (CMana mc)   = CMana' $ resolveManaCost mc
@@ -340,6 +341,7 @@ resolveManaCost = concatMap go
         go R = [R']
         go G = [G']
         go (CL n) = replicate (fromIntegral n) CL'
+        go _ = []  -- TODO: How to resolve other mana costs?
 
 -- Needs MonadIO as it may need to ask how the costs should be paid
 -- OId is the context (what it TMThis, what should be CTap'ed)
@@ -348,29 +350,29 @@ payCost :: (MonadState Game m, MonadIO m) => PId -> OId -> ResolvedCost -> m Boo
 payCost p _ (CMana' rmc) = do
   let (colorless, colored) = partition isCL' rmc
   coloredPaid <- mapM payOne colored
-  case andOf each coloredPaid of
-    -- all colored must be paid with the correct mana
-    False -> return False
-    True  -> do
+  -- all colored must be paid with the correct mana
+  if andOf each coloredPaid
+    then do
       -- first, try paying colorless with colorless
       clPaid <- mapM payOne colorless
       let remaining = length $ filter not clPaid
-      case remaining == 0 of
+      if remaining == 0
         -- everything's been paid
-        True -> return True
-        False -> do
+        then return True
+        else do
           mp <- preuse $ players.ix p.manaPool
           let avail = sumOf biplate mp :: Int
           case remaining `compare` avail of
             GT -> return False
             EQ -> do
-              mapM_ (\rms -> iterateWhile id (payOne rms)) [W' .. G']
+              mapM_ (iterateWhile id . payOne) [W' .. G']
               return True
-            LT -> do
+            LT ->
               -- TODO: is all the available mana the same color?
               -- if so, just pay it
               -- TODO: otherwise, ask which colors should be used
               return False
+    else return False
   where
     payOne rms = do
       Just mp <- preuse $ players.ix p.manaPool.(cloneLens . rmsLens $ rms)
@@ -383,7 +385,7 @@ payCost _ i CTap' = do
   b <- use battlefield
   case b^.at i of
     Nothing -> return False
-    Just o -> do
+    Just o ->
       case o^.permanentStatus.tapStatus of
         Tapped   -> return False
         Untapped -> do
@@ -450,18 +452,20 @@ resolveTopOfStack = do
   case moS of
     Nothing -> return ()  -- should never happen: stack shouldn't be
                           -- empty when this is called
-    Just ((oi, OSpell s)) -> do
+    Just (oi, OSpell s) -> do
       let ts = s^.chars.types
       if Instant `elem` ts || Sorcery `elem` ts then do
         -- TODO: implement, mapM_ resolveEffect
+        return ()
         return ()
       else do
         -- permanent
         o <- spellToPermanent s
         noi <- newOId
         battlefield.at noi ?= o
-    Just ((oi, OStackAbility sa)) -> do
+    Just (oi, OStackAbility sa) -> do
       -- TODO: implement, mapM_ resolveEffect
+      return ()
       return ()
 
   -- rule 116.3b
@@ -643,7 +647,7 @@ newTimestamp = maxTimestamp <+= 1
 cardToPermanent :: MonadState Game m => OCard -> m Permanent
 cardToPermanent oc = do
   t <- newTimestamp
-  return $ PCard
+  return PCard
     { _pcardCard = oc^.card
     , _pcardChars = cardToCharacteristics $ oc^.card
     , _pcardOwner = oc^.owner
@@ -659,7 +663,7 @@ cardToPermanent oc = do
 spellToPermanent :: MonadState Game m => Spell -> m Permanent
 spellToPermanent s = do
   t <- newTimestamp
-  return $ PCard
+  return PCard
     { _pcardCard = s^.card
     , _pcardChars = cardToCharacteristics $ s^.card
     , _pcardOwner = s^.owner
@@ -673,7 +677,7 @@ spellToPermanent s = do
     }
 
 cardToSpell :: OCard -> StackObject
-cardToSpell oc = OSpell $ Spell
+cardToSpell oc = OSpell Spell
     { _spellCard = oc^.card
     , _spellChars = cardToCharacteristics $ oc^.card
     , _spellOwner = oc^.owner
@@ -712,8 +716,8 @@ succB e | e == maxBound = minBound
 --
 -- TODO: Move this into Debug, or Main
 
-chooseAction :: MonadIO m => KGame -> Seq GameAction -> m Int
-chooseAction kg as = do
+chooseAction :: MonadIO m => KGame -> Seq PriorityAction -> m Int
+chooseAction kg as =
   -- for debugging purposes, only "set a stop" at PreCombatMain
   if (kg^.step) /= PreCombatMain then
     return 0
