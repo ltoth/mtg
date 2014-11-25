@@ -559,7 +559,9 @@ removeMarkedDamage :: MonadState Game m => m ()
 removeMarkedDamage = battlefield.traversed.markedDamage .= 0
 
 performStateBasedActions :: MonadState Game m => m ()
-performStateBasedActions = return ()
+performStateBasedActions =
+    -- TODO: rule 704.3: if any SBAs are performed, repeat the check
+    return ()
 
 drawCard :: MonadState Game m => PId -> m ()
 drawCard p = do
