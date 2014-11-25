@@ -2,7 +2,7 @@
 }:
 let
   inherit (haskellPackages)
-    cabal cabalInstall_1_18_0_3 haskellPlatform
+    cabal cabalInstall
     acidState
     aeson
     derive
@@ -20,7 +20,6 @@ in cabal.mkDerivation (self: {
   version = "0.1.0";
   src = ./.;
   buildDepends = [
-    haskellPlatform
     acidState
     aeson
     derive
@@ -33,6 +32,6 @@ in cabal.mkDerivation (self: {
     randomShuffle
     safecopy
   ];
-  buildTools = [ cabalInstall_1_18_0_3 ];
+  buildTools = [ cabalInstall ];
   enableSplitObjs = false;
 })
