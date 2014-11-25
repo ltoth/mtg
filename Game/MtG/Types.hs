@@ -669,6 +669,7 @@ data PlayerChoice = ChoosePriorityAction
                   | ChooseManaCost
                   | ChooseTarget
                   | ChooseDivision
+                  | ChooseManaAbilityActivation
                   | ChooseAttackers
                   | ChooseBlockers
                   | ChooseBlockerOrder
@@ -677,14 +678,17 @@ data PlayerChoice = ChoosePriorityAction
 data SPlayerChoice (c :: PlayerChoice) where
   SChoosePriorityAction :: SPlayerChoice 'ChoosePriorityAction
   SChooseModes :: SPlayerChoice 'ChooseModes
+  SChooseManaAbilityActivation :: SPlayerChoice 'ChooseManaAbilityActivation
 
 type family PlayerChoiceRequest (c :: PlayerChoice) :: * where
   PlayerChoiceRequest 'ChoosePriorityAction = Set PriorityAction
   PlayerChoiceRequest 'ChooseModes = (CountRange, [Effect])
+  PlayerChoiceRequest 'ChooseManaAbilityActivation = Set PriorityAction
 
 type family PlayerChoiceResponse (c :: PlayerChoice) :: * where
   PlayerChoiceResponse 'ChoosePriorityAction = PriorityAction
   PlayerChoiceResponse 'ChooseModes = [Effect]
+  PlayerChoiceResponse 'ChooseManaAbilityActivation = Maybe PriorityAction
 
 -- player info known to a particular player
 data KPlayer = KPlayerYou

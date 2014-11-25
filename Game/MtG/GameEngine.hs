@@ -76,6 +76,8 @@ getPlayerChoice pid pc req = do
                 else getValidChoice kg
             SChooseModes -> return resp
               -- TODO: implement
+            SChooseManaAbilityActivation -> return resp
+              -- TODO: implement
 
 loopPriorityActions :: App ()
 loopPriorityActions = getPriorityAction >> loopPriorityActions
@@ -314,12 +316,26 @@ castSpell i p = do
       let mc = fromMaybe [] $ oS^._OSpell.chars.manaCost
           tc = map resolveCost [CMana mc]
 
+      -- rule 601.2f (activate mana abilities)
+      activateAnyManaAbilities
+
+      -- rule 601.2g (pay total cost)
       paid <- mapM (payCost p oi) tc
+
+      -- rule 601.2h (trigger spell cast, put onto stack)
+
       -- rule 116.3c (same player keeps priority)
       unless (andOf each paid) $ put g1 -- rewind
 
   where
     -- totalCost :: Maybe ManaCost -> [Cost] ->
+    activateAnyManaAbilities = do
+      mas <- actionsManaAbilities p
+      unless (Set.null mas) $ do
+        ma <- getPlayerChoice p SChooseManaAbilityActivation mas
+        case ma of
+          Just a  -> evalAction a p >> activateAnyManaAbilities
+          Nothing -> return ()
 
 -- TODO: implement
 activateAbility :: (MonadState Game m, MonadIO m) => AId -> PId -> m ()
@@ -760,6 +776,20 @@ consoleChoiceFn SChoosePriorityAction kg as =
                   consoleChoiceFn SChoosePriorityAction kg as
 -- TODO: implement
 consoleChoiceFn SChooseModes kg ms = return []
+-- TODO: implement
+consoleChoiceFn SChooseManaAbilityActivation kg as = do
+  let sas = seqOf folded as
+  printActions sas
+  l <- liftIO getLine
+  maybe
+    (return Nothing)
+    (\i -> case sas^?ix i of
+             Just a  -> return . Just $ a
+             Nothing -> invalid)
+    (readMaybe l)
+  where printActions = imapM_ (\i a -> putIO $ show i ++ ": " ++ show a)
+        invalid = putIO "Invalid action" >>
+                  consoleChoiceFn SChooseManaAbilityActivation kg as
 
 putIO :: MonadIO m => String -> m ()
 putIO = liftIO . putStrLn
