@@ -1,18 +1,9 @@
 module Debug where
 
-import Control.Applicative
-import Control.Lens
-import Control.Monad
 import Control.Monad.State
-import Data.Either
-import Data.Maybe (fromMaybe)
-import Data.Text (Text)
-import qualified Data.Text as T
 
 import Game.MtG.GameEngine
 import Game.MtG.Types
-import Game.MtG.CardTextParser (parseAndSetAbilities)
-import Game.MtG.JSONParser (parseSet)
 
 engine :: IO Game
 engine = execStateT playGame testInitialGame

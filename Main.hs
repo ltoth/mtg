@@ -125,7 +125,7 @@ debugCmd = withState (\s -> do
     )
 
 engineCmd :: IO ()
-engineCmd = engine >> return ()
+engineCmd = void engine
 
 abEffects :: Ability -> [Effect]
 abEffects (ActivatedAbility _ es _) = es

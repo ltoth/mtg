@@ -299,7 +299,7 @@ textToAbilities ct = parse paras s s & _Left %~ show
                   <* ciString "graveyard" <* optional (string "s"))
           <|> try (ZoneIt <$ ciString "it")
 
-        faceStatus =
+        faceSt =
               try (FaceUp <$ string "face up")
           <|> try (FaceDown <$ string "face down")
 
@@ -331,7 +331,7 @@ textToAbilities ct = parse paras s s & _Left %~ show
               <|> try (Exile <$> optionPlayerYou
                          <* try (ciString "exile") <* optional (string "s")
                          <* string " " <*> targets
-                         <*> optionMaybe faceStatus
+                         <*> optionMaybe faceSt
                          <*> optionMaybe durationOrTrigEvent)
               <|> try (ZoneChange <$> optionPlayerYou
                          <*> (try ((ciString "return" <|> ciString "put")
@@ -344,7 +344,7 @@ textToAbilities ct = parse paras s s & _Left %~ show
                                >> optional (string "in")
                                >> string "to "))
                              >> zone)
-                         <*> optionMaybe (try $ string " " *> tapStatus)
+                         <*> optionMaybe (try $ string " " *> tapSt)
                          <*> optionMaybe (try $ string " attached to " *> targets)
                          <*> optionMaybe (try $ string " under " *> ownControl)
                          <*> optionMaybe (try $ string " " *> cardOrder)
@@ -466,7 +466,7 @@ textToAbilities ct = parse paras s s & _Left %~ show
                          <* ciString " untap" <*> duration
                          <*> optionMaybe duration)
               <|> try (ETBTapStatus <$> (targets <* ciString "enters the battlefield ")
-                         <*> tapStatus)
+                         <*> tapSt)
               <|> try (ETBWithCounters <$> (targets <* ciString "enters the battlefield with ")
                          <*> countRange
                          <*> try ((optional (string " ") *>
@@ -727,7 +727,7 @@ textToAbilities ct = parse paras s s & _Left %~ show
         blocked = try (ciString "blocked " >> return Blocked)
               <|> try (ciString "unblocked " >> return Unblocked)
 
-        tapStatus = try (Tapped <$ ciString "tapped")
+        tapSt = try (Tapped <$ ciString "tapped")
                 <|> try (Untapped <$ ciString "untapped")
 
         combatStatuses = combatStatus `sepBy` orSep
