@@ -65,7 +65,9 @@ getPlayerChoice pid pc req = do
       -- TODO: update all other players with their knownGame
 
       let kg = knownGame pid g
-      getValidChoice kg
+      resp <- getValidChoice kg
+      choiceLog %= (|> PlayerChoiceLog pid pc resp)
+      return resp
       where
         getValidChoice kg = do
           resp <- choiceFn p pc kg req
@@ -126,6 +128,7 @@ initialGame ps = execState createLibraries initGame
           , _gameStep = Cleanup
           , _gameRelationships = initRelationships
           , _gameMaxOId = 0
+          , _gameChoiceLog = Seq.empty
           }
 
         initPlayer pI = Player
@@ -646,6 +649,7 @@ knownGame y g = KGame
   , _kgameRemainingLandCount = g^.remainingLandCount
   , _kgameStep = g^.step
   , _kgameRelationships = g^.relationships  -- FIXME: What about hidden relationships?
+  , _kgameChoiceLog = g^.choiceLog
   }
   where 
     knownPlayers = imap $ \i p ->

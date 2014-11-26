@@ -680,6 +680,11 @@ data SPlayerChoice (c :: PlayerChoice) where
   SChooseModes :: SPlayerChoice 'ChooseModes
   SChooseManaAbilityActivation :: SPlayerChoice 'ChooseManaAbilityActivation
 
+instance Show (SPlayerChoice c) where
+  show SChoosePriorityAction = "SChoosePriorityAction"
+  show SChooseModes = "SChooseModes"
+  show SChooseManaAbilityActivation = "SChooseManaAbilityActivation"
+
 type family PlayerChoiceRequest (c :: PlayerChoice) :: * where
   PlayerChoiceRequest 'ChoosePriorityAction = Set PriorityAction
   PlayerChoiceRequest 'ChooseModes = (CountRange, [Effect])
@@ -689,6 +694,23 @@ type family PlayerChoiceResponse (c :: PlayerChoice) :: * where
   PlayerChoiceResponse 'ChoosePriorityAction = PriorityAction
   PlayerChoiceResponse 'ChooseModes = [Effect]
   PlayerChoiceResponse 'ChooseManaAbilityActivation = Maybe PriorityAction
+
+data PlayerChoiceLog where
+  PlayerChoiceLog :: PId -> SPlayerChoice c -> PlayerChoiceResponse c ->
+                     PlayerChoiceLog
+
+instance Show PlayerChoiceLog where
+  show (PlayerChoiceLog p pc@SChoosePriorityAction a) = showPlayerChoiceLog p pc a
+  show (PlayerChoiceLog p pc@SChooseModes a) = showPlayerChoiceLog p pc a
+  show (PlayerChoiceLog p pc@SChooseManaAbilityActivation a) = showPlayerChoiceLog p pc a
+
+showPlayerChoiceLog :: Show a => PId -> SPlayerChoice c -> a -> String
+showPlayerChoiceLog p pc a = unwords [ "PlayerChoiceLog"
+                                     , show p
+                                     , show pc
+                                     , show a
+                                     ]
+-- data PlayerChoiceLog = forall c. PlayerChoiceLog PId (SPlayerChoice c) (PlayerChoiceResponse c)
 
 -- player info known to a particular player
 data KPlayer = KPlayerYou
@@ -738,6 +760,7 @@ data KGame = KGame
           , _kgameRemainingLandCount :: LandCount
           , _kgameStep :: Step
           , _kgameRelationships :: Relationships
+          , _kgameChoiceLog :: Seq PlayerChoiceLog
           } deriving (Show, Typeable)
 
 data Player = Player
@@ -772,6 +795,7 @@ data Game = Game
           , _gameStep :: Step
           , _gameRelationships :: Relationships
           , _gameMaxOId :: OId
+          , _gameChoiceLog :: Seq PlayerChoiceLog
           }
 
 makeFields ''Game
