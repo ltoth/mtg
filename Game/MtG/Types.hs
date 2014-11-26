@@ -747,7 +747,8 @@ data Relationships = Relationships
 makeLenses ''Relationships
 
 data KGame = KGame
-          { _kgameYou :: PId
+          { _kgameChoiceLog :: Seq PlayerChoiceLog
+          , _kgameYou :: PId
           , _kgamePlayers :: [KPlayer]
           , _kgameBattlefield :: IntMap Permanent
           , _kgameStack :: Seq (OId, StackObject)
@@ -760,7 +761,6 @@ data KGame = KGame
           , _kgameRemainingLandCount :: LandCount
           , _kgameStep :: Step
           , _kgameRelationships :: Relationships
-          , _kgameChoiceLog :: Seq PlayerChoiceLog
           } deriving (Show, Typeable)
 
 data Player = Player

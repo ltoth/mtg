@@ -630,7 +630,8 @@ shuffleLibrary p =
 -- the game, KGame
 knownGame :: PId -> Game -> KGame
 knownGame y g = KGame
-  { _kgameYou = y
+  { _kgameChoiceLog = g^.choiceLog
+  , _kgameYou = y
   , _kgamePlayers = knownPlayers (g^.players)
   , _kgameBattlefield = g^.battlefield
   , _kgameStack = g^.stack
@@ -643,7 +644,6 @@ knownGame y g = KGame
   , _kgameRemainingLandCount = g^.remainingLandCount
   , _kgameStep = g^.step
   , _kgameRelationships = g^.relationships  -- FIXME: What about hidden relationships?
-  , _kgameChoiceLog = g^.choiceLog
   }
   where 
     knownPlayers = imap $ \i p ->
