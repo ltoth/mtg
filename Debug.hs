@@ -14,8 +14,8 @@ import Game.MtG.Types
 import Game.MtG.CardTextParser (parseAndSetAbilities)
 import Game.MtG.JSONParser (parseSet)
 
-main :: IO Game
-main = execStateT playGame testInitialGame
+engine :: IO Game
+engine = execStateT playGame testInitialGame
 
 testInitialGame :: Game
 testInitialGame = initialGame
@@ -251,25 +251,3 @@ elspeth = Card{_cardLayout = Normal,
          _cardImageName = "elspeth, sun's champion", _cardWatermark = Nothing,
          _cardCardBorder = Nothing, _cardSetCode = "THS"}
 
-
----
-
-setFile :: String
-setFile = "THS.json"
-
-debugGetCards :: FilePath -> IO (Either String [Card])
-debugGetCards fp = (view cards' <$>) <$> parseSet fp
-
-filterCards :: (Card -> Bool) -> IO [Card]
-filterCards p = go <$> debugGetCards setFile
-  where go = rights .
-             fmap parseAndSetAbilities .
-             filter p .
-             either (const []) id
-
-cardTextIncludes :: Text -> Card -> Bool
-cardTextIncludes s = fromMaybe False .
-                     (view rulesText >=> return . T.isInfixOf s)
-
-nameStartsWith :: Text -> Card -> Bool
-nameStartsWith s = T.isPrefixOf s . view name

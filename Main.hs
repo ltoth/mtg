@@ -18,6 +18,7 @@ import Game.MtG.Acid
 import Game.MtG.Types
 import Game.MtG.CardTextParser (parseAndSetAbilities)
 import Game.MtG.JSONParser (parseSet)
+import Debug (engine)
 
 opts :: Parser (IO ())
 opts = subparser
@@ -38,6 +39,8 @@ opts = subparser
                        (progDesc "Parse set and cards and persist them") )
   <> command "debug"   (info (pure debugCmd)
                        (progDesc "Get all non-parsed cards") )
+  <> command "engine"  (info (pure engineCmd)
+                       (progDesc "Test game engine") )
    )
 
 main :: IO ()
@@ -121,6 +124,9 @@ debugCmd = withState (\s -> do
       filter (\c -> hasOtherEffect (c^.abilities)) cs
     )
 
+engineCmd :: IO ()
+engineCmd = engine >> return ()
+
 abEffects :: Ability -> [Effect]
 abEffects (ActivatedAbility _ es _) = es
 abEffects (TriggeredAbility _ es _) = es
@@ -132,10 +138,6 @@ hasEffect p as = any p (concatMap abEffects as)
 
 hasOtherEffect :: [Ability] -> Bool
 hasOtherEffect = hasEffect isOtherEffect
-
-isOtherEffect :: Effect -> Bool
-isOtherEffect (OtherEffect _) = True
-isOtherEffect _ = False
 
 isETB :: Effect -> Bool
 isETB (OtherEffect e) = "{This} enters the battlefield" `T.isInfixOf` e
