@@ -612,6 +612,22 @@ drawCard p = do
                  players.ix p.hand.at ci ?= c
     Nothing -> return () -- FIXME: p loses the game
 
+mulliganHand :: (MonadState Game m, MonadRandom m) => PId -> m ()
+mulliganHand p = do
+  h <- use $ players.ix p.hand
+  iforM_ h $ \i _ -> putCardFromHandOnTopOfLibrary p i
+  shuffleLibrary p
+  replicateM_ (IntMap.size h - 1) (drawCard p)
+
+putCardFromHandOnTopOfLibrary :: MonadState Game m => PId -> OId -> m ()
+putCardFromHandOnTopOfLibrary p i = do
+  h <- use $ players.ix p.hand
+  case h^.at i of
+    Just c -> do
+      players.ix p.hand %= sans i
+      players.ix p.library %= ((i, c) <|)
+    Nothing -> return ()
+
 shuffleLibrary :: (MonadState Game m, MonadRandom m) => PId -> m ()
 shuffleLibrary p =
   -- TODO: Make work with Seq (OId, OCard)
