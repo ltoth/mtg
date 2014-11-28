@@ -20,6 +20,16 @@ import qualified Language.Haskell.HsColour.Output as HsColour
 
 consoleChoiceFn :: MonadIO m => SPlayerChoice c -> KGame ->
                    PlayerChoiceRequest c -> m (PlayerChoiceResponse c)
+consoleChoiceFn SChooseMulligan kg cs = do
+  liftIO . myPrint $ cs
+  putIO "Mulligan?"
+  l <- liftIO getLine
+  maybe
+    invalid
+    return
+    (readMaybe l)
+  where invalid = putIO "Invalid action" >>
+                  consoleChoiceFn SChooseMulligan kg cs
 consoleChoiceFn SChoosePriorityAction kg as =
   -- for debugging purposes, only "set a stop" at PreCombatMain
   if (kg^.step) /= PreCombatMain then

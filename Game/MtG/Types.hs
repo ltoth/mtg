@@ -441,7 +441,6 @@ data Ability = AdditionalCost ([Cost])
 
 type SetCode = Text
 
--- FIXME: Prepend with card and use makeFields instead of makeLenses
 data Card = Card
           { _cardLayout :: Layout
           , _cardTypeLine :: TypeLine
@@ -471,6 +470,12 @@ data Card = Card
 
 makeLenses ''PermanentStatus
 makeFields ''Card
+
+instance Eq Card where
+  c1 == c2 = (c1^.multiverseID) == (c2^.multiverseID)
+
+instance Ord Card where
+  c1 `compare` c2 = (c1^.multiverseID) `compare` (c2^.multiverseID)
 
 -- |
 -- = Types for card sets
@@ -661,7 +666,8 @@ data PriorityAction = PassPriority
                     | PlayLand OId
                     deriving (Show, Eq, Ord, Typeable)
 
-data PlayerChoice = ChoosePriorityAction
+data PlayerChoice = ChooseMulligan
+                  | ChoosePriorityAction
                   | ChooseModes
                   | ChooseAlternativeCost
                   | ChooseAdditionalCosts
@@ -676,21 +682,25 @@ data PlayerChoice = ChoosePriorityAction
                   deriving (Show, Eq, Ord, Typeable)
 
 data SPlayerChoice (c :: PlayerChoice) where
+  SChooseMulligan :: SPlayerChoice 'ChooseMulligan
   SChoosePriorityAction :: SPlayerChoice 'ChoosePriorityAction
   SChooseModes :: SPlayerChoice 'ChooseModes
   SChooseManaAbilityActivation :: SPlayerChoice 'ChooseManaAbilityActivation
 
 instance Show (SPlayerChoice c) where
+  show SChooseMulligan = "SChooseMulligan"
   show SChoosePriorityAction = "SChoosePriorityAction"
   show SChooseModes = "SChooseModes"
   show SChooseManaAbilityActivation = "SChooseManaAbilityActivation"
 
 type family PlayerChoiceRequest (c :: PlayerChoice) :: * where
+  PlayerChoiceRequest 'ChooseMulligan = IntMap OCard
   PlayerChoiceRequest 'ChoosePriorityAction = Set PriorityAction
   PlayerChoiceRequest 'ChooseModes = (CountRange, [Effect])
   PlayerChoiceRequest 'ChooseManaAbilityActivation = Set PriorityAction
 
 type family PlayerChoiceResponse (c :: PlayerChoice) :: * where
+  PlayerChoiceResponse 'ChooseMulligan = Bool
   PlayerChoiceResponse 'ChoosePriorityAction = PriorityAction
   PlayerChoiceResponse 'ChooseModes = [Effect]
   PlayerChoiceResponse 'ChooseManaAbilityActivation = Maybe PriorityAction
@@ -700,6 +710,7 @@ data PlayerChoiceLog where
                      PlayerChoiceLog
 
 instance Show PlayerChoiceLog where
+  show (PlayerChoiceLog p pc@SChooseMulligan a) = showPlayerChoiceLog p pc a
   show (PlayerChoiceLog p pc@SChoosePriorityAction a) = showPlayerChoiceLog p pc a
   show (PlayerChoiceLog p pc@SChooseModes a) = showPlayerChoiceLog p pc a
   show (PlayerChoiceLog p pc@SChooseManaAbilityActivation a) = showPlayerChoiceLog p pc a

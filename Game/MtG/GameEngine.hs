@@ -39,9 +39,17 @@ playGame = do
   iforM_ ps $ \i _ -> do
     shuffleLibrary i
     replicateM_ 7 (drawCard i)
-  -- resolveMulligans -- TODO: Implement
+  -- TODO: Randomize turn order, or perhaps do it in initialGame
+  -- TODO: Do this in order as per rules?
+  iforM_ ps $ \i _ -> resolveMulligans i
   moveToNextStep
   loopPriorityActions
+
+resolveMulligans :: (MonadState Game m, MonadIO m, MonadRandom m) => PId -> m ()
+resolveMulligans p = do
+  h <- use $ players.ix p.hand
+  b <- getPlayerChoice p SChooseMulligan h
+  when b (mulliganHand p >> resolveMulligans p)
 
 getPlayerChoice
   :: (MonadState Game m, MonadIO m)
@@ -66,6 +74,7 @@ getPlayerChoice pid pc req = do
         getValidChoice kg = do
           resp <- choiceFn p pc kg req
           case pc of
+            SChooseMulligan -> return resp
             SChoosePriorityAction ->
               if resp `Set.member` req
                 then return resp
