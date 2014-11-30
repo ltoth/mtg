@@ -1,4 +1,5 @@
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# OPTIONS_GHC -fno-warn-unused-matches #-}
 
 module Game.MtG.Client.Console
@@ -20,16 +21,8 @@ import qualified Language.Haskell.HsColour.Output as HsColour
 
 consoleChoiceFn :: MonadIO m => SPlayerChoice c -> KGame ->
                    PlayerChoiceRequest c -> m (PlayerChoiceResponse c)
-consoleChoiceFn SChooseMulligan kg cs = do
-  liftIO . myPrint $ cs
-  putIO "Mulligan?"
-  l <- liftIO getLine
-  maybe
-    invalid
-    return
-    (readMaybe l)
-  where invalid = putIO "Invalid action" >>
-                  consoleChoiceFn SChooseMulligan kg cs
+consoleChoiceFn SChooseMulligan kg req =
+  consoleChoiceFn' "Mulligan (True, False)?" SChooseMulligan kg req
 consoleChoiceFn SChoosePriorityAction kg as =
   -- for debugging purposes, only "set a stop" at PreCombatMain
   if (kg^.step) /= PreCombatMain then
@@ -48,19 +41,11 @@ consoleChoiceFn SChoosePriorityAction kg as =
   where printActions = imapM_ (\i a -> putIO $ show i ++ ": " ++ show a)
         invalid = putIO "Invalid action" >>
                   consoleChoiceFn SChoosePriorityAction kg as
-consoleChoiceFn SChooseManaFromPool kg mp = do
-  liftIO . myPrint $ mp
-  putIO "Choose mana (W', U', B', R', G', CL')?"
-  l <- liftIO getLine
-  maybe
-    invalid
-    return
-    (readMaybe l)
-  where invalid = putIO "Invalid action" >>
-                  consoleChoiceFn SChooseManaFromPool kg mp
+consoleChoiceFn SChooseManaFromPool kg req =
+  consoleChoiceFn' "Choose mana (W', U', B', R', G', CL')?"
+    SChooseManaFromPool kg req
 -- TODO: implement
 consoleChoiceFn SChooseModes kg ms = return []
--- TODO: implement
 consoleChoiceFn SChooseManaAbilityActivation kg as = do
   let sas = seqOf folded as
   printActions sas
@@ -74,6 +59,22 @@ consoleChoiceFn SChooseManaAbilityActivation kg as = do
   where printActions = imapM_ (\i a -> putIO $ show i ++ ": " ++ show a)
         invalid = putIO "Invalid action" >>
                   consoleChoiceFn SChooseManaAbilityActivation kg as
+
+consoleChoiceFn' :: (Show (PlayerChoiceRequest c),
+                     Read (PlayerChoiceResponse c),
+                     MonadIO m) =>
+                    String -> SPlayerChoice c -> KGame ->
+                    PlayerChoiceRequest c -> m (PlayerChoiceResponse c)
+consoleChoiceFn' prompt pc kg req = do
+  liftIO . myPrint $ req
+  putIO prompt
+  l <- liftIO getLine
+  maybe
+    invalid
+    return
+    (readMaybe l)
+  where invalid = putIO "Invalid action" >>
+                  consoleChoiceFn' prompt pc kg req
 
 putIO :: MonadIO m => String -> m ()
 putIO = liftIO . putStrLn
