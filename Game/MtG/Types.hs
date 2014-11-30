@@ -40,7 +40,7 @@ data ManaSymbol = W | U | B | R | G | S | CL Word8 | X | Y | Z
 
 type ResolvedManaCost = [ResolvedManaSymbol]
 data ResolvedManaSymbol = W' | U' | B' | R' | G' | CL'
-                        deriving (Show, Eq, Enum, Data, Typeable)
+                        deriving (Show, Read, Eq, Enum, Data, Typeable)
 
 data ManaType = ManaAnyOneColor | ManaAnyColor | ManaThatColor
               | ManaAnyCombination | ManaAnyCombinationOf [ManaSymbol]
@@ -668,6 +668,7 @@ data PriorityAction = PassPriority
 
 data PlayerChoice = ChooseMulligan
                   | ChoosePriorityAction
+                  | ChooseManaFromPool
                   | ChooseModes
                   | ChooseAlternativeCost
                   | ChooseAdditionalCosts
@@ -684,24 +685,28 @@ data PlayerChoice = ChooseMulligan
 data SPlayerChoice (c :: PlayerChoice) where
   SChooseMulligan :: SPlayerChoice 'ChooseMulligan
   SChoosePriorityAction :: SPlayerChoice 'ChoosePriorityAction
+  SChooseManaFromPool :: SPlayerChoice 'ChooseManaFromPool
   SChooseModes :: SPlayerChoice 'ChooseModes
   SChooseManaAbilityActivation :: SPlayerChoice 'ChooseManaAbilityActivation
 
 instance Show (SPlayerChoice c) where
   show SChooseMulligan = "SChooseMulligan"
   show SChoosePriorityAction = "SChoosePriorityAction"
+  show SChooseManaFromPool = "SChooseManaFromPool"
   show SChooseModes = "SChooseModes"
   show SChooseManaAbilityActivation = "SChooseManaAbilityActivation"
 
 type family PlayerChoiceRequest (c :: PlayerChoice) :: * where
   PlayerChoiceRequest 'ChooseMulligan = IntMap OCard
   PlayerChoiceRequest 'ChoosePriorityAction = Set PriorityAction
+  PlayerChoiceRequest 'ChooseManaFromPool = ManaPool
   PlayerChoiceRequest 'ChooseModes = (CountRange, [Effect])
   PlayerChoiceRequest 'ChooseManaAbilityActivation = Set PriorityAction
 
 type family PlayerChoiceResponse (c :: PlayerChoice) :: * where
   PlayerChoiceResponse 'ChooseMulligan = Bool
   PlayerChoiceResponse 'ChoosePriorityAction = PriorityAction
+  PlayerChoiceResponse 'ChooseManaFromPool = ResolvedManaSymbol
   PlayerChoiceResponse 'ChooseModes = [Effect]
   PlayerChoiceResponse 'ChooseManaAbilityActivation = Maybe PriorityAction
 
@@ -712,6 +717,7 @@ data PlayerChoiceLog where
 instance Show PlayerChoiceLog where
   show (PlayerChoiceLog p pc@SChooseMulligan a) = showPlayerChoiceLog p pc a
   show (PlayerChoiceLog p pc@SChoosePriorityAction a) = showPlayerChoiceLog p pc a
+  show (PlayerChoiceLog p pc@SChooseManaFromPool a) = showPlayerChoiceLog p pc a
   show (PlayerChoiceLog p pc@SChooseModes a) = showPlayerChoiceLog p pc a
   show (PlayerChoiceLog p pc@SChooseManaAbilityActivation a) = showPlayerChoiceLog p pc a
 

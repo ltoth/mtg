@@ -79,6 +79,8 @@ getPlayerChoice pid pc req = do
               if resp `Set.member` req
                 then return resp
                 else getValidChoice kg
+            SChooseManaFromPool -> return resp
+              -- TODO: shoud we do validation here? payOne already does
             SChooseModes -> return resp
               -- TODO: implement
             SChooseManaAbilityActivation -> return resp
@@ -405,26 +407,34 @@ payCost p _ (CMana' rmc) = do
         -- everything's been paid
         then return True
         else do
-          mp <- preuse $ players.ix p.manaPool
+          mp <- getManaPool p
           let avail = sumOf biplate mp :: Int
           case remaining `compare` avail of
             GT -> return False
             EQ -> do
               mapM_ (iterateWhile id . payOne) [W' .. G']
               return True
-            LT ->
+            LT -> do
               -- TODO: is all the available mana the same color?
               -- if so, just pay it
-              -- TODO: otherwise, ask which colors should be used
-              return False
+              replicateM_ remaining $ iterateUntil id $ do
+                mp' <- getManaPool p
+                getPlayerChoice p SChooseManaFromPool mp' >>= payOne
+              return True
     else return False
   where
     payOne rms = do
+      -- TODO: Deal with player not existing better
       Just mp <- preuse $ players.ix p.manaPool.(cloneLens . rmsLens $ rms)
       if mp > 0 then do
         players.ix p.manaPool.(cloneLens . rmsLens $ rms) -= 1
         return True
       else return False
+    getManaPool p' = do
+      mmp <- preuse $ players.ix p'.manaPool
+      case mmp of
+        Just mp -> return mp
+        Nothing -> fail "Did not find player"
 
 payCost _ i CTap' = do
   b <- use battlefield

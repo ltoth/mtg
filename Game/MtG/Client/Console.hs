@@ -48,6 +48,16 @@ consoleChoiceFn SChoosePriorityAction kg as =
   where printActions = imapM_ (\i a -> putIO $ show i ++ ": " ++ show a)
         invalid = putIO "Invalid action" >>
                   consoleChoiceFn SChoosePriorityAction kg as
+consoleChoiceFn SChooseManaFromPool kg mp = do
+  liftIO . myPrint $ mp
+  putIO "Choose mana (W', U', B', R', G', CL')?"
+  l <- liftIO getLine
+  maybe
+    invalid
+    return
+    (readMaybe l)
+  where invalid = putIO "Invalid action" >>
+                  consoleChoiceFn SChooseManaFromPool kg mp
 -- TODO: implement
 consoleChoiceFn SChooseModes kg ms = return []
 -- TODO: implement
